@@ -14,6 +14,7 @@ import DashboardLayout from './components/DashboardLayout';
 import BreederProfile from './pages/dashboard/BreederProfile';
 import Dogs from './pages/dashboard/Dogs';
 import Litters from './pages/dashboard/Litters';
+import DogForm from './pages/dashboard/DogForm';
 
 function App() {
   return (
@@ -26,11 +27,12 @@ function App() {
           <Route path="/puppy/:id" element={<PuppyDetails />} />
           <Route path="/contact" element={<ContactPage />} />
 
-          {/* ✅ Wrap all dashboard pages inside DashboardLayout */}
           <Route path="/dashboard/*" element={<DashboardLayout />}>
             <Route path="profile" element={<BreederProfile />} />
             <Route path="dogs" element={<Dogs />} />
             <Route path="litters" element={<Litters />} />
+            <Route path="dogs/add" element={<DogForm />} />
+            <Route path="dogs/edit/:id" element={<DogForm />} />
           </Route>
         </Routes>
       </div>
