@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from server.models import db, ContactMessage, BreedingProgram, Dog, Litter
+from server.models import db, ContactMessage, BreedingProgram, Dog, Litter, DogBreed
+from datetime import datetime
 
 main_bp = Blueprint("main_bp", __name__)
 
@@ -51,19 +52,26 @@ def create_dog():
     if not breeder_program:
         return jsonify({"error": "Breeder program not found"}), 404
 
-    new_dog = Dog(
-        registered_name=data["registered_name"],
-        call_name=data["call_name"],
-        breed_id=data["breed_id"],
-        gender=data["gender"],
-        birth_date=data["birth_date"],
-        status=data["status"],
-        breeder_id=breeder_program.id  # Auto-link to the breeder program
-    )
-    db.session.add(new_dog)
-    db.session.commit()
-    return jsonify(new_dog.to_dict()), 201
+    if "breed_id" not in data or not data["breed_id"]:
+        return jsonify({"error": "Breed is required"}), 400
 
+    try:
+        new_dog = Dog(
+            registered_name=data["registered_name"],
+            call_name=data["call_name"],
+            breed_id=int(data["breed_id"]),  # ✅ Ensure breed_id is an integer
+            gender=data["gender"],
+            birth_date=datetime.strptime(data["birth_date"], "%Y-%m-%d").date(),  # ✅ Convert to Python date
+            status=data["status"],
+            breeder_id=breeder_program.id  # Auto-link to the breeder program
+        )
+        db.session.add(new_dog)
+        db.session.commit()
+        return jsonify(new_dog.to_dict()), 201
+    except Exception as e:
+        print(f"Error creating dog: {e}")  # Debugging log
+        return jsonify({"error": str(e)}), 500
+    
 # ✅ Delete a Dog
 @main_bp.route("/api/dogs/<int:dog_id>", methods=["DELETE"])
 def delete_dog(dog_id):
@@ -138,3 +146,9 @@ def get_messages():
     except Exception as e:
         print(f"Error fetching messages: {e}")
         return jsonify({"error": str(e)}), 500
+
+@main_bp.route("/api/breeds", methods=["GET"])
+def get_breeds():
+    """Fetch all dog breeds"""
+    breeds = DogBreed.query.all()
+    return jsonify([{"id": breed.id, "name": breed.name} for breed in breeds])

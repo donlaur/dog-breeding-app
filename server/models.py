@@ -9,7 +9,7 @@ class UserRole(Enum):
     BREEDER = "BREEDER"
     ADMIN = "ADMIN"
 
-# User Model (People Table)
+# User Model
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -27,13 +27,7 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# Table for Multiple Breeders per Program
-breeder_program_association = db.Table(
-    'breeder_program_association',
-    db.Column('breeder_id', db.Integer, db.ForeignKey('users.id')),
-    db.Column('program_id', db.Integer, db.ForeignKey('breeding_programs.id'))
-)
-
+# Breeding Program Model
 class BreedingProgram(db.Model):
     __tablename__ = 'breeding_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -42,8 +36,8 @@ class BreedingProgram(db.Model):
     facility_details = db.Column(db.Text)
     testimonial = db.Column(db.Text)
     breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    contact_email = db.Column(db.String(100))  # ✅ Ensure this exists
-    website = db.Column(db.String(200))  # ✅ Ensure this exists
+    contact_email = db.Column(db.String(100))
+    website = db.Column(db.String(200))
 
     def to_dict(self):
         return {
@@ -56,12 +50,13 @@ class BreedingProgram(db.Model):
             "contact_email": self.contact_email,
             "website": self.website
         }
+
 # Dog Breed Model
 class DogBreed(db.Model):
     __tablename__ = 'dog_breeds'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    slug = db.Column(db.String(100), unique=True, nullable=False)  
+    slug = db.Column(db.String(100), unique=True, nullable=False)
     coat_colors = db.Column(db.Text)
     breed_type = db.Column(db.String(100))
     traits = db.Column(db.Text)
@@ -87,6 +82,25 @@ class Dog(db.Model):
 
     owner = db.relationship('User', foreign_keys=[owner_id], backref='owned_dogs')
     breeder = db.relationship('User', foreign_keys=[breeder_id], backref='bred_dogs')
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registered_name": self.registered_name,
+            "call_name": self.call_name,
+            "breed_id": self.breed_id,
+            "gender": self.gender,
+            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
+            "microchip_number": self.microchip_number,
+            "registration_number": self.registration_number,
+            "owner_id": self.owner_id,
+            "breeder_id": self.breeder_id,
+            "status": self.status,
+            "awards": self.awards,
+            "pedigree_info": self.pedigree_info,
+            "cover_photo": self.cover_photo,
+            "photos": [photo.photo_url for photo in self.photos]  # ✅ Include dog photos
+        }
 
 # Dog Photos
 class DogPhoto(db.Model):
@@ -115,7 +129,7 @@ class Puppy(db.Model):
     name = db.Column(db.String(100), nullable=False)
     gender = db.Column(db.Enum('Male', 'Female', name='gender_enum'), nullable=False)
     litter_id = db.Column(db.Integer, db.ForeignKey('litters.id'), nullable=False)
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     price = db.Column(db.Float)
     status = db.Column(db.Enum('Available', 'Reserved', 'Sold', name='puppy_status_enum'), nullable=False)
 

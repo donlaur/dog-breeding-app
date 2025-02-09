@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import './BreederProfile.css';
 
-const BreederPrograms = () => {
+const BreederProfile = () => {
   const [program, setProgram] = useState({
     name: '',
     description: '',
@@ -10,11 +11,20 @@ const BreederPrograms = () => {
     testimonial: ''
   });
 
-  // Fetch the breeder program details (Laur's Classic Corgis)
+  // Fetch the breeder program details
   useEffect(() => {
     fetch('http://127.0.0.1:5000/api/breeder-program')
       .then((response) => response.json())
-      .then((data) => setProgram(data))
+      .then((data) => {
+        setProgram({
+          name: data.name || '',
+          description: data.description || '',
+          contact_email: data.contact_email || '',
+          website: data.website || '',
+          facility_details: data.facility_details || '',
+          testimonial: data.testimonial || ''
+        });
+      })
       .catch((error) => console.error('Error fetching program:', error));
   }, []);
 
@@ -30,13 +40,22 @@ const BreederPrograms = () => {
       body: JSON.stringify(program),
     })
       .then((response) => response.json())
-      .then((data) => setProgram(data))
+      .then((data) => {
+        setProgram({
+          name: data.name || '',
+          description: data.description || '',
+          contact_email: data.contact_email || '',
+          website: data.website || '',
+          facility_details: data.facility_details || '',
+          testimonial: data.testimonial || ''
+        });
+      })
       .catch((error) => console.error('Error updating program:', error));
   };
 
   return (
-    <div className="breeder-program-container">
-      <h2 className="page-title">Manage Breeder Program</h2>
+    <div className="breeder-profile-container">
+      <h2 className="page-title">Manage Breeder Profile</h2>
 
       <form className="breeder-form" onSubmit={handleSave}>
         <div className="form-group">
@@ -75,4 +94,4 @@ const BreederPrograms = () => {
   );
 };
 
-export default BreederPrograms;
+export default BreederProfile;
