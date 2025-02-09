@@ -61,6 +61,9 @@ class DogBreed(db.Model):
     breed_type = db.Column(db.String(100))
     traits = db.Column(db.Text)
 
+    def to_dict(self):
+        return {"id": self.id, "name": self.name, "slug": self.slug}
+
 # Dog Model
 class Dog(db.Model):
     __tablename__ = 'dogs'
@@ -70,18 +73,10 @@ class Dog(db.Model):
     breed_id = db.Column(db.Integer, db.ForeignKey('dog_breeds.id'), nullable=False)
     gender = db.Column(db.Enum('Male', 'Female', name='gender_enum'), nullable=False)
     birth_date = db.Column(db.Date)
-    microchip_number = db.Column(db.String(30), unique=True)
-    registration_number = db.Column(db.String(50), unique=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     status = db.Column(db.Enum('Upcoming', 'Active', 'Retired', name='dog_status_enum'), nullable=False)
-    awards = db.Column(db.Text)
-    pedigree_info = db.Column(db.Text)
-    cover_photo = db.Column(db.String(200))
+    cover_photo = db.Column(db.LargeBinary)  # Store binary image data
+    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     photos = db.relationship('DogPhoto', backref='dog', lazy=True)
-
-    owner = db.relationship('User', foreign_keys=[owner_id], backref='owned_dogs')
-    breeder = db.relationship('User', foreign_keys=[breeder_id], backref='bred_dogs')
 
     def to_dict(self):
         return {
@@ -91,15 +86,9 @@ class Dog(db.Model):
             "breed_id": self.breed_id,
             "gender": self.gender,
             "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
-            "microchip_number": self.microchip_number,
-            "registration_number": self.registration_number,
-            "owner_id": self.owner_id,
-            "breeder_id": self.breeder_id,
             "status": self.status,
-            "awards": self.awards,
-            "pedigree_info": self.pedigree_info,
             "cover_photo": self.cover_photo,
-            "photos": [photo.photo_url for photo in self.photos]  # ✅ Include dog photos
+            "photos": [photo.photo_url for photo in self.photos]
         }
 
 # Dog Photos
@@ -113,14 +102,27 @@ class DogPhoto(db.Model):
 class Litter(db.Model):
     __tablename__ = 'litters'
     id = db.Column(db.Integer, primary_key=True)
-    program_id = db.Column(db.Integer, db.ForeignKey('breeding_programs.id'))
-    breed_id = db.Column(db.Integer, db.ForeignKey('dog_breeds.id'))
+    program_id = db.Column(db.Integer, db.ForeignKey('breeding_programs.id'), nullable=False)
+    breed_id = db.Column(db.Integer, db.ForeignKey('dog_breeds.id'), nullable=False)
     sire_id = db.Column(db.Integer, db.ForeignKey('dogs.id'))
     dam_id = db.Column(db.Integer, db.ForeignKey('dogs.id'))
     birth_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.Enum('Expected', 'Planned', 'Current', name='litter_status_enum'), nullable=False)
     num_puppies = db.Column(db.Integer)
     availability_date = db.Column(db.Date)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "program_id": self.program_id,
+            "breed_id": self.breed_id,
+            "sire_id": self.sire_id,
+            "dam_id": self.dam_id,
+            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
+            "status": self.status,
+            "num_puppies": self.num_puppies,
+            "availability_date": self.availability_date.strftime("%Y-%m-%d") if self.availability_date else None,
+        }
 
 # Puppy Model
 class Puppy(db.Model):
@@ -133,9 +135,9 @@ class Puppy(db.Model):
     price = db.Column(db.Float)
     status = db.Column(db.Enum('Available', 'Reserved', 'Sold', name='puppy_status_enum'), nullable=False)
 
+# Contact Message Model
 class ContactMessage(db.Model):
     __tablename__ = "contact_messages"
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False)
