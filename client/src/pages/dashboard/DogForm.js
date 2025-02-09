@@ -66,35 +66,67 @@ const DogForm = () => {
   return (
     <div className="dog-form-container">
       <h2>{editingDog ? "Edit Dog" : "Add New Dog"}</h2>
+      
       <form onSubmit={handleSaveDog}>
-        <input type="text" name="registered_name" placeholder="Registered Name" value={dog.registered_name} onChange={handleChange} required />
-        <input type="text" name="call_name" placeholder="Call Name" value={dog.call_name} onChange={handleChange} required />
-
-        <select name="breed_id" value={dog.breed_id} onChange={handleChange} required>
-          <option value="">Select Breed</option>
-          {breeds.map((breed) => (
-            <option key={breed.id} value={breed.id}>
-              {breed.name}
-            </option>
-          ))}
-        </select>
-
-        <div className="radio-group">
-          <label><input type="radio" name="gender" value="Male" checked={dog.gender === 'Male'} onChange={handleChange} /> Male</label>
-          <label><input type="radio" name="gender" value="Female" checked={dog.gender === 'Female'} onChange={handleChange} /> Female</label>
+        {/* Cover Photo Section */}
+        <div className="cover-photo-section">
+          {dog.cover_photo ? (
+            <img src={dog.cover_photo} alt="Dog Cover" className="cover-photo" />
+          ) : (
+            <div className="cover-photo-placeholder">No Photo</div>
+          )}
+          <label className="replace-photo-btn">
+            Replace Photo
+            <input type="file" accept="image/*" onChange={handleFileChange} />
+          </label>
         </div>
 
-        <input type="date" name="birth_date" value={dog.birth_date} onChange={handleChange} required />
-
-        <div className="radio-group">
-          <label><input type="radio" name="status" value="Active" checked={dog.status === 'Active'} onChange={handleChange} /> Active</label>
-          <label><input type="radio" name="status" value="Retired" checked={dog.status === 'Retired'} onChange={handleChange} /> Retired</label>
-          <label><input type="radio" name="status" value="Upcoming" checked={dog.status === 'Upcoming'} onChange={handleChange} /> Upcoming</label>
+        {/* Dog Info Fields */}
+        <div className="form-group">
+          <label>Registered Name</label>
+          <input type="text" name="registered_name" value={dog.registered_name} onChange={handleChange} required />
         </div>
 
-        <label>Cover Photo</label>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
-        {dog.cover_photo && <img src={dog.cover_photo} alt="Preview" className="preview-img" />}
+        <div className="form-group">
+          <label>Call Name</label>
+          <input type="text" name="call_name" value={dog.call_name} onChange={handleChange} required />
+        </div>
+
+        <div className="form-group">
+          <label>Breed</label>
+          <select name="breed_id" value={dog.breed_id} onChange={handleChange} required>
+            <option value="">Select Breed</option>
+            {breeds.map((breed) => (
+              <option key={breed.id} value={breed.id}>
+                {breed.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Gender Selection */}
+        <div className="form-group">
+          <label>Gender</label>
+          <div className="radio-group">
+            <label><input type="radio" name="gender" value="Male" checked={dog.gender === 'Male'} onChange={handleChange} /> Male</label>
+            <label><input type="radio" name="gender" value="Female" checked={dog.gender === 'Female'} onChange={handleChange} /> Female</label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Birth Date</label>
+          <input type="date" name="birth_date" value={dog.birth_date} onChange={handleChange} required />
+        </div>
+
+        {/* Status Selection */}
+        <div className="form-group">
+          <label>Status</label>
+          <div className="radio-group">
+            <label><input type="radio" name="status" value="Active" checked={dog.status === 'Active'} onChange={handleChange} /> Active</label>
+            <label><input type="radio" name="status" value="Retired" checked={dog.status === 'Retired'} onChange={handleChange} /> Retired</label>
+            <label><input type="radio" name="status" value="Upcoming" checked={dog.status === 'Upcoming'} onChange={handleChange} /> Upcoming</label>
+          </div>
+        </div>
 
         <button type="submit">{editingDog ? "Save Changes" : "Add Dog"}</button>
       </form>
