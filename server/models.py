@@ -34,7 +34,6 @@ breeder_program_association = db.Table(
     db.Column('program_id', db.Integer, db.ForeignKey('breeding_programs.id'))
 )
 
-# Breeding Program Model
 class BreedingProgram(db.Model):
     __tablename__ = 'breeding_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -42,9 +41,21 @@ class BreedingProgram(db.Model):
     description = db.Column(db.Text)
     facility_details = db.Column(db.Text)
     testimonial = db.Column(db.Text)
-    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Primary breeder
-    breeders = db.relationship('User', secondary=breeder_program_association, backref='breeding_programs')
+    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    contact_email = db.Column(db.String(100))  # ✅ Ensure this exists
+    website = db.Column(db.String(200))  # ✅ Ensure this exists
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "facility_details": self.facility_details,
+            "testimonial": self.testimonial,
+            "breeder_id": self.breeder_id,
+            "contact_email": self.contact_email,
+            "website": self.website
+        }
 # Dog Breed Model
 class DogBreed(db.Model):
     __tablename__ = 'dog_breeds'
@@ -107,3 +118,21 @@ class Puppy(db.Model):
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  
     price = db.Column(db.Float)
     status = db.Column(db.Enum('Available', 'Reserved', 'Sold', name='puppy_status_enum'), nullable=False)
+
+class ContactMessage(db.Model):
+    __tablename__ = "contact_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "message": self.message,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
