@@ -1,70 +1,79 @@
-# Getting Started with Create React App
+# Dog Breeding App  
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Overview  
 
-## Available Scripts
+The **Dog Breeding App** is a **modern, mobile-first platform** designed to help dog breeders manage their breeding programs, track dogs and litters, and streamline customer interactions. The first release is focused on **Laur’s Classic Corgis**, with the potential to scale for multiple breeders in the future.  
 
-In the project directory, you can run:
+## Features  
 
-### `npm start`
+### **Breeder Dashboard**  
+- Manage breeder program details (location, breed, descriptions, images).  
+- Track all dogs under the breeder program.  
+- Add, edit, and update litters with puppy details.  
+- Store and review customer contact inquiries.  
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### **Dog Management**  
+- Add and manage individual dogs, including sires, dams, and puppies.  
+- Track health testing ratings, status (Active, Retired, Upcoming), and pricing.  
+- Upload and manage dog images.  
+- Link dogs to litters for better parental lineage tracking.  
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### **Litter Management**  
+- Create new litters with linked sire and dam.  
+- Track birth dates, puppy counts, and availability.  
+- Upload litter photos and manage pricing.  
 
-### `npm test`
+### **Contact Messaging System**  
+- Store and retrieve contact form submissions.  
+- Allow breeders to track inquiries from potential buyers.  
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Tech Stack  
 
-### `npm run build`
+- **Backend**: Python (Flask)  
+- **Frontend**: React (with TailwindCSS for styling)  
+- **Database**: PostgreSQL (relational structure with normalized tables)  
+- **Authentication**: Google OAuth (for breeder access)  
+- **File Storage**: Local file system (planned move to Amazon S3)  
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Installation  
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### **1. Clone the Repository**  
+```sh
+git clone https://github.com/donlaur/dog-breeding-app.git
+cd dog-breeding-app
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. Set Up a Virtual Environment
+sh
+Copy
+Edit
+python3 -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+3. Install Dependencies
+sh
+Copy
+Edit
+pip install -r requirements.txt
+4. Set Up the Database
+Modify config.py with your database credentials, then run:
 
-### `npm run eject`
+sh
+Copy
+Edit
+flask db upgrade  # Applies database migrations
+5. Run the Development Server
+sh
+Copy
+Edit
+flask run
+The server will start at http://127.0.0.1:5000/.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Future Enhancements
+AI-driven puppy recommendation system.
+Multi-breeder support with authentication.
+Automated notifications for upcoming litters.
+Integration with payment gateways for deposits.
+Contributing
+Contributions are welcome! Please submit a pull request or open an issue for discussion.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+License
+This project is licensed under the MIT License.
