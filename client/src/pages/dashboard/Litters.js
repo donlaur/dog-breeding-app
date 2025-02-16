@@ -1,65 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+// If you have a DogContext, you could import and use it here instead of fetching
+// import { useContext } from "react";
+// import DogContext from "../../context/DogContext";
+import "./Litters.css";
 
 const Litters = () => {
+  const navigate = useNavigate();
+  
+  // Litter & dog data
   const [litters, setLitters] = useState([]);
-  const [newLitter, setNewLitter] = useState({
-    program_id: '',
-    breed_id: '',
-    sire_id: '',
-    dam_id: '',
-    birth_date: '',
-    num_puppies: '',
-  });
-
+  const [dogsMap, setDogsMap] = useState({}); // Maps dog.id -> dog object
+  
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/litters')
-      .then((response) => response.json())
+    // 1) Fetch all litters
+    fetch("http://127.0.0.1:5000/api/litters")
+      .then((res) => res.json())
       .then((data) => {
         setLitters(data);
       })
-      .catch((error) => console.error('Error fetching litters:', error));
+      .catch((err) => console.error("Error fetching litters:", err));
+
+    // 2) Fetch dogs so we can look up sire/dam names
+    fetch("http://127.0.0.1:5000/api/dogs")
+      .then((res) => res.json())
+      .then((dogsData) => {
+        // Build a map: { 1: {id:1, registered_name:"..."}, 2: {...}, ... }
+        const map = {};
+        dogsData.forEach((dog) => {
+          map[dog.id] = dog;
+        });
+        setDogsMap(map);
+      })
+      .catch((err) => console.error("Error fetching dogs for litters:", err));
   }, []);
 
-  const handleChange = (e) => {
-    setNewLitter({ ...newLitter, [e.target.name]: e.target.value });
-  };
-
-  const handleAddLitter = (e) => {
-    e.preventDefault();
-    fetch('http://127.0.0.1:5000/api/litters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newLitter),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setLitters([...litters, data]);
-        setNewLitter({ program_id: '', breed_id: '', sire_id: '', dam_id: '', birth_date: '', num_puppies: '' }); // Reset form
-      })
-      .catch((error) => console.error('Error adding litter:', error));
+  // Format birth date as mm/dd/yyyy for display
+  const formatDate = (isoDateString) => {
+    if (!isoDateString) return "";
+    const dateObj = new Date(isoDateString);
+    // toLocaleDateString('en-US') → "06/11/2023"
+    return dateObj.toLocaleDateString("en-US");
   };
 
   return (
-    <div>
-      <h2>Manage Litters</h2>
-      <ul>
-        {litters.map((litter) => (
-          <li key={litter.id}>
-            <strong>Born:</strong> {litter.birth_date} | Sire ID: {litter.sire_id} | Dam ID: {litter.dam_id} | Puppies: {litter.num_puppies}
-          </li>
-        ))}
-      </ul>
+    <div className="litters-container">
+      <h2 className="page-title">Manage Litters</h2>
 
-      <h3>Add New Litter</h3>
-      <form onSubmit={handleAddLitter}>
-        <input type="text" name="program_id" placeholder="Program ID" value={newLitter.program_id} onChange={handleChange} required />
-        <input type="text" name="breed_id" placeholder="Breed ID" value={newLitter.breed_id} onChange={handleChange} required />
-        <input type="text" name="sire_id" placeholder="Sire ID" value={newLitter.sire_id} onChange={handleChange} required />
-        <input type="text" name="dam_id" placeholder="Dam ID" value={newLitter.dam_id} onChange={handleChange} required />
-        <input type="date" name="birth_date" value={newLitter.birth_date} onChange={handleChange} required />
-        <input type="number" name="num_puppies" placeholder="Number of Puppies" value={newLitter.num_puppies} onChange={handleChange} required />
-        <button type="submit">Add Litter</button>
-      </form>
+      {/* Centered add-litter button, like the dog page */}
+      <div className="filter-group">
+      <button onClick={() => navigate("/dashboard/litters/add")} className="add-litter-btn">
+      + Add Litter
+      </button>
+      </div>
+
+      {/* Grid of litter cards */}
+      <div className="litter-grid">
+        {litters.length === 0 ? (
+          <p>No litters found. Try adding one.</p>
+        ) : (
+          litters.map((litter) => {
+            // Lookup sire/dam from dogsMap
+            const sireDog = dogsMap[litter.sire_id];
+            const damDog = dogsMap[litter.dam_id];
+
+            return (
+              <div
+                key={litter.id}
+                className="litter-card"
+                // You could allow editing on click:
+                // onClick={() => navigate(`/dashboard/litters/edit/${litter.id}`)}
+              >
+                <p>
+                  <strong>Birthdate:</strong> {formatDate(litter.birth_date)}
+                </p>
+                <p>
+                  <strong>Sire:</strong>{" "}
+                  {sireDog ? sireDog.registered_name : litter.sire_id}
+                </p>
+                <p>
+                  <strong>Dam:</strong>{" "}
+                  {damDog ? damDog.registered_name : litter.dam_id}
+                </p>
+                <p>
+                  <strong>Puppies:</strong> {litter.num_puppies}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };

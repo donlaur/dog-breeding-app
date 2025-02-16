@@ -1,7 +1,18 @@
+import os
 from datetime import datetime
 from enum import Enum
-from server import db
 from flask_bcrypt import generate_password_hash, check_password_hash
+from server.supabase_client import supabase
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Missing Supabase credentials. Check your .env file.")
 
 # Enum for user roles
 class UserRole(Enum):
@@ -9,146 +20,88 @@ class UserRole(Enum):
     BREEDER = "BREEDER"
     ADMIN = "ADMIN"
 
-# User Model
-class User(db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.Enum(UserRole), default=UserRole.BUYER)
-    location = db.Column(db.String(200))
-    contact_number = db.Column(db.String(50))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+# User Model (Supabase-Based)
+class User:
+    def __init__(self, id, email, password_hash, role, location, contact_number, created_at=None, updated_at=None):
+        self.id = id
+        self.email = email
+        self.password_hash = password_hash
+        self.role = role
+        self.location = location
+        self.contact_number = contact_number
+        self.created_at = created_at or datetime.utcnow()
+        self.updated_at = updated_at or datetime.utcnow()
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password).decode('utf-8')
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "password_hash": self.password_hash,
+            "role": self.role,
+            "location": self.location,
+            "contact_number": self.contact_number,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    @staticmethod
+    def get_by_email(email):
+        response = supabase.table("users").select("*").eq("email", email).execute()
+        return response.data[0] if response.data else None
+
+    @staticmethod
+    def create_user(email, password, role, location, contact_number):
+        password_hash = generate_password_hash(password).decode('utf-8')
+        data = {
+            "email": email,
+            "password_hash": password_hash,
+            "role": role,
+            "location": location,
+            "contact_number": contact_number,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        response = supabase.table("users").insert(data).execute()
+        return response.data
 
 # Breeding Program Model
-class BreedingProgram(db.Model):
-    __tablename__ = 'breeding_programs'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), unique=True, nullable=False)
-    description = db.Column(db.Text)
-    facility_details = db.Column(db.Text)
-    testimonial = db.Column(db.Text)
-    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    contact_email = db.Column(db.String(100))
-    website = db.Column(db.String(200))
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "facility_details": self.facility_details,
-            "testimonial": self.testimonial,
-            "breeder_id": self.breeder_id,
-            "contact_email": self.contact_email,
-            "website": self.website
-        }
+class BreedingProgram:
+    @staticmethod
+    def get_all():
+        response = supabase.table("breeding_programs").select("*").execute()
+        return response.data
 
 # Dog Breed Model
-class DogBreed(db.Model):
-    __tablename__ = 'dog_breeds'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    slug = db.Column(db.String(100), unique=True, nullable=False)
-    coat_colors = db.Column(db.Text)
-    breed_type = db.Column(db.String(100))
-    traits = db.Column(db.Text)
-
-    def to_dict(self):
-        return {"id": self.id, "name": self.name, "slug": self.slug}
+class DogBreed:
+    @staticmethod
+    def get_all():
+        response = supabase.table("dog_breeds").select("*").execute()
+        return response.data
 
 # Dog Model
-class Dog(db.Model):
-    __tablename__ = 'dogs'
-    id = db.Column(db.Integer, primary_key=True)
-    registered_name = db.Column(db.String(100), nullable=False)
-    call_name = db.Column(db.String(50))
-    breed_id = db.Column(db.Integer, db.ForeignKey('dog_breeds.id'), nullable=False)
-    gender = db.Column(db.Enum('Male', 'Female', name='gender_enum'), nullable=False)
-    birth_date = db.Column(db.Date)
-    status = db.Column(db.Enum('Upcoming', 'Active', 'Retired', name='dog_status_enum'), nullable=False)
-    cover_photo = db.Column(db.LargeBinary)  # Store binary image data
-    breeder_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    photos = db.relationship('DogPhoto', backref='dog', lazy=True)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "registered_name": self.registered_name,
-            "call_name": self.call_name,
-            "breed_id": self.breed_id,
-            "gender": self.gender,
-            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
-            "status": self.status,
-            "cover_photo": self.cover_photo,
-            "photos": [photo.photo_url for photo in self.photos]
-        }
-
-# Dog Photos
-class DogPhoto(db.Model):
-    __tablename__ = 'dog_photos'
-    id = db.Column(db.Integer, primary_key=True)
-    dog_id = db.Column(db.Integer, db.ForeignKey('dogs.id'), nullable=False)
-    photo_url = db.Column(db.String(255), nullable=False)
+class Dog:
+    @staticmethod
+    def get_all():
+        response = supabase.table("dogs").select("*").execute()
+        return response.data
 
 # Litter Model
-class Litter(db.Model):
-    __tablename__ = 'litters'
-    id = db.Column(db.Integer, primary_key=True)
-    program_id = db.Column(db.Integer, db.ForeignKey('breeding_programs.id'), nullable=False)
-    breed_id = db.Column(db.Integer, db.ForeignKey('dog_breeds.id'), nullable=False)
-    sire_id = db.Column(db.Integer, db.ForeignKey('dogs.id'))
-    dam_id = db.Column(db.Integer, db.ForeignKey('dogs.id'))
-    birth_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Enum('Expected', 'Planned', 'Current', name='litter_status_enum'), nullable=False)
-    num_puppies = db.Column(db.Integer)
-    availability_date = db.Column(db.Date)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "program_id": self.program_id,
-            "breed_id": self.breed_id,
-            "sire_id": self.sire_id,
-            "dam_id": self.dam_id,
-            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
-            "status": self.status,
-            "num_puppies": self.num_puppies,
-            "availability_date": self.availability_date.strftime("%Y-%m-%d") if self.availability_date else None,
-        }
+class Litter:
+    @staticmethod
+    def get_all():
+        response = supabase.table("litters").select("*").execute()
+        return response.data
 
 # Puppy Model
-class Puppy(db.Model):
-    __tablename__ = 'puppies'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    gender = db.Column(db.Enum('Male', 'Female', name='gender_enum'), nullable=False)
-    litter_id = db.Column(db.Integer, db.ForeignKey('litters.id'), nullable=False)
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    price = db.Column(db.Float)
-    status = db.Column(db.Enum('Available', 'Reserved', 'Sold', name='puppy_status_enum'), nullable=False)
+class Puppy:
+    @staticmethod
+    def get_all():
+        response = supabase.table("puppies").select("*").execute()
+        return response.data
 
 # Contact Message Model
-class ContactMessage(db.Model):
-    __tablename__ = "contact_messages"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "email": self.email,
-            "message": self.message,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        }
+class ContactMessage:
+    @staticmethod
+    def get_all():
+        response = supabase.table("contact_messages").select("*").execute()
+        return response.data

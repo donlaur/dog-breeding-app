@@ -21,10 +21,17 @@ const DogForm = () => {
   });
 
   useEffect(() => {
-    if (editingDog) {
-      setDog({ ...editingDog });
+    if (!editingDog && breeds.length) {
+      // Find “Pembroke Welsh Corgi” in the breed list:
+      const corgi = breeds.find((b) => b.name === "Pembroke Welsh Corgi");
+      if (corgi) {
+        setDog((prevDog) => ({
+          ...prevDog,
+          breed_id: corgi.id,
+        }));
+      }
     }
-  }, [editingDog]);
+  }, [breeds, editingDog]);
 
   const handleChange = (e) => {
     setDog({ ...dog, [e.target.name]: e.target.value });
@@ -33,7 +40,11 @@ const DogForm = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setDog({ ...dog, cover_photo: URL.createObjectURL(file) });
+      setDog({
+        ...dog,
+        cover_photo_file: file,                  // The actual File object
+        cover_photo_preview: URL.createObjectURL(file), // For preview only
+      });
     }
   };
 
@@ -49,8 +60,8 @@ const DogForm = () => {
     formData.append("status", dog.status);
   
     // ✅ Ensure cover photo is correctly added to FormData
-    if (dog.cover_photo instanceof File) {
-      formData.append("cover_photo", dog.cover_photo);
+    if (dog.cover_photo_file) {
+      formData.append("cover_photo", dog.cover_photo_file);
     }
   
     const apiUrl = editingDog
@@ -83,7 +94,11 @@ const DogForm = () => {
         {/* Cover Photo Section */}
         <div className="cover-photo-section">
           {dog.cover_photo ? (
-            <img src={dog.cover_photo} alt="Dog Cover" className="cover-photo" />
+            <img src={dog.cover_photo_preview ? (
+              <img src={dog.cover_photo_preview} alt="Dog Cover" className="cover-photo" />
+            ) : (
+              <div className="cover-photo-placeholder">No Photo</div>
+            )} alt="Dog Cover" className="cover-photo" />
           ) : (
             <div className="cover-photo-placeholder">No Photo</div>
           )}

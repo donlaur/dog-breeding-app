@@ -32,6 +32,7 @@ function App() {
             <Route path="dogs" element={<Dogs />} />
             <Route path="litters" element={<Litters />} />
             <Route path="dogs/add" element={<DogForm />} />
+            <Route path="litters/add" element={<AddLitterPage />} />
             <Route path="dogs/edit/:id" element={<DogForm />} />
           </Route>
         </Routes>

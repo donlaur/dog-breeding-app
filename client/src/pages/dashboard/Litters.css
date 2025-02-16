@@ -1,0 +1,46 @@
+/* Litters.css */
+
+.litters-container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+  }
+  
+  .page-title {
+    text-align: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+  }
+  
+  .filter-group {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .add-litter-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    cursor: pointer;
+    display: block;
+    margin: auto;
+    border-radius: 5px;
+  }
+  
+  .litter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+  }
+  
+  .litter-card {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: left;
+    background-color: #fff;
+  }
+  
