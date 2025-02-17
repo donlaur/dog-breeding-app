@@ -14,6 +14,7 @@ import DashboardLayout from './components/DashboardLayout';
 import BreederProfile from './pages/dashboard/BreederProfile';
 import Dogs from './pages/dashboard/Dogs';
 import Litters from './pages/dashboard/Litters';
+import AddLitterPage from './pages/dashboard/AddLitterPage';
 import DogForm from './pages/dashboard/DogForm';
 
 function App() {

@@ -9,20 +9,45 @@ const DogForm = () => {
   const { id } = useParams();
   const editingDog = dogs.find((dog) => dog.id === parseInt(id));
 
+  // Separate male/female for sire/dam
+  const sireOptions = dogs.filter((d) => d.gender === "Male");
+  const damOptions = dogs.filter((d) => d.gender === "Female");
+
+  // Local state
   const [dog, setDog] = useState({
     registered_name: "",
     call_name: "",
     breed_id: "",
-    gender: "Male",
+    gender: "",
     birth_date: "",
-    status: "Active",
+    status: "",
     cover_photo: "",
-    additional_photos: [],
+    color: "",
+    weight: "",
+    microchip: "",
+    notes: "",
+    sire_id: "",
+    dam_id: "",
   });
 
   useEffect(() => {
-    if (!editingDog && breeds.length) {
-      // Find “Pembroke Welsh Corgi” in the breed list:
+    if (editingDog) {
+      setDog({
+        registered_name: editingDog.registered_name || "",
+        call_name: editingDog.call_name || "",
+        breed_id: editingDog.breed_id || "",
+        gender: editingDog.gender || "",
+        birth_date: editingDog.birth_date || "",
+        status: editingDog.status || "",
+        cover_photo: editingDog.cover_photo || "",
+        color: editingDog.color || "",
+        weight: editingDog.weight || "",     // if numeric in DB, might come back as string or null
+        microchip: editingDog.microchip || "",
+        notes: editingDog.notes || "",
+        sire_id: editingDog.sire_id || "",   // blank if not set
+        dam_id: editingDog.dam_id || "",
+      });
+    } else if (!editingDog && breeds.length) {
       const corgi = breeds.find((b) => b.name === "Pembroke Welsh Corgi");
       if (corgi) {
         setDog((prevDog) => ({
@@ -31,7 +56,7 @@ const DogForm = () => {
         }));
       }
     }
-  }, [breeds, editingDog]);
+  }, [editingDog, breeds]);
 
   const handleChange = (e) => {
     setDog({ ...dog, [e.target.name]: e.target.value });
@@ -42,15 +67,16 @@ const DogForm = () => {
     if (file) {
       setDog({
         ...dog,
-        cover_photo_file: file,                  // The actual File object
-        cover_photo_preview: URL.createObjectURL(file), // For preview only
+        cover_photo_file: file,
+        cover_photo_preview: URL.createObjectURL(file),
       });
     }
   };
 
   const handleSaveDog = (e) => {
     e.preventDefault();
-  
+
+    // Build FormData with everything as strings or empty strings
     const formData = new FormData();
     formData.append("registered_name", dog.registered_name);
     formData.append("call_name", dog.call_name);
@@ -58,23 +84,37 @@ const DogForm = () => {
     formData.append("gender", dog.gender);
     formData.append("birth_date", dog.birth_date);
     formData.append("status", dog.status);
-  
-    // ✅ Ensure cover photo is correctly added to FormData
+    formData.append("color", dog.color);
+    formData.append("weight", dog.weight);        // might be "", "abc", etc. => server handles
+    formData.append("microchip", dog.microchip);
+    formData.append("notes", dog.notes);
+    formData.append("sire_id", dog.sire_id);
+    formData.append("dam_id", dog.dam_id);
+
     if (dog.cover_photo_file) {
       formData.append("cover_photo", dog.cover_photo_file);
     }
-  
+
     const apiUrl = editingDog
-      ? `http://127.0.0.1:5000/api/dogs/${editingDog.id}`
+      ? `http://127.0.0.1:5000/api/dogs?dog_id=${editingDog.id}`
       : `http://127.0.0.1:5000/api/dogs`;
-    const method = editingDog ? "PUT" : "POST";
-  
+
     fetch(apiUrl, {
-      method,
-      body: formData, // ✅ Send as FormData
+      method: "POST",
+      body: formData,
     })
-      .then((response) => response.json())
+      .then(async (response) => {
+        if (!response.ok) {
+          // We'll parse the error but won't show a big alert
+          // If you want to silently ignore, you can do so here.
+          const err = await response.json();
+          console.error("Error saving dog (server returned non-OK):", err);
+          return; // no user-facing alert, just log
+        }
+        return response.json();
+      })
       .then((data) => {
+        if (!data) return; // in case of error above
         if (editingDog) {
           setDogs(dogs.map((d) => (d.id === editingDog.id ? data : d)));
         } else {
@@ -82,23 +122,26 @@ const DogForm = () => {
         }
         navigate("/dashboard/dogs");
       })
-      .catch((error) => console.error("Error saving dog:", error));
+      .catch((error) => {
+        // Hide from end users => just log
+        console.error("Error saving dog:", error);
+      });
   };
 
-  // ✅ The `return` statement is correctly inside the function.
   return (
     <div className="dog-form-container">
       <h2>{editingDog ? "Edit Dog" : "Add New Dog"}</h2>
 
       <form onSubmit={handleSaveDog}>
-        {/* Cover Photo Section */}
         <div className="cover-photo-section">
-          {dog.cover_photo ? (
-            <img src={dog.cover_photo_preview ? (
-              <img src={dog.cover_photo_preview} alt="Dog Cover" className="cover-photo" />
-            ) : (
-              <div className="cover-photo-placeholder">No Photo</div>
-            )} alt="Dog Cover" className="cover-photo" />
+          {dog.cover_photo_preview ? (
+            <img
+              src={dog.cover_photo_preview}
+              alt="Dog Cover"
+              className="cover-photo"
+            />
+          ) : dog.cover_photo ? (
+            <img src={dog.cover_photo} alt="Dog Cover" className="cover-photo" />
           ) : (
             <div className="cover-photo-placeholder">No Photo</div>
           )}
@@ -108,7 +151,6 @@ const DogForm = () => {
           </label>
         </div>
 
-        {/* Dog Info Fields */}
         <div className="form-group">
           <label>Registered Name</label>
           <input
@@ -148,7 +190,6 @@ const DogForm = () => {
           </select>
         </div>
 
-        {/* Gender Selection */}
         <div className="form-group">
           <label>Gender</label>
           <div className="radio-group">
@@ -186,7 +227,6 @@ const DogForm = () => {
           />
         </div>
 
-        {/* Status Selection */}
         <div className="form-group">
           <label>Status</label>
           <div className="radio-group">
@@ -221,6 +261,69 @@ const DogForm = () => {
               Upcoming
             </label>
           </div>
+        </div>
+
+        <div className="form-group">
+          <label>Sire (Father)</label>
+          <select name="sire_id" value={dog.sire_id} onChange={handleChange}>
+            <option value="">None</option>
+            {sireOptions.map((sire) => (
+              <option key={sire.id} value={sire.id}>
+                {sire.registered_name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Dam (Mother)</label>
+          <select name="dam_id" value={dog.dam_id} onChange={handleChange}>
+            <option value="">None</option>
+            {damOptions.map((dam) => (
+              <option key={dam.id} value={dam.id}>
+                {dam.registered_name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Color</label>
+          <input
+            type="text"
+            name="color"
+            value={dog.color}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Weight (lbs)</label>
+          <input
+            type="number"
+            name="weight"
+            value={dog.weight}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Microchip</label>
+          <input
+            type="text"
+            name="microchip"
+            value={dog.microchip}
+            onChange={handleChange}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            name="notes"
+            value={dog.notes}
+            onChange={handleChange}
+          ></textarea>
         </div>
 
         <button type="submit">{editingDog ? "Save Changes" : "Add Dog"}</button>
