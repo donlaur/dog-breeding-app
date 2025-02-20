@@ -1,11 +1,12 @@
+// src/components/Footer.js
 import React from 'react';
 
-function Footer() {
+const Footer = () => {
   return (
-    <footer className="bg-light text-center py-3">
-      
+    <footer style={{ backgroundColor: '#f4f4f4', color: '#333', padding: '10px 20px', textAlign: 'center' }}>
+      <p>&copy; {new Date().getFullYear()} Breeder Tools</p>
     </footer>
   );
-}
+};
 
 export default Footer;

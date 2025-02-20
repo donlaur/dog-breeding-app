@@ -1,4 +1,27 @@
-from server import app  # Import the Flask app instance from the server package
+"""
+app.py
+
+Application factory for the Dog Breeding App.
+Creates the Flask app, loads environment variables, and registers blueprints.
+"""
+
+from flask import Flask
+from dotenv import load_dotenv
+from server.dogs import dogs_bp
+from server.breeds import breeds_bp  # If you have breed endpoints in a separate blueprint
+from server.litters import litters_bp  # New blueprint for litter endpoints
+
+def create_app():
+    load_dotenv()  # Load environment variables from .env
+    app = Flask(__name__)
+    
+    # Register blueprints with URL prefixes for modular routing.
+    app.register_blueprint(dogs_bp, url_prefix="/api/dogs")
+    app.register_blueprint(breeds_bp, url_prefix="/api/breeds")  # Optional, if implemented
+    app.register_blueprint(litters_bp, url_prefix="/api/litters")
+    
+    return app
 
 if __name__ == "__main__":
-    app.run(debug=True)  # Enable debug mode for error tracking
+    app = create_app()
+    app.run(debug=True)

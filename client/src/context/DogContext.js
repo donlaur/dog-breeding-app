@@ -1,4 +1,6 @@
+// src/context/DogContext.js
 import React, { createContext, useState, useEffect } from 'react';
+import { API_URL, debugLog } from '../config';
 
 const DogContext = createContext();
 
@@ -7,14 +9,20 @@ export const DogProvider = ({ children }) => {
   const [breeds, setBreeds] = useState([]);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/dogs')
+    fetch(`${API_URL}/dogs`)
       .then((response) => response.json())
-      .then((data) => setDogs(data))
+      .then((data) => {
+        debugLog("Fetched dogs:", data);
+        setDogs(data);
+      })
       .catch((error) => console.error('Error fetching dogs:', error));
 
-    fetch('http://127.0.0.1:5000/api/breeds')
+    fetch(`${API_URL}/breeds`)
       .then((response) => response.json())
-      .then((data) => setBreeds(data))
+      .then((data) => {
+        debugLog("Fetched breeds:", data);
+        setBreeds(data);
+      })
       .catch((error) => console.error('Error fetching breeds:', error));
   }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './BreederProfile.css';
+import '../styles/BreederProfile.css';
 
 const BreederProfile = () => {
   const [program, setProgram] = useState({
