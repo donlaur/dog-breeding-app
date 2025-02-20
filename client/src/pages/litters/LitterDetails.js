@@ -43,18 +43,32 @@ const LitterDetails = () => {
 
   return (
     <div className="litter-details-container">
+      {litter.cover_photo && (
+        <img
+          src={litter.cover_photo}
+          alt={`${litter.litter_name} Cover`}
+          className="litter-cover-photo"
+        />
+      )}
       <h2>Litter: {litter.litter_name}</h2>
-      <p>Birth Date: {litter.birth_date}</p>
-      <p>Notes: {litter.notes}</p>
-
-      {/* The new "Edit Litter" button */}
+      <p>
+        <strong>Birth Date:</strong> {litter.birth_date}
+      </p>
+      <p>
+        <strong>Price:</strong> ${litter.price}
+      </p>
+      <p>
+        <strong>Deposit:</strong> ${litter.deposit}
+      </p>
+      <p>
+        <strong>Notes:</strong> {litter.notes}
+      </p>
       <div style={{ marginBottom: "10px" }}>
         <button onClick={handleEditLitter} style={{ marginRight: "10px" }}>
           Edit Litter
         </button>
         <button onClick={handleAddPuppy}>Add Puppy</button>
       </div>
-
       <h3>Puppies in this Litter</h3>
       {litter.puppies && litter.puppies.length > 0 ? (
         <ul>
@@ -68,5 +82,6 @@ const LitterDetails = () => {
     </div>
   );
 };
+
 
 export default LitterDetails;

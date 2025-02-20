@@ -61,6 +61,7 @@ const ManageLitters = () => {
                 className="litter-card"
                 onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
               >
+                <h3>{litter.litter_name}</h3>
                 <p>
                   <strong>Birthdate:</strong> {formatDate(litter.birth_date)}
                 </p>
@@ -69,6 +70,12 @@ const ManageLitters = () => {
                 </p>
                 <p>
                   <strong>Dam:</strong> {damDog ? damDog.registered_name : "None"}
+                </p>
+                <p>
+                  <strong>Price:</strong> ${litter.price}
+                </p>
+                <p>
+                  <strong>Deposit:</strong> ${litter.deposit}
                 </p>
                 <p>
                   <strong>Puppies:</strong> {litter.num_puppies}

@@ -6,6 +6,8 @@ import { DogProvider } from './context/DogContext';
 import 'bootstrap/dist/css/bootstrap.min.css';  // Import Bootstrap globally
 import '@fortawesome/fontawesome-free/css/all.min.css';  // Import FontAwesome
 import App from './App';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from './theme';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -13,7 +15,9 @@ root.render(
   <React.StrictMode>
     <DogProvider>
       <BrowserRouter>
-        <App />
+        <ThemeProvider theme={theme}>
+          <App />
+        </ThemeProvider>
       </BrowserRouter>
     </DogProvider>
   </React.StrictMode>

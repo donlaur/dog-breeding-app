@@ -145,6 +145,10 @@ function DogForm() {
     // Define numeric fields to skip if empty
     const numericFields = ["breed_id", "sire_id", "dam_id", "weight", "litter_id"];
     Object.keys(dog).forEach((key) => {
+      // Skip keys that are not part of the DB schema (e.g., cover_photo_preview)
+      if (key === "cover_photo_preview") {
+        return;
+      }
       let value = dog[key];
       if (numericFields.includes(key)) {
         if (
@@ -167,9 +171,7 @@ function DogForm() {
       debugLog(`${pair[0]}: ${pair[1]}`);
     }
 
-    const apiUrl = id
-      ? `${API_URL}/dogs?dog_id=${id}`
-      : `${API_URL}/dogs`;
+    const apiUrl = id ? `${API_URL}/dogs?dog_id=${id}` : `${API_URL}/dogs`;
 
     fetch(apiUrl, {
       method: "POST",
@@ -199,6 +201,10 @@ function DogForm() {
 
   return (
     <div className="dog-form-container">
+      {/* Back Button */}
+      <button onClick={() => navigate("/dashboard/dogs")} className="back-button">
+        &larr; Back to Manage Dogs
+      </button>
       <h2>{id ? "Edit Dog" : "Add New Dog"}</h2>
       <form onSubmit={handleSaveDog}>
         <div className="cover-photo-section">
@@ -310,6 +316,20 @@ function DogForm() {
         <div className="form-group">
           <label>Notes</label>
           <textarea name="notes" value={dog.notes} onChange={handleChange}></textarea>
+        </div>
+        
+        <div className="form-group">
+          <label>
+            <input
+              type="checkbox"
+              name="is_adult"
+              checked={dog.is_adult === true}
+              onChange={(e) =>
+                setDog({ ...dog, is_adult: e.target.checked })
+              }
+            />
+            Adult (in breeding program)
+          </label>
         </div>
 
         <button type="submit">{id ? "Save Changes" : "Add Dog"}</button>

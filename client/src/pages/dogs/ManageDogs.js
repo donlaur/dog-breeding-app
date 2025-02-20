@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { API_URL, debugLog } from "../../config";
 import DogContext from "../../context/DogContext";
 import "../../styles/ManageDogs.css";
+import { Box, Button, Typography } from "@mui/material";
+import PetsIcon from '@mui/icons-material/Pets';
 
 const ManageDogs = () => {
   const { dogs, setDogs } = useContext(DogContext);
@@ -14,7 +16,8 @@ const ManageDogs = () => {
       .then((res) => res.json())
       .then((data) => {
         debugLog("All dogs from API:", data);
-        const adultDogs = data.filter((dog) => !dog.litter_id);
+        // Filter for adult dogs based on your logic (e.g., using an is_adult flag)
+        const adultDogs = data.filter((dog) => dog.is_adult === true);
         debugLog("Filtered adult dogs:", adultDogs);
         setDogs(adultDogs);
       })
@@ -22,31 +25,58 @@ const ManageDogs = () => {
   }, [setDogs]);
 
   return (
-    <div className="dogs-container">
-      <h2 className="page-title">Manage Adult Dogs</h2>
-      <div className="filter-group">
-        <button onClick={() => navigate("/dashboard/dogs/add")} className="add-dog-btn">
+    <Box sx={{ padding: 2 }}>
+      <Typography variant="h4" align="center" gutterBottom>
+        Manage Adult Dogs
+      </Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+        <Button variant="contained" color="primary" onClick={() => navigate("/dashboard/dogs/add")}>
           + Add Dog
-        </button>
-      </div>
-      <div className="dog-grid">
+        </Button>
+      </Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 2 }}>
         {dogs.length === 0 ? (
-          <p>No adult dogs found. Try adding one.</p>
+          <Typography variant="body1" align="center">
+            No adult dogs found. Try adding one.
+          </Typography>
         ) : (
           dogs.map((dog) => (
-            <div key={dog.id} className="dog-card" onClick={() => navigate(`/dashboard/dogs/edit/${dog.id}`)}>
+            <Box
+              key={dog.id}
+              sx={{
+                border: "1px solid #ddd",
+                borderRadius: "10px",
+                padding: 1,
+                textAlign: "center",
+                cursor: "pointer",
+                height: "100%"
+              }}
+              onClick={() => navigate(`/dashboard/dogs/edit/${dog.id}`)}
+            >
               {dog.cover_photo ? (
-                <img src={dog.cover_photo} alt={dog.registered_name} className="dog-image" />
+                <img src={dog.cover_photo} alt={dog.call_name} className="dog-image" />
               ) : (
-                <p>No Photo</p>
+                <Box
+                  sx={{
+                    height: 150,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f0f0f0"
+                  }}
+                >
+                  <PetsIcon sx={{ fontSize: 80, color: "#ccc" }} />
+                </Box>
               )}
-              <h3>{dog.registered_name}</h3>
-              <p>{dog.gender} - {dog.status}</p>
-            </div>
+              <Typography variant="h6">{dog.call_name}</Typography>
+              <Typography variant="body2">
+                {dog.gender} - {dog.status}
+              </Typography>
+            </Box>
           ))
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
