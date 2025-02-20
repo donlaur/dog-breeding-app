@@ -15,6 +15,7 @@ const DashboardLayout = () => {
             <li><Link to="/dashboard/profile">Manage Profile</Link></li>
             <li><Link to="/dashboard/dogs">Manage Dogs</Link></li>
             <li><Link to="/dashboard/litters">Manage Litters</Link></li>
+            <li><Link to="/dashboard/heat-cycles">Manage Heat Cycles</Link></li>
           </ul>
         </nav>
         <main style={{ flex: 1, padding: '20px' }}>

@@ -10,6 +10,9 @@ import AddLitterPage from "./pages/litters/AddLitterPage";
 import LitterDetails from "./pages/litters/LitterDetails";
 import EditLitterPage from "./pages/litters/EditLitterPage";
 import AddPuppy from "./pages/litters/AddPuppy";
+import ManageHeatCycles from "./pages/ManageHeatCycles";
+import AddHeatCycle from "./pages/AddHeatCycle";
+import EditHeatCycle from "./pages/EditHeatCycle";
 
 function App() {
   return (
@@ -21,9 +24,12 @@ function App() {
         <Route path="dogs/edit/:id" element={<DogForm />} />
         <Route path="litters" element={<ManageLitters />} />
         <Route path="litters/add" element={<AddLitterPage />} />
-        <Route path="litters/edit/:litterId" element={<EditLitterPage />} />
         <Route path="litters/:litterId" element={<LitterDetails />} />
         <Route path="litters/:litterId/add-puppy" element={<AddPuppy />} />
+        {/* New Heat Cycle routes */}
+        <Route path="heat-cycles" element={<ManageHeatCycles />} />
+        <Route path="heat-cycles/add" element={<AddHeatCycle />} />
+        <Route path="heat-cycles/edit/:cycleId" element={<EditHeatCycle />} />
       </Route>
     </Routes>
   );
