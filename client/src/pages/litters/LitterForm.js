@@ -1,6 +1,21 @@
 // src/pages/litters/LitterForm.js
 import React, { useState, useEffect } from "react";
-import "../../styles/LitterForm.css";
+import { 
+  Box,
+  TextField,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Select,
+  MenuItem,
+  InputLabel,
+  Button,
+  Grid,
+  Typography,
+  FormHelperText
+} from "@mui/material";
 import { API_URL, debugLog, debugError } from "../../config";
 
 /**
@@ -16,48 +31,49 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   // Local state for all the fields
   const [litter, setLitter] = useState({
     litter_name: "",
-    status: "Planned",  // default to "Planned"
+    status: "Planned",
     birth_date: "",
     expected_date: "",
     planned_date: "",
-    breed_id: "",
+    breed_id: breedOptions.length > 0 ? breedOptions[0].id : "",
     sire_id: "",
     dam_id: "",
     price: "",
     deposit: "",
     extras: "",
     socialization: "",
-    cover_photo_file: null,      // actual file object
-    cover_photo_preview: null    // preview URL
+    cover_photo_file: null,
+    cover_photo_preview: null
   });
 
-  // If editing, populate form with initialData
+  // Update initial data with default breed if not set
   useEffect(() => {
     if (initialData) {
-      debugLog("Initializing litter form with data:", initialData);
-      setLitter(initialData);
+      const data = { ...initialData };
+      if (!data.breed_id && breedOptions.length > 0) {
+        data.breed_id = breedOptions[0].id;
+      }
+      setLitter(data);
+    } else if (breedOptions.length > 0 && !litter.breed_id) {
+      setLitter(prev => ({ ...prev, breed_id: breedOptions[0].id }));
     }
-  }, [initialData]);
+  }, [initialData, breedOptions]);
 
   // Generic change handler for text/select inputs
   const handleChange = (e) => {
-    setLitter({ ...litter, [e.target.name]: e.target.value });
-  };
-
-  // For radio buttons (status)
-  const handleStatusChange = (e) => {
-    setLitter({ ...litter, status: e.target.value });
+    const { name, value } = e.target;
+    setLitter(prev => ({ ...prev, [name]: value }));
   };
 
   // For file input
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setLitter({
-        ...litter,
+      setLitter(prev => ({
+        ...prev,
         cover_photo_file: file,
         cover_photo_preview: URL.createObjectURL(file)
-      });
+      }));
     }
   };
 
@@ -75,7 +91,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
         birth_date: "",
         expected_date: "",
         planned_date: "",
-        breed_id: "",
+        breed_id: breedOptions.length > 0 ? breedOptions[0].id : "",
         sire_id: "",
         dam_id: "",
         price: "",
@@ -89,189 +105,238 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   };
 
   return (
-    <div className="litter-form-container">
-      <form onSubmit={handleSubmit}>
-        <h2>{initialData ? "Edit Litter" : "Add New Litter"}</h2>
-
-        {/* Litter Name */}
-        <div className="form-group">
-          <label>Litter Name</label>
-          <input
-            type="text"
+    <Box component="form" onSubmit={handleSubmit} noValidate>
+      <Grid container spacing={3}>
+        {/* Basic Information */}
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Basic Information</Typography>
+          <TextField
+            fullWidth
+            required
             name="litter_name"
+            label="Litter Name"
             value={litter.litter_name}
             onChange={handleChange}
-            required
+            sx={{ mb: 2 }}
           />
-        </div>
 
-        {/* Status (Born, Expected, Planned) */}
-        <div className="form-group">
-          <label>Status</label>
-          <div className="radio-group">
-            <label>
-              <input
-                type="radio"
-                name="status"
-                value="Born"
-                checked={litter.status === "Born"}
-                onChange={handleStatusChange}
-              />
-              Born
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="status"
-                value="Expected"
-                checked={litter.status === "Expected"}
-                onChange={handleStatusChange}
-              />
-              Expected
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="status"
-                value="Planned"
-                checked={litter.status === "Planned"}
-                onChange={handleStatusChange}
-              />
-              Planned
-            </label>
-          </div>
-        </div>
+          <FormControl component="fieldset" sx={{ mb: 2 }}>
+            <FormLabel component="legend">Status</FormLabel>
+            <RadioGroup
+              row
+              name="status"
+              value={litter.status}
+              onChange={handleChange}
+            >
+              <FormControlLabel value="Born" control={<Radio />} label="Born" />
+              <FormControlLabel value="Expected" control={<Radio />} label="Expected" />
+              <FormControlLabel value="Planned" control={<Radio />} label="Planned" />
+            </RadioGroup>
+          </FormControl>
+        </Grid>
 
         {/* Dates */}
-        <div className="form-group">
-          <label>Birth Date</label>
-          <input
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
             type="date"
             name="birth_date"
+            label="Birth Date"
             value={litter.birth_date}
             onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
           />
-        </div>
-
-        <div className="form-group">
-          <label>Expected Date</label>
-          <input
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
             type="date"
             name="expected_date"
+            label="Expected Date"
             value={litter.expected_date}
             onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
           />
-        </div>
-
-        <div className="form-group">
-          <label>Planned Date</label>
-          <input
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
             type="date"
             name="planned_date"
+            label="Planned Date"
             value={litter.planned_date}
             onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
           />
-        </div>
+        </Grid>
 
-        {/* Breed */}
-        <div className="form-group">
-          <label>Breed</label>
-          <select name="breed_id" value={litter.breed_id} onChange={handleChange}>
-            <option value="">-- Select Breed --</option>
-            {breedOptions.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Parents and Breed */}
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Parents & Breed</Typography>
+        </Grid>
 
-        {/* Sire (Male) */}
-        <div className="form-group">
-          <label>Sire (Male)</label>
-          <select name="sire_id" value={litter.sire_id} onChange={handleChange}>
-            <option value="">-- Select Sire --</option>
-            {sireOptions.map((dog) => (
-              <option key={dog.id} value={dog.id}>
-                {dog.registered_name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth>
+            <InputLabel>Breed</InputLabel>
+            <Select
+              name="breed_id"
+              value={litter.breed_id}
+              onChange={handleChange}
+              label="Breed"
+            >
+              <MenuItem value="">-- Select Breed --</MenuItem>
+              {breedOptions.map((breed) => (
+                <MenuItem key={breed.id} value={breed.id}>
+                  {breed.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
 
-        {/* Dam (Female) */}
-        <div className="form-group">
-          <label>Dam (Female)</label>
-          <select name="dam_id" value={litter.dam_id} onChange={handleChange}>
-            <option value="">-- Select Dam --</option>
-            {damOptions.map((dog) => (
-              <option key={dog.id} value={dog.id}>
-                {dog.registered_name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth>
+            <InputLabel>Sire (Male)</InputLabel>
+            <Select
+              name="sire_id"
+              value={litter.sire_id}
+              onChange={handleChange}
+              label="Sire (Male)"
+            >
+              <MenuItem value="">-- Select Sire --</MenuItem>
+              {sireOptions.map((dog) => (
+                <MenuItem key={dog.id} value={dog.id}>
+                  {dog.registered_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
 
-        {/* Price & Deposit */}
-        <div className="form-group">
-          <label>Price</label>
-          <input
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth>
+            <InputLabel>Dam (Female)</InputLabel>
+            <Select
+              name="dam_id"
+              value={litter.dam_id}
+              onChange={handleChange}
+              label="Dam (Female)"
+            >
+              <MenuItem value="">-- Select Dam --</MenuItem>
+              {damOptions.map((dog) => (
+                <MenuItem key={dog.id} value={dog.id}>
+                  {dog.registered_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Financial Information */}
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Financial Information</Typography>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
             type="number"
-            step="0.01"
             name="price"
+            label="Price"
             value={litter.price}
             onChange={handleChange}
+            InputProps={{
+              startAdornment: <Typography>$</Typography>
+            }}
           />
-        </div>
+        </Grid>
 
-        <div className="form-group">
-          <label>Deposit</label>
-          <input
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
             type="number"
-            step="0.01"
             name="deposit"
+            label="Deposit"
             value={litter.deposit}
             onChange={handleChange}
+            InputProps={{
+              startAdornment: <Typography>$</Typography>
+            }}
           />
-        </div>
+        </Grid>
 
-        {/* Extras & Socialization */}
-        <div className="form-group">
-          <label>Extras Included</label>
-          <textarea
+        {/* Additional Information */}
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Additional Information</Typography>
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
             name="extras"
+            label="Extras Included"
             value={litter.extras}
             onChange={handleChange}
           />
-        </div>
+        </Grid>
 
-        <div className="form-group">
-          <label>Socialization & Enrichment</label>
-          <textarea
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
             name="socialization"
+            label="Socialization & Enrichment"
             value={litter.socialization}
             onChange={handleChange}
           />
-        </div>
+        </Grid>
 
         {/* Cover Photo */}
-        <div className="form-group">
-          <label>Cover Photo</label>
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Cover Photo</Typography>
+          
           {litter.cover_photo_preview && (
-            <img
-              src={litter.cover_photo_preview}
-              alt="Litter Cover Preview"
-              style={{ width: 150, height: 150, objectFit: "cover" }}
-            />
+            <Box sx={{ mb: 2 }}>
+              <img
+                src={litter.cover_photo_preview}
+                alt="Litter Cover Preview"
+                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: "cover" }}
+              />
+            </Box>
           )}
-          <input type="file" accept="image/*" onChange={handleFileChange} />
-        </div>
+          
+          <Button
+            variant="outlined"
+            component="label"
+            sx={{ mb: 2 }}
+          >
+            Upload Photo
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+          </Button>
+        </Grid>
 
-        <button type="submit">
-          {initialData ? "Save Changes" : "Add Litter"}
-        </button>
-      </form>
-    </div>
+        {/* Submit Button */}
+        <Grid item xs={12}>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            size="large"
+            sx={{ mt: 2 }}
+          >
+            {initialData ? "Save Changes" : "Add Litter"}
+          </Button>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 

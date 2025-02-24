@@ -10,14 +10,15 @@ import AddLitterPage from "./pages/litters/AddLitterPage";
 import LitterDetails from "./pages/litters/LitterDetails";
 import EditLitterPage from "./pages/litters/EditLitterPage";
 import AddPuppy from "./pages/litters/AddPuppy";
-import ManageHeatCycles from "./pages/ManageHeatCycles";
-import AddHeatCycle from "./pages/AddHeatCycle";
-import EditHeatCycle from "./pages/EditHeatCycle";
+import ManageHeats from './pages/heats/ManageHeats';
+import AddHeat from './pages/heats/AddHeat';
+import EditHeat from './pages/heats/EditHeat';
 
 function App() {
   return (
     <Routes>
       <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route index element={<BreederProfile />} />
         <Route path="profile" element={<BreederProfile />} />
         <Route path="dogs" element={<ManageDogs />} />
         <Route path="dogs/add" element={<DogForm />} />
@@ -25,11 +26,11 @@ function App() {
         <Route path="litters" element={<ManageLitters />} />
         <Route path="litters/add" element={<AddLitterPage />} />
         <Route path="litters/:litterId" element={<LitterDetails />} />
+        <Route path="litters/edit/:litterId" element={<EditLitterPage />} />
         <Route path="litters/:litterId/add-puppy" element={<AddPuppy />} />
-        {/* New Heat Cycle routes */}
-        <Route path="heat-cycles" element={<ManageHeatCycles />} />
-        <Route path="heat-cycles/add" element={<AddHeatCycle />} />
-        <Route path="heat-cycles/edit/:cycleId" element={<EditHeatCycle />} />
+        <Route path="heats" element={<ManageHeats />} />
+        <Route path="heats/add" element={<AddHeat />} />
+        <Route path="heats/edit/:heatId" element={<EditHeat />} />
       </Route>
     </Routes>
   );

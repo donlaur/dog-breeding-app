@@ -2,12 +2,26 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
-import "../../styles/Litters.css";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Fab,
+  Chip,
+  Divider,
+  useTheme,
+  useMediaQuery
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 
 const ManageLitters = () => {
   const navigate = useNavigate();
   const [litters, setLitters] = useState([]);
   const [dogsMap, setDogsMap] = useState({}); // Maps dog.id -> dog object
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     // Fetch litters
@@ -57,53 +71,110 @@ const ManageLitters = () => {
   };
 
   return (
-    <div className="litters-container">
-      <h2 className="page-title">Manage Litters</h2>
-      <div className="filter-group">
-        <button onClick={() => navigate("/dashboard/litters/add")} className="add-litter-btn">
-          + Add Litter
-        </button>
-      </div>
-      <div className="litter-grid">
-        {litters.length === 0 ? (
-          <p>No litters found. Try adding one.</p>
-        ) : (
-          litters.map((litter) => {
-            // Lookup sire/dam names from dogsMap
-            const sireDog = dogsMap[litter.sire_id];
-            const damDog = dogsMap[litter.dam_id];
+    <Box sx={{ p: 2, pb: { xs: 10, sm: 2 } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 3
+      }}>
+        <Typography variant="h4" component="h1">
+          Litters
+        </Typography>
+      </Box>
 
-            return (
-              <div
-                key={litter.id}
-                className="litter-card"
+      <Grid container spacing={2}>
+        {litters.map((litter) => {
+          const sireDog = dogsMap[litter.sire_id];
+          const damDog = dogsMap[litter.dam_id];
+
+          return (
+            <Grid item xs={12} sm={6} md={4} key={litter.id}>
+              <Card 
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    boxShadow: 3
+                  }
+                }}
                 onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
               >
-                <h3>{litter.litter_name}</h3>
-                <p>
-                  <strong>Birthdate:</strong> {formatDate(litter.birth_date)}
-                </p>
-                <p>
-                  <strong>Sire:</strong> {sireDog ? sireDog.registered_name : "None"}
-                </p>
-                <p>
-                  <strong>Dam:</strong> {damDog ? damDog.registered_name : "None"}
-                </p>
-                <p>
-                  <strong>Price:</strong> ${litter.price}
-                </p>
-                <p>
-                  <strong>Deposit:</strong> ${litter.deposit}
-                </p>
-                <p>
-                  <strong>Puppies:</strong> {litter.num_puppies}
-                </p>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
+                <CardContent>
+                  <Typography variant="h5" component="h2" gutterBottom>
+                    {litter.litter_name}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', mb: 2 }}>
+                    <Chip 
+                      label={litter.status || "Active"} 
+                      color="primary" 
+                      size="small"
+                      sx={{ ml: 'auto' }}
+                    />
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Birthdate:</strong> {formatDate(litter.birth_date)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Sire:</strong> {sireDog ? sireDog.registered_name : "None"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Dam:</strong> {damDog ? damDog.registered_name : "None"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Price:</strong> ${litter.price}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Deposit:</strong> ${litter.deposit}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Puppies:</strong> {litter.num_puppies}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      {/* Mobile FAB */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          aria-label="add"
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16
+          }}
+          onClick={() => navigate("/dashboard/litters/add")}
+        >
+          <AddIcon />
+        </Fab>
+      )}
+
+      {/* Desktop Add Button */}
+      {!isMobile && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Fab
+            variant="extended"
+            color="primary"
+            onClick={() => navigate("/dashboard/litters/add")}
+          >
+            <AddIcon sx={{ mr: 1 }} />
+            Add Litter
+          </Fab>
+        </Box>
+      )}
+    </Box>
   );
 };
 

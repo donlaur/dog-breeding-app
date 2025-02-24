@@ -22,14 +22,14 @@ def create_app(test_config=None):
     from .dogs import create_dogs_bp
     from .litters import create_litters_bp
     from .program import create_program_bp
-    from .heat_cycles import create_heat_cycles_bp
+    from .heats import create_heats_bp
     from .messages import create_messages_bp
     
     debug_log("Registering blueprints...")
     app.register_blueprint(create_dogs_bp(db), url_prefix="/api/dogs")
     app.register_blueprint(create_litters_bp(db), url_prefix="/api/litters")
     app.register_blueprint(create_program_bp(db), url_prefix="/api/program")
-    app.register_blueprint(create_heat_cycles_bp(db), url_prefix="/api/heat-cycles")
+    app.register_blueprint(create_heats_bp(db), url_prefix="/api/heats")
     app.register_blueprint(create_messages_bp(db), url_prefix="/api")
     
     debug_log("Application initialization complete")

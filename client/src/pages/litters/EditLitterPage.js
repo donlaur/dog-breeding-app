@@ -1,26 +1,30 @@
 // src/pages/litters/EditLitterPage.js
 import React, { useState, useEffect, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
-import LitterForm from "./LitterForm"; // The updated LitterForm with all new fields
-import "../../styles/AddLitterPage.css";
+import {
+  Container,
+  Box,
+  Typography,
+  Paper,
+  Breadcrumbs,
+  CircularProgress,
+  Alert
+} from "@mui/material";
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import LitterForm from "./LitterForm";
 import DogContext from "../../context/DogContext";
 
 const EditLitterPage = () => {
   const { litterId } = useParams();
   const navigate = useNavigate();
   const { dogs, breeds } = useContext(DogContext);
-
   const [litter, setLitter] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Filter dogs to use as sire (male adults) and dam (female adults)
-  // (Assumes each dog object has an "is_adult" boolean property)
-  const sireOptions = dogs.filter((d) => d.is_adult && d.gender === "Male");
-  const damOptions = dogs.filter((d) => d.is_adult && d.gender === "Female");
-
-  // Default breed ID from environment (set this in your .env file, e.g., REACT_APP_DEFAULT_BREED_ID=123)
-  const DEFAULT_BREED_ID = process.env.REACT_APP_DEFAULT_BREED_ID || "";
+  const sireOptions = dogs.filter((d) => d.gender === "Male");
+  const damOptions = dogs.filter((d) => d.gender === "Female");
 
   useEffect(() => {
     debugLog("Fetching litter data for editing:", litterId);
@@ -38,16 +42,14 @@ const EditLitterPage = () => {
       })
       .catch((error) => {
         debugError("Error fetching litter:", error);
-        debugError("Error details:", error.message);
+        setError(error.message);
         setLoading(false);
       });
   }, [litterId]);
 
-  // Save the updated litter via a PUT request
   const handleSave = (updatedLitter) => {
     debugLog("Updating litter:", updatedLitter);
     const payload = { ...updatedLitter };
-    // Remove any temporary file fields
     delete payload.cover_photo_file;
     delete payload.cover_photo_preview;
 
@@ -56,41 +58,75 @@ const EditLitterPage = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         debugLog("Updated litter:", data);
-        if (data.error) {
-          console.error("Error updating litter:", data.error);
-          return;
-        }
         navigate(`/dashboard/litters/${litterId}`);
       })
-      .catch((error) => console.error("Error updating litter:", error));
+      .catch((error) => {
+        debugError("Error updating litter:", error);
+        setError(error.message);
+      });
   };
 
   if (loading) {
-    return <p>Loading litter data...</p>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
   }
 
   if (!litter) {
-    return <p>Could not load litter details.</p>;
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">Could not load litter details.</Alert>
+      </Box>
+    );
   }
 
   return (
-    <div className="add-litter-container">
-      {/* Back button for easier navigation */}
-      <button onClick={() => navigate("/dashboard/litters")} className="back-button">
-        &larr; Back to Manage Litters
-      </button>
-      <h2>Edit Litter #{litterId}</h2>
-      <LitterForm
-        onSave={handleSave}
-        initialData={litter}        // Prefill form fields with existing litter data
-        breedOptions={breeds}       // Provide available breeds (if needed)
-        sireOptions={sireOptions}   // Provide adult male dogs for sire selection
-        damOptions={damOptions}     // Provide adult female dogs for dam selection
-      />
-    </div>
+    <Container maxWidth="md">
+      <Box sx={{ mt: 3, mb: 4 }}>
+        <Breadcrumbs 
+          separator={<NavigateNextIcon fontSize="small" />}
+          aria-label="breadcrumb"
+        >
+          <Link 
+            to="/dashboard/litters"
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            Litters
+          </Link>
+          <Typography color="text.primary">Edit Litter</Typography>
+        </Breadcrumbs>
+
+        <Typography variant="h4" component="h1" sx={{ mt: 2, mb: 4 }}>
+          Edit Litter: {litter.litter_name}
+        </Typography>
+
+        <Paper sx={{ p: 3 }}>
+          <LitterForm
+            onSave={handleSave}
+            initialData={litter}
+            breedOptions={breeds}
+            sireOptions={sireOptions}
+            damOptions={damOptions}
+          />
+        </Paper>
+      </Box>
+    </Container>
   );
 };
 
