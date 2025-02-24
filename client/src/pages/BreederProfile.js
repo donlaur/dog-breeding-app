@@ -1,6 +1,7 @@
 // src/pages/BreederProfile.js
 import React, { useState, useEffect } from 'react';
 import '../styles/BreederProfile.css';
+import { API_URL, debugLog, debugError } from '../config';
 
 const BreederProfile = () => {
   const [program, setProgram] = useState({
@@ -14,9 +15,15 @@ const BreederProfile = () => {
 
   // Fetch the breeder program details using the environment variable
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/program`)
-      .then((response) => response.json())
+    fetch(`${API_URL}/program/`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
+        debugLog("Program data received:", data);
         setProgram({
           name: data.name || '',
           description: data.description || '',
@@ -26,7 +33,10 @@ const BreederProfile = () => {
           testimonial: data.testimonial || ''
         });
       })
-      .catch((error) => console.error('Error fetching program:', error));
+      .catch((error) => {
+        debugError('Error fetching program:', error);
+        debugError('Error details:', error.message);
+      });
   }, []);
 
   const handleChange = (e) => {
@@ -35,7 +45,7 @@ const BreederProfile = () => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    fetch(`${process.env.REACT_APP_API_URL}/api/program`, {
+    fetch(`${API_URL}/program`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(program),

@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from server.database.supabase_db import SupabaseDatabase, DatabaseError
 from server.database.db_interface import DatabaseInterface
+from .config import debug_log
 
 def create_litters_bp(db: DatabaseInterface) -> Blueprint:
     litters_bp = Blueprint("litters_bp", __name__)
@@ -62,21 +63,28 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
                     data[field] = None
 
     @litters_bp.route("/", methods=["GET"])
-    def get_all_litters():
+    def get_litters():
+        debug_log("Fetching all litters...")
         try:
             litters = db.get_all("litters")
+            debug_log(f"Found {len(litters)} litters")
             return jsonify(litters)
         except DatabaseError as e:
+            debug_log(f"Error fetching litters: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @litters_bp.route("/<int:litter_id>", methods=["GET"])
     def get_litter(litter_id):
+        debug_log(f"Fetching litter with ID: {litter_id}")
         try:
             litter = db.get_by_id("litters", litter_id)
             if not litter:
+                debug_log(f"Litter {litter_id} not found")
                 return jsonify({"error": "Litter not found"}), 404
+            debug_log(f"Found litter: {litter}")
             return jsonify(litter)
         except DatabaseError as e:
+            debug_log(f"Error fetching litter: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @litters_bp.route("/", methods=["POST"])

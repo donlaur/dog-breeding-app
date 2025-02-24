@@ -13,6 +13,7 @@ from datetime import datetime
 from server.supabase_client import supabase
 from server.database.supabase_db import SupabaseDatabase, DatabaseError
 from server.database.db_interface import DatabaseInterface
+from .config import debug_log
 
 def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
     dogs_bp = Blueprint("dogs_bp", __name__)
@@ -68,21 +69,28 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
                     data[field] = None
 
     @dogs_bp.route("/", methods=["GET"])
-    def get_all_dogs():
+    def get_dogs():
+        debug_log("Fetching all dogs...")
         try:
             dogs = db.get_all("dogs")
+            debug_log(f"Found {len(dogs)} dogs")
             return jsonify(dogs)
         except DatabaseError as e:
+            debug_log(f"Error fetching dogs: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/<int:dog_id>", methods=["GET"])
     def get_dog(dog_id):
+        debug_log(f"Fetching dog with ID: {dog_id}")
         try:
             dog = db.get_by_id("dogs", dog_id)
             if not dog:
+                debug_log(f"Dog {dog_id} not found")
                 return jsonify({"error": "Dog not found"}), 404
+            debug_log(f"Found dog: {dog}")
             return jsonify(dog)
         except DatabaseError as e:
+            debug_log(f"Error fetching dog: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/", methods=["POST"])

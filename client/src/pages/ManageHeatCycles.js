@@ -1,7 +1,7 @@
 // src/pages/ManageHeatCycles.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "../config";
+import { API_URL, debugLog, debugError } from "../config";
 import "../styles/ManageHeatCycles.css";
 
 const ManageHeatCycles = () => {
@@ -9,10 +9,22 @@ const ManageHeatCycles = () => {
   const [cycles, setCycles] = useState([]);
 
   useEffect(() => {
+    debugLog("Fetching heat cycles...");
     fetch(`${API_URL}/heat-cycles`)
-      .then((res) => res.json())
-      .then((data) => setCycles(data))
-      .catch((err) => console.error("Error fetching heat cycles:", err));
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        debugLog("Heat cycles received:", data);
+        setCycles(data);
+      })
+      .catch((err) => {
+        debugError("Error fetching heat cycles:", err);
+        debugError("Error details:", err.message);
+      });
   }, []);
 
   return (

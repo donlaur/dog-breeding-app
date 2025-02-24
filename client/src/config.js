@@ -1,12 +1,19 @@
 // src/config.js
-
 // You can optionally read these from environment variables too.
-export const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000/api";
-export const DEBUG = process.env.REACT_APP_DEBUG === "true" || true; // Set to false to turn off logging
+export const API_URL = process.env.REACT_APP_API_URL;
+export const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
 
-// A helper function for logging that only logs when DEBUG is true.
+console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
+
+// Create a debug logger utility
 export const debugLog = (...args) => {
-  if (DEBUG) {
+  if (DEBUG_MODE) {
     console.log(...args);
+  }
+};
+
+export const debugError = (...args) => {
+  if (DEBUG_MODE) {
+    console.error(...args);
   }
 };

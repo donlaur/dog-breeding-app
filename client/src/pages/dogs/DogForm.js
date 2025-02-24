@@ -1,7 +1,7 @@
 // src/pages/dogs/DogForm.js
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_URL, debugLog } from "../../config";
+import { API_URL, debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
 import "../../styles/DogForm.css";
 
@@ -27,7 +27,7 @@ function DogForm() {
 
   useEffect(() => {
     if (!id) {
-      // Add mode: set default values for a new dog
+      debugLog("Initializing new dog form");
       const newDog = {
         registered_name: "",
         call_name: "",
@@ -50,67 +50,25 @@ function DogForm() {
       return;
     }
 
-    // Editing mode: if the dog exists in context, normalize numeric fields
-    if (editingDog) {
-      const normalizedDog = {
-        registered_name: editingDog.registered_name || "",
-        call_name: editingDog.call_name || "",
-        breed_id: normalizeNumericField(editingDog.breed_id),
-        gender: editingDog.gender || "",
-        birth_date: editingDog.birth_date || "",
-        status: editingDog.status || "",
-        cover_photo: editingDog.cover_photo || "",
-        color: editingDog.color || "",
-        weight: normalizeNumericField(editingDog.weight),
-        microchip: editingDog.microchip || "",
-        notes: editingDog.notes || "",
-        sire_id: normalizeNumericField(editingDog.sire_id),
-        dam_id: normalizeNumericField(editingDog.dam_id),
-        litter_id: normalizeNumericField(editingDog.litter_id)
-      };
-      debugLog("Editing mode: normalized dog from context:", normalizedDog);
-      setDog(normalizedDog);
-      setLoading(false);
-    } else {
-      // Not found in context: fetch by ID from API
-      debugLog(`Dog with ID ${id} not found in context, fetching from API...`);
-      fetch(`${API_URL}/dogs/${id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            console.error("Dog not found:", data.error);
-            setDog(null);
-          } else {
-            // Normalize numeric fields for the fetched data
-            const normalizedDog = {
-              registered_name: data.registered_name || "",
-              call_name: data.call_name || "",
-              breed_id: normalizeNumericField(data.breed_id),
-              gender: data.gender || "",
-              birth_date: data.birth_date || "",
-              status: data.status || "",
-              cover_photo: data.cover_photo || "",
-              color: data.color || "",
-              weight: normalizeNumericField(data.weight),
-              microchip: data.microchip || "",
-              notes: data.notes || "",
-              sire_id: normalizeNumericField(data.sire_id),
-              dam_id: normalizeNumericField(data.dam_id),
-              litter_id: normalizeNumericField(data.litter_id)
-            };
-            debugLog("Fetched and normalized dog:", normalizedDog);
-            setDogs((prev) => [...prev, normalizedDog]);
-            setDog(normalizedDog);
-          }
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error fetching dog by ID:", err);
-          setDog(null);
-          setLoading(false);
-        });
-    }
-  }, [id, dogs, setDogs, editingDog]);
+    debugLog("Fetching dog data for editing:", id);
+    fetch(`${API_URL}/dogs/${id}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        debugLog("Dog data received for editing:", data);
+        setDog(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        debugError("Error fetching dog:", err);
+        debugError("Error details:", err.message);
+        setLoading(false);
+      });
+  }, [id]);
 
   if (loading) {
     return <p>Loading dog data...</p>;
@@ -139,54 +97,26 @@ function DogForm() {
     }
   };
 
-  const handleSaveDog = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    // Define numeric fields to skip if empty
-    const numericFields = ["breed_id", "sire_id", "dam_id", "weight", "litter_id"];
-    Object.keys(dog).forEach((key) => {
-      // Skip keys that are not part of the DB schema (e.g., cover_photo_preview)
-      if (key === "cover_photo_preview") {
-        return;
-      }
-      let value = dog[key];
-      if (numericFields.includes(key)) {
-        if (
-          value === "" ||
-          value === null ||
-          (typeof value === "string" && value.toLowerCase() === "null")
-        ) {
-          return; // Skip appending this field
-        }
-      }
-      formData.append(key, value);
-    });
+    debugLog("Submitting dog form:", dog);
 
-    if (dog.cover_photo_file) {
-      formData.append("cover_photo", dog.cover_photo_file);
-    }
+    const method = id ? "PUT" : "POST";
+    const url = id ? `${API_URL}/dogs/${id}` : `${API_URL}/dogs/`;
 
-    debugLog("FormData entries:");
-    for (let pair of formData.entries()) {
-      debugLog(`${pair[0]}: ${pair[1]}`);
-    }
-
-    const apiUrl = id ? `${API_URL}/dogs?dog_id=${id}` : `${API_URL}/dogs`;
-
-    fetch(apiUrl, {
-      method: "POST",
-      body: formData
+    fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dog),
     })
-      .then(async (res) => {
+      .then((res) => {
         if (!res.ok) {
-          const err = await res.json();
-          console.error("Error saving dog:", err);
-          return;
+          throw new Error(`HTTP error! status: ${res.status}`);
         }
         return res.json();
       })
       .then((data) => {
-        if (!data) return;
+        debugLog("Dog saved successfully:", data);
         if (id) {
           setDogs((prev) => prev.map((d) => (d.id === parseInt(id) ? data : d)));
         } else {
@@ -194,8 +124,9 @@ function DogForm() {
         }
         navigate("/dashboard/dogs");
       })
-      .catch((error) => {
-        console.error("Error saving dog:", error);
+      .catch((err) => {
+        debugError("Error saving dog:", err);
+        debugError("Error details:", err.message);
       });
   };
 
@@ -206,7 +137,7 @@ function DogForm() {
         &larr; Back to Manage Dogs
       </button>
       <h2>{id ? "Edit Dog" : "Add New Dog"}</h2>
-      <form onSubmit={handleSaveDog}>
+      <form onSubmit={handleSubmit}>
         <div className="cover-photo-section">
           {dog.cover_photo_preview ? (
             <img src={dog.cover_photo_preview} alt="Dog Cover" className="cover-photo" />

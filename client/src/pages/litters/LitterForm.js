@@ -1,6 +1,7 @@
 // src/pages/litters/LitterForm.js
 import React, { useState, useEffect } from "react";
 import "../../styles/LitterForm.css";
+import { API_URL, debugLog, debugError } from "../../config";
 
 /**
  * LitterForm component
@@ -33,24 +34,8 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   // If editing, populate form with initialData
   useEffect(() => {
     if (initialData) {
-      setLitter((prev) => ({
-        ...prev,
-        litter_name: initialData.litter_name || "",
-        status: initialData.status || "Planned",
-        birth_date: initialData.birth_date || "",
-        expected_date: initialData.expected_date || "",
-        planned_date: initialData.planned_date || "",
-        breed_id: initialData.breed_id || "",
-        sire_id: initialData.sire_id || "",
-        dam_id: initialData.dam_id || "",
-        price: initialData.price || "",
-        deposit: initialData.deposit || "",
-        extras: initialData.extras || "",
-        socialization: initialData.socialization || "",
-        // We won't set cover_photo_file or preview from existing data
-        cover_photo_file: null,
-        cover_photo_preview: null
-      }));
+      debugLog("Initializing litter form with data:", initialData);
+      setLitter(initialData);
     }
   }, [initialData]);
 
@@ -79,8 +64,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   // Submit the form
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Build an object with all fields (including the file)
-    // Let the parent handle whether it's POST or PUT
+    debugLog("Submitting litter form:", litter);
     onSave(litter);
 
     // If adding a new litter, you might reset the form. If editing, you might not.

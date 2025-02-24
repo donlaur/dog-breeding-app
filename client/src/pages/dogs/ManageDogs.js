@@ -1,7 +1,7 @@
 // src/pages/dogs/ManageDogs.js
 import React, { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL, debugLog } from "../../config";
+import { API_URL, debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
 import "../../styles/ManageDogs.css";
 import { Box, Button, Typography } from "@mui/material";
@@ -12,16 +12,21 @@ const ManageDogs = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_URL}/dogs`)
-      .then((res) => res.json())
-      .then((data) => {
-        debugLog("All dogs from API:", data);
-        // Filter for adult dogs based on your logic (e.g., using an is_adult flag)
-        const adultDogs = data.filter((dog) => dog.is_adult === true);
-        debugLog("Filtered adult dogs:", adultDogs);
-        setDogs(adultDogs);
+    fetch(`${API_URL}/dogs/`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
       })
-      .catch((error) => console.error("Error fetching dogs:", error));
+      .then((data) => {
+        debugLog("Dogs data received:", data);
+        setDogs(data);
+      })
+      .catch((error) => {
+        debugError("Error fetching dogs:", error);
+        debugError("Error details:", error.message);
+      });
   }, [setDogs]);
 
   return (

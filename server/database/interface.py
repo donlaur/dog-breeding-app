@@ -1,40 +1,30 @@
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import Dict, List, Any, Optional
 from ..config import debug_log
 
-class DatabaseInterface(ABC):
-    @abstractmethod
+class DatabaseInterface:
     def get_all(self, table: str) -> List[Dict[str, Any]]:
-        """Retrieve all records from a table"""
         debug_log(f"DatabaseInterface: Getting all records from {table}")
         raise NotImplementedError
 
-    @abstractmethod
     def get_by_id(self, table: str, id: int) -> Optional[Dict[str, Any]]:
-        """Retrieve a single record by ID"""
         debug_log(f"DatabaseInterface: Getting record from {table} with id {id}")
         raise NotImplementedError
 
-    @abstractmethod
     def get_filtered(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Retrieve records matching filter criteria"""
         debug_log(f"DatabaseInterface: Getting filtered records from {table} with filters {filters}")
         raise NotImplementedError
 
-    @abstractmethod
     def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new record"""
         debug_log(f"DatabaseInterface: Creating record in {table} with data {data}")
         raise NotImplementedError
 
-    @abstractmethod
     def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing record"""
         debug_log(f"DatabaseInterface: Updating record in {table} with id {id} with data {data}")
         raise NotImplementedError
 
-    @abstractmethod
-    def delete(self, table: str, id: int) -> bool:
-        """Delete a record"""
+    def delete(self, table: str, id: int) -> None:
         debug_log(f"DatabaseInterface: Deleting record from {table} with id {id}")
         raise NotImplementedError
+
+class DatabaseError(Exception):
+    pass 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_URL, debugLog, debugError } from "../config";
 
 function AdminMessages() {
   const [messages, setMessages] = useState([]);
@@ -6,13 +7,22 @@ function AdminMessages() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/dashboard/messages')
-      .then(response => response.json())
+    debugLog("Fetching admin messages...");
+    fetch(`${API_URL}/dashboard/messages`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
+        debugLog("Messages received:", data);
         setMessages(data);
         setLoading(false);
       })
       .catch(err => {
+        debugError("Error fetching messages:", err);
+        debugError("Error details:", err.message);
         setError(err.message);
         setLoading(false);
       });

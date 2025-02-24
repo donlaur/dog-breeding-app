@@ -1,7 +1,7 @@
 // src/pages/litters/ManageLitters.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL, debugLog } from "../../config";
+import { API_URL, debugLog, debugError } from "../../config";
 import "../../styles/Litters.css";
 
 const ManageLitters = () => {
@@ -10,25 +10,43 @@ const ManageLitters = () => {
   const [dogsMap, setDogsMap] = useState({}); // Maps dog.id -> dog object
 
   useEffect(() => {
-    fetch(`${API_URL}/litters`)
-      .then((res) => res.json())
+    // Fetch litters
+    fetch(`${API_URL}/litters/`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        debugLog("Fetched litters:", data);
+        debugLog("Litters data received:", data);
         setLitters(data);
       })
-      .catch((err) => console.error("Error fetching litters:", err));
+      .catch((err) => {
+        debugError("Error fetching litters:", err);
+        debugError("Error details:", err.message);
+      });
 
-    fetch(`${API_URL}/dogs`)
-      .then((res) => res.json())
+    // Fetch dogs for litter details
+    fetch(`${API_URL}/dogs/`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((dogsData) => {
+        debugLog("Dogs data for litters received:", dogsData);
         const map = {};
         dogsData.forEach((dog) => {
           map[dog.id] = dog;
         });
-        debugLog("Fetched dogs for litters:", map);
         setDogsMap(map);
       })
-      .catch((err) => console.error("Error fetching dogs for litters:", err));
+      .catch((err) => {
+        debugError("Error fetching dogs for litters:", err);
+        debugError("Error details:", err.message);
+      });
   }, []);
 
   // Format date as mm/dd/yyyy

@@ -1,7 +1,7 @@
 // src/pages/litters/EditLitterPage.js
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_URL, debugLog } from "../../config";
+import { API_URL, debugLog, debugError } from "../../config";
 import LitterForm from "./LitterForm"; // The updated LitterForm with all new fields
 import "../../styles/AddLitterPage.css";
 import DogContext from "../../context/DogContext";
@@ -23,41 +23,25 @@ const EditLitterPage = () => {
   const DEFAULT_BREED_ID = process.env.REACT_APP_DEFAULT_BREED_ID || "";
 
   useEffect(() => {
-    // Fetch the existing litter details from the API
+    debugLog("Fetching litter data for editing:", litterId);
     fetch(`${API_URL}/litters/${litterId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        debugLog("Fetched existing litter:", data);
-        if (data.error) {
-          console.error("Error fetching litter:", data.error);
-          setLoading(false);
-          return;
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
         }
-        // Force the breed field to the default value and set up prefilled data
-        const prefilled = {
-          litter_name: data.litter_name || "",
-          status: data.status || "Planned",
-          birth_date: data.birth_date || "",
-          expected_date: data.expected_date || "",
-          planned_date: data.planned_date || "",
-          // Always force the breed to the default value (Pembroke Welsh Corgis)
-          breed_id: DEFAULT_BREED_ID,
-          sire_id: data.sire_id || "",
-          dam_id: data.dam_id || "",
-          price: data.price || "",
-          deposit: data.deposit || "",
-          extras: data.extras || "",
-          socialization: data.socialization || "",
-          // Note: cover_photo_file and preview are not set when editing
-        };
-        setLitter(prefilled);
+        return res.json();
+      })
+      .then((data) => {
+        debugLog("Litter data received:", data);
+        setLitter(data);
         setLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching litter:", error);
+        debugError("Error fetching litter:", error);
+        debugError("Error details:", error.message);
         setLoading(false);
       });
-  }, [litterId, DEFAULT_BREED_ID]);
+  }, [litterId]);
 
   // Save the updated litter via a PUT request
   const handleSave = (updatedLitter) => {
