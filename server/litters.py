@@ -8,7 +8,7 @@ Puppies are stored in the 'dogs' table with a non-null 'litter_id'.
 import os
 import uuid
 import tempfile
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from server.database.supabase_db import SupabaseDatabase, DatabaseError
@@ -115,52 +115,102 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
 
     @litters_bp.route("/<int:litter_id>/puppies", methods=["POST"])
     def add_puppy_to_litter(litter_id):
-        content_type = request.content_type or ""
-        if content_type.startswith("multipart/form-data"):
-            form_data = {}
-            for key in request.form:
-                form_data[key] = request.form[key]
-            form_data["litter_id"] = litter_id
-            if "birth_date" in form_data and form_data["birth_date"]:
-                try:
-                    dt = datetime.strptime(form_data["birth_date"], "%Y-%m-%d")
-                    form_data["birth_date"] = dt.strftime("%Y-%m-%d")
-                except ValueError:
-                    form_data["birth_date"] = None
-            parse_int_field_silent(form_data, "breed_id")
-            parse_float_field_silent(form_data, "weight")
-            file = request.files.get("cover_photo")
-            if file:
-                original_filename = secure_filename(file.filename)
-                unique_id = str(uuid.uuid4())[:8]
-                final_filename = f"{unique_id}_{original_filename}"
-                filepath = f"dog_images/{final_filename}"
-                form_data["cover_photo_original_filename"] = original_filename
-                with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                    file.save(tmp.name)
-                    tmp_path = tmp.name
-                try:
-                    upload_response = supabase.storage.from_("uploads").upload(filepath, tmp_path)
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
-                if upload_response.error:
-                    return jsonify({"error": upload_response.error.message}), 400
-                form_data["cover_photo"] = f"https://{os.getenv('SUPABASE_URL').split('://')[-1]}/storage/v1/object/public/uploads/{filepath}"
-            insert_response = supabase.table("dogs").insert(form_data).execute()
-            if insert_response.error:
-                return jsonify({"error": insert_response.error.message}), 400
-            inserted = insert_response.data or []
-            return jsonify(inserted[0] if inserted else {}), 201
-        else:
-            data = request.get_json() or {}
-            data["litter_id"] = litter_id
-            parse_int_field_silent_json(data, "breed_id")
-            parse_float_field_silent_json(data, "weight")
-            insert_response = supabase.table("dogs").insert(data).execute()
-            if insert_response.error:
-                return jsonify({"error": insert_response.error.message}), 400
-            inserted = insert_response.data or []
-            return jsonify(inserted[0] if inserted else {}), 201
+        try:
+            data = request.json
+            
+            # Add litter_id to the data
+            data['litter_id'] = litter_id
+            
+            # Ensure name field is set (use call_name if name is empty)
+            if not data.get('name') and data.get('call_name'):
+                data['name'] = data['call_name']
+            
+            # Convert empty strings to None for numeric fields
+            numeric_fields = ['weight_at_birth', 'min_adult_weight', 'max_adult_weight', 'price']
+            for field in numeric_fields:
+                if field in data and (data[field] == '' or data[field] == 'null'):
+                    data[field] = None
+            
+            # Convert empty strings to None for optional text fields
+            text_fields = ['registered_name', 'microchip', 'description', 'notes', 'markings', 'collar_color']
+            for field in text_fields:
+                if field in data and data[field] == '':
+                    data[field] = None
+            
+            # Use the db.create method
+            result = db.create('puppies', data)
+            
+            return jsonify(result), 201
+            
+        except DatabaseError as e:
+            return jsonify({'error': str(e)}), 500
+
+    @litters_bp.route('/<int:litter_id>/puppies', methods=['GET'])
+    def get_litter_puppies(litter_id):
+        try:
+            print(f"Fetching puppies for litter {litter_id}")
+            
+            # Use Supabase query builder
+            result = db.supabase.table('puppies').select('*').eq('litter_id', litter_id).execute()
+            
+            print(f"Query result: {result}")
+            
+            # Extract data from result
+            puppies = result.data if result and hasattr(result, 'data') else []
+            
+            # Create response with required CORS headers
+            response = make_response(jsonify(puppies))
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return response
+            
+        except Exception as e:
+            print(f"Error fetching puppies: {str(e)}")
+            error_response = make_response(jsonify({'error': str(e)}), 500)
+            error_response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return error_response
+
+    @litters_bp.route('/puppies/<int:puppy_id>', methods=['GET'])
+    def get_puppy(puppy_id):
+        try:
+            result = db.supabase.table('puppies').select('*').eq('id', puppy_id).execute()
+            puppy = result.data[0] if result.data else None
+            
+            if not puppy:
+                return jsonify({'error': 'Puppy not found'}), 404
+            
+            return jsonify(puppy)
+            
+        except Exception as e:
+            print(f"Error fetching puppy: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    @litters_bp.route('/puppies/<int:puppy_id>', methods=['PUT'])
+    def update_puppy(puppy_id):
+        try:
+            data = request.json
+            result = db.supabase.table('puppies').update(data).eq('id', puppy_id).execute()
+            
+            if not result.data:
+                return jsonify({'error': 'Puppy not found'}), 404
+            
+            return jsonify(result.data[0])
+            
+        except Exception as e:
+            print(f"Error updating puppy: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    @litters_bp.route('/puppies/<int:puppy_id>', methods=['DELETE'])
+    def delete_puppy(puppy_id):
+        try:
+            result = db.supabase.table('puppies').delete().eq('id', puppy_id).execute()
+            
+            if not result.data:
+                return jsonify({'error': 'Puppy not found'}), 404
+            
+            return jsonify({'message': 'Puppy deleted successfully'})
+            
+        except Exception as e:
+            print(f"Error deleting puppy: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
     return litters_bp

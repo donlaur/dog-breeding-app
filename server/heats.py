@@ -23,22 +23,30 @@ def handle_heats():
             return jsonify({'error': str(e)}), 500
             
     elif request.method == 'POST':
-        try:
-            data = request.get_json()
-            # Remove any ID from the input data to prevent conflicts
-            if 'id' in data:
-                del data['id']
-            if 'created_at' in data:
-                del data['created_at']
-            if 'updated_at' in data:
-                del data['updated_at']
+        data = request.get_json()
+        print(f"Creating heat with data: {data}")
+        
+        # Convert empty strings to None for both date and integer fields
+        date_fields = ['mating_date', 'expected_whelp_date']
+        integer_fields = ['sire_id']
+        
+        # Handle date fields
+        for field in date_fields:
+            if field in data and data[field] == '':
+                data[field] = None
                 
-            debug_log(f"Creating heat with data: {data}")
+        # Handle integer fields
+        for field in integer_fields:
+            if field in data and data[field] == '':
+                data[field] = None
+        
+        try:
             new_heat = db.create('heats', data)
-            return jsonify(new_heat), 201
-        except DatabaseError as e:
-            debug_log(f"Error creating heat: {str(e)}")
-            return jsonify({'error': str(e)}), 400
+            print(f"Heat created successfully: {new_heat}")
+            return jsonify(new_heat.data[0] if new_heat.data else {}), 201
+        except Exception as e:
+            print(f"Error creating heat: {str(e)}")
+            return jsonify({'error': 'Failed to save heat, please try again'}), 500
 
 @heats_bp.route('/<int:heat_id>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])
 def handle_heat(heat_id):

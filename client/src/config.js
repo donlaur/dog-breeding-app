@@ -1,6 +1,7 @@
 // src/config.js
 // You can optionally read these from environment variables too.
-export const API_URL = process.env.REACT_APP_API_URL;
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+export const SUPABASE_URL = 'https://rezchuvoipnekcbbwlis.supabase.co';
 export const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
 
 console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);

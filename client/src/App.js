@@ -13,6 +13,7 @@ import AddPuppy from "./pages/litters/AddPuppy";
 import ManageHeats from './pages/heats/ManageHeats';
 import AddHeat from './pages/heats/AddHeat';
 import EditHeat from './pages/heats/EditHeat';
+import PuppyDetails from './pages/puppies/PuppyDetails';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="heats" element={<ManageHeats />} />
         <Route path="heats/add" element={<AddHeat />} />
         <Route path="heats/edit/:heatId" element={<EditHeat />} />
+        <Route path="puppies/:puppyId" element={<PuppyDetails />} />
       </Route>
     </Routes>
   );

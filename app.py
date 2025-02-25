@@ -9,8 +9,15 @@ are loaded automatically via the server's configuration.
 
 from server import create_app
 
-app = create_app()
-
 if __name__ == "__main__":
-    # You can set debug=True for development purposes.
-    app.run(debug=True)
+    app = create_app()
+    
+    # Print all registered routes before running
+    print("\n=== Registered routes: ===")
+    rules = list(app.url_map.iter_rules())
+    rules.sort(key=lambda x: x.rule)
+    for rule in rules:
+        print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+    
+    print("\n=== Starting server... ===")
+    app.run(debug=True, port=5000)

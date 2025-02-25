@@ -9,11 +9,12 @@ from flask import Flask
 from flask_cors import CORS  # <-- Import here
 from dotenv import load_dotenv
 from server.dogs import dogs_bp
-from server.breeds import breeds_bp
+from server.breeds import breeds_bp  # Import the blueprint directly
 from server.litters import litters_bp
 from server.heats import create_heats_bp  # Updated to match new name
 from server.program import program_bp  # <-- our new blueprint
 from server.database import SupabaseDatabase
+from server.puppies import create_puppies_bp  # Updated import path
 
 def create_app():
     load_dotenv()  # Load environment variables from .env
@@ -32,12 +33,29 @@ def create_app():
     # Initialize database
     db = SupabaseDatabase()
 
-    # Register blueprints with URL prefixes for modular routing.
+    print("\n=== Registering blueprints... ===")
+    
+    # Register blueprints
     app.register_blueprint(dogs_bp, url_prefix="/api/dogs")
+    print("✓ Registered dogs_bp")
+    
     app.register_blueprint(breeds_bp, url_prefix="/api/breeds")
+    print("✓ Registered breeds_bp")
+    
     app.register_blueprint(litters_bp, url_prefix="/api/litters")
-    app.register_blueprint(create_heats_bp(db), url_prefix="/api/heats")  # Updated to match new name
+    print("✓ Registered litters_bp")
+    
+    app.register_blueprint(create_heats_bp(db), url_prefix="/api/heats")
+    print("✓ Registered heats_bp")
+    
     app.register_blueprint(program_bp, url_prefix="/api/program")
+    print("✓ Registered program_bp")
+
+    print("\n=== Registered routes: ===")
+    rules = list(app.url_map.iter_rules())
+    rules.sort(key=lambda x: x.rule)  # Sort routes alphabetically
+    for rule in rules:
+        print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
     
     return app
 
