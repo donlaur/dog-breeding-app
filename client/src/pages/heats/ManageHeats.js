@@ -23,112 +23,33 @@ import {
   Delete as DeleteIcon,
   Pets as PetsIcon
 } from '@mui/icons-material';
+import HeatList from '../../components/HeatList';
+import HeatCalendar from '../../components/HeatCalendar';
 
 const ManageHeats = () => {
+  const [view, setView] = useState('list'); // 'list' or 'calendar'
   const [heats, setHeats] = useState([]);
-  const [dogs, setDogs] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load dogs for name lookup
-  const loadDogs = async () => {
-    try {
-      const response = await fetch(`${API_URL}/dogs`);
-      if (!response.ok) throw new Error('Failed to fetch dogs');
-      const dogsData = await response.json();
-      
-      // Create lookup object with id as key
-      const dogsLookup = {};
-      dogsData.forEach(dog => {
-        dogsLookup[dog.id] = dog;
-      });
-      setDogs(dogsLookup);
-      return dogsLookup;  // Return the lookup for immediate use
-    } catch (err) {
-      debugError("Error fetching dogs:", err);
-      setError("Failed to load dogs data");
-      return null;
-    }
-  };
-
-  const loadHeats = async (dogsLookup) => {
-    debugLog("Fetching heats...");
-    try {
-      const response = await fetch(`${API_URL}/heats`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      
-      // Process heats with the dogs lookup we already have
-      const heatsWithNames = data.map(heat => ({
-        ...heat,
-        dogName: dogsLookup[heat.dog_id]?.call_name || "Unknown Dog",
-        sireName: dogsLookup[heat.sire_id]?.call_name || "Unknown Dog"
-      }));
-      
-      debugLog("Final processed heats:", heatsWithNames);
-      setHeats(heatsWithNames);
-    } catch (err) {
-      debugError("Error fetching heats:", err);
-      setError("Unable to connect to server. Please try again later.");
-    }
-  };
-
-  // Load both dogs and heats when component mounts
+  // Load heats when component mounts
   useEffect(() => {
-    const loadData = async () => {
-      const dogsLookup = await loadDogs();
-      if (dogsLookup) {
-        await loadHeats(dogsLookup);
+    const loadHeats = async () => {
+      try {
+        const response = await fetch(`${API_URL}/heats`);
+        if (!response.ok) throw new Error('Failed to fetch heats');
+        const data = await response.json();
+        setHeats(data);
+      } catch (err) {
+        debugError("Error fetching heats:", err);
+        setError("Failed to load heats data");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    loadData();
+
+    loadHeats();
   }, []);
-
-  const handleDelete = (heatId) => {
-    if (!window.confirm("Are you sure you want to delete this heat record?")) {
-      return;
-    }
-
-    debugLog("Deleting heat:", heatId);
-    fetch(`${API_URL}/heats/${heatId}`, {
-      method: 'DELETE',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        loadHeats(dogs); // Reload the list after deletion
-      })
-      .catch((err) => {
-        debugError("Error deleting heat:", err);
-        setError("Failed to delete heat. Please try again.");
-      });
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const getStatusClass = (heat) => {
-    const today = new Date();
-    const startDate = new Date(heat.start_date);
-    const endDate = heat.end_date ? new Date(heat.end_date) : null;
-    
-    if (endDate && today > endDate) return "completed";
-    if (today >= startDate && (!endDate || today <= endDate)) return "active";
-    if (today < startDate) return "upcoming";
-    return "";
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'primary';
-      case 'completed': return 'success';
-      case 'upcoming': return 'warning';
-      default: return 'default';
-    }
-  };
 
   if (loading) {
     return (
@@ -181,182 +102,48 @@ const ManageHeats = () => {
   }
 
   return (
-    <Box sx={{ p: 2, pb: { xs: 10, sm: 2 } }}>
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 3,
-        position: 'sticky',
-        top: 0,
-        bgcolor: 'background.paper',
-        zIndex: 1,
-        py: 2
-      }}>
-        <Typography variant="h5" component="h2">
-          Heats
-        </Typography>
-        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-          <Button
-            component={Link}
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Manage Heats</h1>
+        <div className="flex items-center gap-4">
+          <div className="inline-flex rounded-md shadow-sm">
+            <button
+              onClick={() => setView('list')}
+              className={`inline-flex items-center px-4 py-2 rounded-l-lg border ${
+                view === 'list'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              List View
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              className={`inline-flex items-center px-4 py-2 rounded-r-lg border-t border-r border-b -ml-px ${
+                view === 'calendar'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Calendar View
+            </button>
+          </div>
+          <Link
             to="/dashboard/heats/add"
-            variant="contained"
-            startIcon={<AddIcon />}
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
             Add Heat
-          </Button>
-        </Box>
-      </Box>
+          </Link>
+        </div>
+      </div>
 
-      <Grid container spacing={2}>
-        {heats.map((heat) => (
-          <Grid item xs={12} sm={6} md={4} key={heat.id}>
-            <Card sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              '&:hover': {
-                boxShadow: 3
-              }
-            }}>
-              <CardContent>
-                <Box sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  mb: 2
-                }}>
-                  <Chip
-                    label={getStatusClass(heat)}
-                    color={getStatusColor(getStatusClass(heat))}
-                    size="small"
-                  />
-                </Box>
-
-                <Typography variant="h5" component="h3" gutterBottom>
-                  {heat.dogName}
-                  {heat.mating_date && heat.sireName && (
-                    <Typography component="span" color="text.secondary" sx={{ ml: 1 }}>
-                      & {heat.sireName}
-                    </Typography>
-                  )}
-                </Typography>
-
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    py: 1,
-                    borderBottom: 1,
-                    borderColor: 'divider'
-                  }}>
-                    <Typography variant="subtitle1" color="text.secondary">
-                      Start:
-                    </Typography>
-                    <Typography>
-                      {formatDate(heat.start_date)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    py: 1,
-                    borderBottom: 1,
-                    borderColor: 'divider'
-                  }}>
-                    <Typography variant="subtitle1" color="text.secondary">
-                      End:
-                    </Typography>
-                    <Typography>
-                      {formatDate(heat.end_date)}
-                    </Typography>
-                  </Box>
-                  {heat.mating_date && (
-                    <Box sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      py: 1,
-                      borderBottom: 1,
-                      borderColor: 'divider'
-                    }}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Mating:
-                      </Typography>
-                      <Typography>
-                        {formatDate(heat.mating_date)}
-                      </Typography>
-                    </Box>
-                  )}
-                  {heat.expected_whelp_date && (
-                    <Box sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      py: 1,
-                      borderBottom: 1,
-                      borderColor: 'divider'
-                    }}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Expected Whelp:
-                      </Typography>
-                      <Typography>
-                        {formatDate(heat.expected_whelp_date)}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-
-                {heat.notes && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {heat.notes}
-                  </Typography>
-                )}
-
-                <Box sx={{
-                  display: 'flex',
-                  gap: 1,
-                  mt: 'auto'
-                }}>
-                  <Button
-                    component={Link}
-                    to={`/dashboard/heats/edit/${heat.id}`}
-                    variant="contained"
-                    startIcon={<EditIcon />}
-                    fullWidth
-                  >
-                    EDIT
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(heat.id)}
-                    variant="outlined"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    fullWidth
-                  >
-                    DELETE
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Mobile FAB */}
-      <Box sx={{
-        display: { xs: 'block', sm: 'none' },
-        position: 'fixed',
-        bottom: 16,
-        right: 16
-      }}>
-        <Fab
-          component={Link}
-          to="/dashboard/heats/add"
-          color="primary"
-          aria-label="add heat"
-        >
-          <AddIcon />
-        </Fab>
-      </Box>
-    </Box>
+      {/* Render either list or calendar based on view state */}
+      {view === 'list' ? (
+        <HeatList heats={heats} setHeats={setHeats} />
+      ) : (
+        <HeatCalendar heats={heats} />
+      )}
+    </div>
   );
 };
 

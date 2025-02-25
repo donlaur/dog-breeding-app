@@ -43,7 +43,11 @@ def handle_heats():
         try:
             new_heat = db.create('heats', data)
             print(f"Heat created successfully: {new_heat}")
-            return jsonify(new_heat.data[0] if new_heat.data else {}), 201
+            # Check if new_heat is a dict or has data attribute
+            if hasattr(new_heat, 'data'):
+                return jsonify(new_heat.data[0] if new_heat.data else {}), 201
+            else:
+                return jsonify(new_heat), 201  # If it's already a dict
         except Exception as e:
             print(f"Error creating heat: {str(e)}")
             return jsonify({'error': 'Failed to save heat, please try again'}), 500

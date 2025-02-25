@@ -11,7 +11,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 
-const HeatList = ({ heats, onDelete }) => {
+const HeatList = ({ heats, setHeats }) => {
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -99,7 +99,7 @@ const HeatList = ({ heats, onDelete }) => {
               EDIT
             </Button>
             <Button
-              onClick={() => onDelete(heat.id)}
+              onClick={() => setHeats(heats.filter((h) => h.id !== heat.id))}
               variant="outlined"
               color="error"
               startIcon={<DeleteIcon />}

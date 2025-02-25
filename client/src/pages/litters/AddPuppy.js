@@ -18,7 +18,8 @@ import {
   CircularProgress,
   Alert,
   FormControlLabel,
-  Switch
+  Switch,
+  FormHelperText
 } from "@mui/material";
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import DogContext from "../../context/DogContext";
@@ -39,6 +40,7 @@ const AddPuppy = () => {
     gender: "",
     color: "",
     markings: "",
+    markings_description: "",
     status: "Available", // Default status
     price: "",
     microchip: "",
@@ -257,13 +259,13 @@ const AddPuppy = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  name="color_description"
-                  label="Color Description"
-                  helperText="Detailed description of coat color and expected changes"
-                  value={puppy.color_description}
-                  onChange={handleChange}
                   multiline
-                  rows={2}
+                  rows={3}
+                  name="markings_description"
+                  label="Markings Description"
+                  helperText="Detailed description of coat pattern, distinctive markings, etc."
+                  value={puppy.markings_description}
+                  onChange={handleChange}
                 />
               </Grid>
 
