@@ -5,36 +5,35 @@ import { API_URL, debugLog, debugError } from "../../config";
 import LitterForm from "./LitterForm";   // <-- must point to the new LitterForm
 import "../../styles/AddLitterPage.css";
 import DogContext from "../../context/DogContext";
+import { apiPost } from '../../utils/apiUtils';
 
 const AddLitterPage = () => {
   const navigate = useNavigate();
-  const { dogs, breeds } = useContext(DogContext);
+  const { dogs, breeds, addLitter } = useContext(DogContext);
 
   const sireOptions = dogs.filter((d) => d.gender === "Male");
   const damOptions = dogs.filter((d) => d.gender === "Female");
 
-  const handleSave = (newLitter) => {
-    debugLog("Saving new litter:", newLitter);
-
-    fetch(`${API_URL}/litters`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newLitter),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("New litter saved:", data);
-        navigate("/dashboard/litters");
-      })
-      .catch((error) => {
-        debugError("Error saving litter:", error);
-        debugError("Error details:", error.message);
-      });
+  const handleSave = async (litterData) => {
+    try {
+      setLoading(true);
+      
+      const response = await apiPost('litters', litterData);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create litter');
+      }
+      
+      const newLitter = await response.json();
+      addLitter(newLitter);
+      navigate('/dashboard/litters');
+    } catch (error) {
+      console.error('Error saving litter:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

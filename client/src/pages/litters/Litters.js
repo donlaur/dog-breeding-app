@@ -1,97 +1,122 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-// If you have a DogContext, you could import and use it here instead of fetching
-// import { useContext } from "react";
-// import DogContext from "../../context/DogContext";
-import "./Litters.css";
+import React, { useEffect } from 'react';
+import { useDog } from '../../context/DogContext';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Card, 
+  CardContent, 
+  Grid, 
+  Paper, 
+  Divider,
+  Container 
+} from '@mui/material';
+import { 
+  Add as AddIcon, 
+  Pets as PetsIcon, 
+  Visibility as LittersIcon 
+} from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
-const Litters = () => {
-  const navigate = useNavigate();
-  
-  // Litter & dog data
-  const [litters, setLitters] = useState([]);
-  const [dogsMap, setDogsMap] = useState({}); // Maps dog.id -> dog object
-  
+function Litters() {
+  const { litters, loading, error, refreshLitters } = useDog();
+
   useEffect(() => {
-    // 1) Fetch all litters
-    fetch("http://127.0.0.1:5000/api/litters")
-      .then((res) => res.json())
-      .then((data) => {
-        setLitters(data);
-      })
-      .catch((err) => console.error("Error fetching litters:", err));
+    refreshLitters();
+  }, [refreshLitters]);
 
-    // 2) Fetch dogs so we can look up sire/dam names
-    fetch("http://127.0.0.1:5000/api/dogs")
-      .then((res) => res.json())
-      .then((dogsData) => {
-        // Build a map: { 1: {id:1, registered_name:"..."}, 2: {...}, ... }
-        const map = {};
-        dogsData.forEach((dog) => {
-          map[dog.id] = dog;
-        });
-        setDogsMap(map);
-      })
-      .catch((err) => console.error("Error fetching dogs for litters:", err));
-  }, []);
-
-  // Format birth date as mm/dd/yyyy for display
-  const formatDate = (isoDateString) => {
-    if (!isoDateString) return "";
-    const dateObj = new Date(isoDateString);
-    // toLocaleDateString('en-US') → "06/11/2023"
-    return dateObj.toLocaleDateString("en-US");
-  };
+  console.log("Litters rendering, litters:", litters); // Debug log
 
   return (
-    <div className="litters-container">
-      <h2 className="page-title">Manage Litters</h2>
-
-      {/* Centered add-litter button, like the dog page */}
-      <div className="filter-group">
-      <button onClick={() => navigate("/dashboard/litters/add")} className="add-litter-btn">
-      + Add Litter
-      </button>
-      </div>
-
-      {/* Grid of litter cards */}
-      <div className="litter-grid">
-        {litters.length === 0 ? (
-          <p>No litters found. Try adding one.</p>
-        ) : (
-          litters.map((litter) => {
-            // Lookup sire/dam from dogsMap
-            const sireDog = dogsMap[litter.sire_id];
-            const damDog = dogsMap[litter.dam_id];
-
-            return (
-              <div
-                key={litter.id}
-                className="litter-card"
-                // You could allow editing on click:
-                // onClick={() => navigate(`/dashboard/litters/edit/${litter.id}`)}
+    <Container maxWidth="lg">
+      <Box sx={{ py: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" component="h1">
+            Litters
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            component={Link}
+            to="/dashboard/litters/add"
+          >
+            Add Litter
+          </Button>
+        </Box>
+        
+        {loading ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography>Loading litters...</Typography>
+          </Box>
+        ) : error ? (
+          <Box sx={{ textAlign: 'center', py: 8, color: 'error.main' }}>
+            <Typography variant="h6">Error loading litters</Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>{error}</Typography>
+            <Button onClick={refreshLitters} variant="outlined" sx={{ mt: 2 }}>
+              Retry
+            </Button>
+          </Box>
+        ) : (!litters || litters.length === 0) ? (
+          // Improved empty state - forcing this condition to be more explicit
+          <Paper sx={{ 
+            p: 4, 
+            textAlign: 'center', 
+            borderRadius: 2,
+            backgroundColor: '#f8f9fa',
+            maxWidth: 800,
+            mx: 'auto',
+            mt: 4
+          }}>
+            <Box sx={{ mb: 3 }}>
+              <LittersIcon sx={{ fontSize: 60, color: 'primary.light', mb: 2 }} />
+              <Typography variant="h5" gutterBottom>No Litters Yet</Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+                Track your breeding program by adding litters. Each litter entry allows you to record 
+                important details such as whelp date, dam, sire, number of puppies, and more.
+              </Typography>
+            </Box>
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Box>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>
+                Getting Started
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                To add your first litter, click the "Add Litter" button above. You'll need to have dam and 
+                sire records created in your Dogs section first.
+              </Typography>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                startIcon={<AddIcon />}
+                component={Link}
+                to="/dashboard/litters/add"
+                sx={{ mt: 1 }}
               >
-                <p>
-                  <strong>Birthdate:</strong> {formatDate(litter.birth_date)}
-                </p>
-                <p>
-                  <strong>Sire:</strong>{" "}
-                  {sireDog ? sireDog.registered_name : litter.sire_id}
-                </p>
-                <p>
-                  <strong>Dam:</strong>{" "}
-                  {damDog ? damDog.registered_name : litter.dam_id}
-                </p>
-                <p>
-                  <strong>Puppies:</strong> {litter.num_puppies}
-                </p>
-              </div>
-            );
-          })
+                Add Your First Litter
+              </Button>
+            </Box>
+          </Paper>
+        ) : (
+          // Existing litters display
+          <Grid container spacing={3}>
+            {litters.map(litter => (
+              <Grid item xs={12} key={litter.id}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6">{litter.name || `Litter #${litter.id}`}</Typography>
+                    {/* Other litter details */}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         )}
-      </div>
-    </div>
+      </Box>
+    </Container>
   );
-};
+}
 
 export default Litters;

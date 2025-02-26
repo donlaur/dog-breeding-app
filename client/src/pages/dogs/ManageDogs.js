@@ -138,32 +138,16 @@ const ManageDogs = () => {
   }
 
   return (
-    <Box sx={{ p: 2, pb: { xs: 10, sm: 2 } }}>
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 3,
-        position: 'sticky',
-        top: 0,
-        bgcolor: 'background.paper',
-        zIndex: 1,
-        py: 2
-      }}>
-        <Typography variant="h5" component="h2">
-          Dogs
-        </Typography>
-        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-          <Button
-            component={Link}
-            to="/dashboard/dogs/add"
-            variant="contained"
-            startIcon={<AddIcon />}
-          >
-            Add Dog
-          </Button>
-        </Box>
-      </Box>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Manage Dogs</h1>
+        <Link 
+          to="/dashboard/dogs/add" 
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Add New Dog
+        </Link>
+      </div>
 
       <Grid container spacing={2}>
         {dogs.map((dog) => (
@@ -322,7 +306,7 @@ const ManageDogs = () => {
           <AddIcon />
         </Fab>
       </Box>
-    </Box>
+    </div>
   );
 };
 
