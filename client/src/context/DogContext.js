@@ -1,10 +1,11 @@
 // src/context/DogContext.js
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { API_URL, debugLog } from '../config';
 
 const DogContext = createContext();
 
-export const DogProvider = ({ children }) => {
+export function DogProvider({ children }) {
   const [dogs, setDogs] = useState([]);
   const [breeds, setBreeds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,10 @@ export const DogProvider = ({ children }) => {
       {children}
     </DogContext.Provider>
   );
-};
+}
+
+export function useDog() {
+  return useContext(DogContext);
+}
 
 export default DogContext;

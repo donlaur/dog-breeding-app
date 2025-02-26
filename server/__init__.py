@@ -11,7 +11,14 @@ def get_db():
 def create_app(test_config=None):
     load_dotenv()
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": "*",  # Allow all origins for testing
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
     
     debug_log("Initializing Flask application...")
     
@@ -27,6 +34,67 @@ def create_app(test_config=None):
     from .heats import create_heats_bp
     from .messages import create_messages_bp
     from .breeds import breeds_bp
+    # Import auth blueprint
+    from flask import Blueprint, request, jsonify
+    
+    # Create auth blueprint directly in __init__.py
+    auth_bp = Blueprint("auth_bp", __name__)
+    
+    @auth_bp.route('/signup', methods=['POST', 'OPTIONS'])
+    def auth_signup():
+        # Handle CORS preflight
+        if request.method == 'OPTIONS':
+            return '', 200
+        # Handle actual request
+        data = request.get_json()
+        return jsonify({
+            'message': 'Signup endpoint hit!',
+            'data': data,
+            'token': 'test-token',
+            'user': {
+                'id': 1,
+                'email': data.get('email', ''),
+                'name': data.get('name', '')
+            }
+        }), 201
+    
+    @auth_bp.route('/login', methods=['POST', 'OPTIONS'])
+    def auth_login():
+        # Handle CORS preflight
+        if request.method == 'OPTIONS':
+            return '', 200
+        # Handle actual request
+        data = request.get_json()
+        return jsonify({
+            'message': 'Login endpoint hit!',
+            'token': 'test-token',
+            'user': {
+                'id': 1,
+                'email': data.get('email', '')
+            }
+        }), 200
+    
+    @auth_bp.route('/verify', methods=['GET', 'OPTIONS'])
+    def auth_verify():
+        # Handle CORS preflight
+        if request.method == 'OPTIONS':
+            return '', 200
+        
+        # Handle token verification
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"error": "No token provided"}), 401
+        
+        # For testing, just accept any token and return success
+        token = auth_header.split(' ')[1]
+        return jsonify({
+            'message': 'Token verified',
+            'user': {
+                'id': 1,
+                'email': 'user@example.com',
+                'name': 'Test User'
+            }
+        }), 200
     
     print("\n=== Registering blueprints... ===")
     
@@ -69,6 +137,12 @@ def create_app(test_config=None):
         print("✓ Registered messages_bp")
     except Exception as e:
         print(f"✗ Failed to register messages_bp: {str(e)}")
+    
+    try:
+        app.register_blueprint(auth_bp, url_prefix="/api/auth")
+        print("✓ Registered auth_bp")
+    except Exception as e:
+        print(f"✗ Failed to register auth_bp: {str(e)}")
     
     debug_log("Application initialization complete")
     return app
