@@ -169,3 +169,36 @@ For more details, visit the [GitHub repository](https://github.com/donlaur/dog-b
 - Restructured litter management interface
 - Standardized form layouts and styling
 - Enhanced error handling and user feedback
+
+## Setup Instructions
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+SUPABASE_URL=your_supabase
+SUPABASE_KEY=your_supabase_key
+ADMIN_EMAILS=admin@example.com,another.admin@example.com
+
+The `ADMIN_EMAILS` variable is a comma-separated list of email addresses that will be granted admin privileges when they sign up.
+
+### Database Setup
+
+The application will automatically create required tables on the first run. However, if you need to manually set up the database:
+
+1. Connect to your Supabase database
+2. Run the following SQL queries:
+
+sql
+CREATE TABLE IF NOT EXISTS users (
+id SERIAL PRIMARY KEY,
+email VARCHAR(255) UNIQUE NOT NULL,
+name VARCHAR(255),
+password_hash VARCHAR(255) NOT NULL,
+role VARCHAR(50) DEFAULT 'user',
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- Insert an admin user (Replace with your information)
+INSERT INTO users (email, name, password_hash, role)
+VALUES ('your.email@example.com', 'Admin User', 'your_password', 'admin');

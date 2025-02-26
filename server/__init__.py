@@ -3,6 +3,7 @@ from flask_cors import CORS
 from .config import debug_log, SUPABASE_URL, SUPABASE_KEY
 from .database.supabase_db import SupabaseDatabase
 from dotenv import load_dotenv
+from flask import Blueprint, request, jsonify
 
 def get_db():
     debug_log("Initializing database connection...")
@@ -35,10 +36,15 @@ def create_app(test_config=None):
     from .messages import create_messages_bp
     from .breeds import breeds_bp
     # Import auth blueprint
-    from flask import Blueprint, request, jsonify
     
     # Create auth blueprint directly in __init__.py
     auth_bp = Blueprint("auth_bp", __name__)
+    
+    # Read admin emails from environment variable
+    def get_admin_emails():
+        from os import environ
+        admin_emails_str = environ.get('ADMIN_EMAILS', '')
+        return [email.strip() for email in admin_emails_str.split(',') if email.strip()]
     
     @auth_bp.route('/signup', methods=['POST', 'OPTIONS'])
     def auth_signup():
@@ -47,14 +53,45 @@ def create_app(test_config=None):
             return '', 200
         # Handle actual request
         data = request.get_json()
+        email = data.get('email', '')
+        name = data.get('name', '')
+        password = data.get('password', '')
+        
+        # Determine role based on email
+        admin_emails = get_admin_emails()
+        role = 'admin' if email in admin_emails else 'user'
+        
+        # Check if user already exists
+        user_exists_query = "SELECT id FROM users WHERE email = %s"
+        result = db.execute_query(user_exists_query, (email,))
+        
+        if result and len(result) > 0:
+            return jsonify({"error": "User with this email already exists"}), 400
+        
+        # Insert new user
+        insert_query = """
+        INSERT INTO users (email, name, password_hash, role) 
+        VALUES (%s, %s, %s, %s) 
+        RETURNING id, email, name, role
+        """
+        
+        # In a real app, hash the password before storing
+        # For now, we're storing it as plain text (not secure!)
+        result = db.execute_query(insert_query, (email, name, password, role))
+        
+        if not result or len(result) == 0:
+            return jsonify({"error": "Failed to create user"}), 500
+        
+        user = result[0]
+        
         return jsonify({
-            'message': 'Signup endpoint hit!',
-            'data': data,
+            'message': 'User created successfully',
             'token': 'test-token',
             'user': {
-                'id': 1,
-                'email': data.get('email', ''),
-                'name': data.get('name', '')
+                'id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'role': user[3]
             }
         }), 201
     
@@ -65,12 +102,31 @@ def create_app(test_config=None):
             return '', 200
         # Handle actual request
         data = request.get_json()
+        email = data.get('email', '')
+        password = data.get('password', '')
+        
+        # Find user by email
+        query = "SELECT id, email, name, role, password_hash FROM users WHERE email = %s"
+        result = db.execute_query(query, (email,))
+        
+        if not result or len(result) == 0:
+            return jsonify({"error": "Invalid credentials"}), 401
+        
+        user = result[0]
+        
+        # In a real app, verify the password hash
+        # For now, we're doing a plain text comparison (not secure!)
+        if user[4] != password:
+            return jsonify({"error": "Invalid credentials"}), 401
+        
         return jsonify({
-            'message': 'Login endpoint hit!',
+            'message': 'Login successful',
             'token': 'test-token',
             'user': {
-                'id': 1,
-                'email': data.get('email', '')
+                'id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'role': user[3]
             }
         }), 200
     
@@ -85,14 +141,29 @@ def create_app(test_config=None):
         if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({"error": "No token provided"}), 401
         
-        # For testing, just accept any token and return success
-        token = auth_header.split(' ')[1]
+        # For testing, derive the email from the token or headers
+        # In a real implementation, you would decode the JWT and extract user info
+        email = request.headers.get('X-User-Email', '')
+        
+        if not email:
+            return jsonify({"error": "No user email in token"}), 401
+        
+        # Find user by email
+        query = "SELECT id, email, name, role FROM users WHERE email = %s"
+        result = db.execute_query(query, (email,))
+        
+        if not result or len(result) == 0:
+            return jsonify({"error": "User not found"}), 401
+        
+        user = result[0]
+        
         return jsonify({
             'message': 'Token verified',
             'user': {
-                'id': 1,
-                'email': 'user@example.com',
-                'name': 'Test User'
+                'id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'role': user[3]
             }
         }), 200
     
@@ -143,6 +214,24 @@ def create_app(test_config=None):
         print("✓ Registered auth_bp")
     except Exception as e:
         print(f"✗ Failed to register auth_bp: {str(e)}")
+    
+    @app.before_first_request
+    def create_tables():
+        # Create users table if it doesn't exist
+        create_users_table_query = """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            name VARCHAR(255),
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(50) DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        db.execute_query(create_users_table_query)
+        
+        # Add other table creation queries as needed
     
     debug_log("Application initialization complete")
     return app
