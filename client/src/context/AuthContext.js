@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_URL, debugLog } from '../config';
+import { apiPost, apiGet } from '../utils/apiUtils';
 
 const AuthContext = createContext();
 
@@ -38,13 +39,7 @@ export function AuthProvider({ children }) {
     setError(null);
     
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
+      const response = await apiPost('auth/login', { email, password });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -83,6 +78,24 @@ export function AuthProvider({ children }) {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
+  const register = async (userData) => {
+    try {
+      const response = await apiPost('auth/register', userData);
+      // Handle response...
+    } catch (error) {
+      // Handle error...
+    }
+  };
+
+  const getUserProfile = async () => {
+    try {
+      const response = await apiGet('users/profile');
+      // Handle response...
+    } catch (error) {
+      // Handle error...
+    }
+  };
+
   const value = {
     user,
     token,
@@ -91,7 +104,9 @@ export function AuthProvider({ children }) {
     error,
     login,
     logout,
-    getAuthHeader
+    getAuthHeader,
+    register,
+    getUserProfile
   };
 
   return (

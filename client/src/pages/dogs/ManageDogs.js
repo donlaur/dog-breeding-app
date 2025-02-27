@@ -16,7 +16,8 @@ import {
   Fab,
   Container,
   Paper,
-  Avatar
+  Avatar,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -26,39 +27,44 @@ import {
   Female as FemaleIcon,
   Male as MaleIcon
 } from '@mui/icons-material';
+import { useDog } from '../../context/DogContext';
+import DogCard from '../../components/DogCard';
+import '../../styles/ManageDogs.css';
+import { getPhotoUrl } from '../../utils/photoUtils';
 
 const BREED_NAME = "Pembroke Welsh Corgi";
 
 const ManageDogs = () => {
-  const [dogs, setDogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { dogs, loading, error, refreshDogs } = useDog();
+  const [filter, setFilter] = useState('all'); // 'all', 'male', 'female'
+  const [sortedDogs, setSortedDogs] = useState([]);
 
+  // Load dogs on component mount
   useEffect(() => {
-    loadDogs();
-  }, []);
+    refreshDogs();
+  }, [refreshDogs]);
 
-  const loadDogs = async () => {
-    debugLog("Fetching dogs...");
-    try {
-      const response = await fetch(`${API_URL}/dogs`);
-      if (!response.ok) {
-        if (response.status >= 500) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-        setDogs([]);
-        return;
-      }
-      const data = await response.json();
-      debugLog("Dogs received:", data);
-      setDogs(data);
-    } catch (err) {
-      debugError("Error fetching dogs:", err);
-      setError("Unable to connect to server. Please try again later.");
-    } finally {
-      setLoading(false);
+  // Apply filtering and sorting whenever dogs or filter changes
+  useEffect(() => {
+    if (!dogs || dogs.length === 0) return;
+    
+    // First filter by gender
+    let filteredDogs = [...dogs];
+    if (filter === 'male') {
+      filteredDogs = filteredDogs.filter(dog => dog.gender === 'Male');
+    } else if (filter === 'female') {
+      filteredDogs = filteredDogs.filter(dog => dog.gender === 'Female');
     }
-  };
+    
+    // Then sort alphabetically by call_name
+    filteredDogs.sort((a, b) => {
+      const nameA = (a.call_name || '').toLowerCase();
+      const nameB = (b.call_name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+    setSortedDogs(filteredDogs);
+  }, [dogs, filter]);
 
   const handleDelete = async (dogId) => {
     if (!window.confirm("Are you sure you want to delete this dog?")) {
@@ -70,10 +76,10 @@ const ManageDogs = () => {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      loadDogs();
+      refreshDogs();
     } catch (err) {
       debugError("Error deleting dog:", err);
-      setError("Failed to delete dog. Please try again.");
+      error("Failed to delete dog. Please try again.");
     }
   };
 
@@ -92,7 +98,7 @@ const ManageDogs = () => {
           severity="error" 
           sx={{ mt: 2 }}
           action={
-            <Button color="inherit" size="small" onClick={loadDogs}>
+            <Button color="inherit" size="small" onClick={refreshDogs}>
               Retry
             </Button>
           }
@@ -138,175 +144,178 @@ const ManageDogs = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Manage Dogs</h1>
-        <Link 
-          to="/dashboard/dogs/add" 
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+    <Container maxWidth="lg">
+      <Box sx={{ my: 4 }}>
+        <Typography variant="h4" component="h1" align="center" gutterBottom>
+          My Dogs
+        </Typography>
+        
+        {/* Filter Buttons */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: 2, 
+            mb: 3 
+          }}
         >
-          Add New Dog
-        </Link>
-      </div>
-
-      <Grid container spacing={2}>
-        {dogs.map((dog) => (
-          <Grid item xs={12} sm={6} md={4} key={dog.id}>
-            <Card sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              '&:hover': {
-                boxShadow: 3
-              }
-            }}>
-              <Box 
-                sx={{
-                  pt: '75%', // 4:3 aspect ratio
-                  position: 'relative'
-                }}
-              >
-                {dog.cover_photo ? (
-                  <Box
-                    component="img"
-                    src={dog.cover_photo}
-                    alt={dog.call_name}
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
+          <Button 
+            variant={filter === 'all' ? 'contained' : 'outlined'}
+            onClick={() => setFilter('all')}
+            sx={{ borderRadius: 8, px: 3 }}
+          >
+            All Dogs
+          </Button>
+          <Button 
+            variant={filter === 'male' ? 'contained' : 'outlined'}
+            onClick={() => setFilter('male')}
+            sx={{ borderRadius: 8, px: 3 }}
+          >
+            Males
+          </Button>
+          <Button 
+            variant={filter === 'female' ? 'contained' : 'outlined'}
+            onClick={() => setFilter('female')}
+            sx={{ borderRadius: 8, px: 3 }}
+          >
+            Females
+          </Button>
+        </Box>
+        
+        {/* Add Dog Button */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            component={Link}
+            to="/dashboard/dogs/add"
+            fullWidth
+            sx={{ 
+              maxWidth: '100%', 
+              borderRadius: 1,
+              py: 1
+            }}
+          >
+            Add New Dog
+          </Button>
+        </Box>
+        
+        {/* Dogs Grid */}
+        {loading ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography>Loading dogs...</Typography>
+          </Box>
+        ) : error ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography color="error">Error: {error}</Typography>
+          </Box>
+        ) : (
+          <Grid container spacing={3}>
+            {sortedDogs.length > 0 ? (
+              sortedDogs.map(dog => (
+                <Grid item xs={12} sm={6} md={4} key={dog.id}>
+                  <Paper 
+                    elevation={0} 
+                    sx={{ 
+                      p: 2, 
+                      borderRadius: 2,
+                      border: '1px solid #e0e0e0',
                       height: '100%',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: 'grey.200'
+                      flexDirection: 'column',
+                      transition: 'transform 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 6px 12px rgba(0,0,0,0.1)'
+                      }
                     }}
                   >
-                    <PetsIcon sx={{ fontSize: 60, color: 'grey.400' }} />
-                  </Box>
-                )}
-              </Box>
-
-              <CardContent>
-                <Box sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 2
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="h6" component="h3">
-                      {dog.call_name}
-                    </Typography>
-                    {dog.gender === 'Female' ? (
-                      <FemaleIcon sx={{ color: 'pink' }} />
-                    ) : (
-                      <MaleIcon sx={{ color: 'blue' }} />
-                    )}
-                  </Box>
-                  <Chip 
-                    label={dog.status || (dog.is_active ? "Active" : "Inactive")}
-                    color={dog.is_active ? "success" : "default"}
-                    size="small"
-                  />
-                </Box>
-
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {dog.registered_name}
+                    <Link 
+                      to={`/dashboard/dogs/${dog.id}/${dog.call_name?.toLowerCase()}`} 
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', height: '100%' }}
+                    >
+                      <Box 
+                        sx={{ 
+                          height: 250, 
+                          overflow: 'hidden',
+                          borderRadius: 1,
+                          mb: 2,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          bgcolor: '#f5f5f5'
+                        }}
+                      >
+                        {dog.cover_photo ? (
+                          <img 
+                            src={getPhotoUrl(dog.cover_photo)} 
+                            alt={dog.call_name} 
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'cover' 
+                            }} 
+                          />
+                        ) : (
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'center', 
+                              alignItems: 'center',
+                              height: '100%',
+                              width: '100%'
+                            }}
+                          >
+                            <Typography 
+                              variant="h1" 
+                              component="div" 
+                              sx={{ color: '#bdbdbd' }}
+                            >
+                              🐕
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      
+                      <Typography variant="h5" component="h2" align="center" gutterBottom>
+                        {dog.call_name}
+                      </Typography>
+                      
+                      <Typography variant="body2" align="center" sx={{ flexGrow: 1 }}>
+                        {dog.registered_name}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                        <Typography variant="body2">{dog.gender}</Typography>
+                        <Typography 
+                          variant="body2"
+                          sx={{
+                            bgcolor: dog.status === 'Active' ? '#e8f5e9' : '#ffebee',
+                            color: dog.status === 'Active' ? '#2e7d32' : '#c62828',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 1
+                          }}
+                        >
+                          {dog.status}
+                        </Typography>
+                      </Box>
+                    </Link>
+                  </Paper>
+                </Grid>
+              ))
+            ) : (
+              <Box sx={{ width: '100%', textAlign: 'center', py: 4 }}>
+                <Typography>
+                  No dogs found. Add your first dog to get started!
                 </Typography>
-
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    py: 1,
-                    borderBottom: 1,
-                    borderColor: 'divider'
-                  }}>
-                    <Typography color="text.secondary" variant="body2">
-                      Breed:
-                    </Typography>
-                    <Typography variant="body2">
-                      {BREED_NAME}
-                    </Typography>
-                  </Box>
-                  {dog.date_of_birth && (
-                    <Box sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      py: 1,
-                      borderBottom: 1,
-                      borderColor: 'divider'
-                    }}>
-                      <Typography color="text.secondary" variant="body2">
-                        Date of Birth:
-                      </Typography>
-                      <Typography variant="body2">
-                        {new Date(dog.date_of_birth).toLocaleDateString()}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-
-                <Box sx={{
-                  display: 'flex',
-                  gap: 1,
-                  mt: 'auto'
-                }}>
-                  <Button
-                    component={Link}
-                    to={`/dashboard/dogs/edit/${dog.id}`}
-                    variant="contained"
-                    startIcon={<EditIcon />}
-                    fullWidth
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(dog.id)}
-                    variant="outlined"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    fullWidth
-                  >
-                    Delete
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
+              </Box>
+            )}
           </Grid>
-        ))}
-      </Grid>
-
-      {/* Mobile FAB */}
-      <Box sx={{
-        display: { xs: 'block', sm: 'none' },
-        position: 'fixed',
-        bottom: 16,
-        right: 16
-      }}>
-        <Fab
-          component={Link}
-          to="/dashboard/dogs/add"
-          color="primary"
-          aria-label="add dog"
-        >
-          <AddIcon />
-        </Fab>
+        )}
       </Box>
-    </div>
+    </Container>
   );
 };
 

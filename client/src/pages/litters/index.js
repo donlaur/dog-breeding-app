@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDog } from '../../context/DogContext';
 import { Box, Typography, Button, Card, CardContent, Grid, Paper, Divider } from '@mui/material';
 import { Add as AddIcon, Pets as PetsIcon, Visibility as LittersIcon } from '@mui/icons-material';
@@ -8,11 +8,11 @@ function Litters() {
   const { litters, loading, error, refreshLitters } = useDog();
 
   useEffect(() => {
-    // Refresh litters data if needed
-    if (!litters || litters.length === 0) {
-      refreshLitters();
-    }
-  }, [refreshLitters, litters]);
+    // Don't conditionally call refreshLitters based on litters content
+    // This causes re-renders and a fetch loop
+    refreshLitters();
+    // Remove litters from the dependency array
+  }, [refreshLitters]); // Only depend on refreshLitters
 
   return (
     <Box sx={{ p: 3 }}>

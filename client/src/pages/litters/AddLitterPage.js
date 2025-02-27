@@ -1,5 +1,5 @@
 // src/pages/litters/AddLitterPage.js
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
 import LitterForm from "./LitterForm";   // <-- must point to the new LitterForm
@@ -8,6 +8,8 @@ import DogContext from "../../context/DogContext";
 import { apiPost } from '../../utils/apiUtils';
 
 const AddLitterPage = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { dogs, breeds, addLitter } = useContext(DogContext);
 
@@ -39,6 +41,8 @@ const AddLitterPage = () => {
   return (
     <div className="add-litter-container">
       <h2>Add a New Litter</h2>
+      {loading && <p>Loading...</p>}
+      {error && <p>Error: {error}</p>}
       <LitterForm
         onSave={handleSave}
         breedOptions={breeds}       // pass breed array

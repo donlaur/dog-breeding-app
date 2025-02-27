@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { apiPost } from '../../utils/apiUtils';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -33,9 +34,23 @@ const SignUp = () => {
       return;
     }
     
-    const success = await signUp(email, name, password);
-    if (success) {
+    try {
+      const response = await apiPost('auth/register', { 
+        email, 
+        password,
+        name: name 
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+      
+      const data = await response.json();
+      signUp(email, name, password);
       navigate('/dashboard');
+    } catch (error) {
+      setFormError(error.message);
     }
   };
 

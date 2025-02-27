@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import HeatList from '../../components/HeatList';
 import HeatCalendar from '../../components/HeatCalendar';
+import { apiGet } from '../../utils/apiUtils';
 
 const ManageHeats = () => {
   const [view, setView] = useState('list'); // 'list' or 'calendar'
@@ -50,6 +51,21 @@ const ManageHeats = () => {
 
     loadHeats();
   }, []);
+
+  const fetchFilteredHeats = async (filters) => {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const response = await apiGet(`heats?${queryParams}`);
+      if (!response.ok) throw new Error('Failed to fetch heats');
+      
+      const data = await response.json();
+      setHeats(data);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (

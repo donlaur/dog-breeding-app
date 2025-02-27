@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDog } from '../context/DogContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDate, calculateAge } from '../utils/dateUtils';
@@ -28,7 +28,6 @@ import {
 
 function Overview() {
   const navigate = useNavigate();
-  // Get data from our context
   const { 
     dogs, 
     litters, 
@@ -38,16 +37,28 @@ function Overview() {
     refreshLitters 
   } = useDog();
   
-  // Make sure we refresh data when component mounts
+  const isInitialMount = useRef(true);
+  const [sortedDogs, setSortedDogs] = useState([]);
+  
   useEffect(() => {
-    // Only trigger refresh if needed (no data available)
-    if (!dogs.length) {
+    if (isInitialMount.current) {
+      console.log("Initial mount - fetching data");
+      isInitialMount.current = false;
       refreshDogs();
-    }
-    if (!litters.length) {
       refreshLitters();
     }
-  }, [dogs.length, litters.length, refreshDogs, refreshLitters]);
+  }, [refreshDogs, refreshLitters]);
+  
+  useEffect(() => {
+    if (dogs && dogs.length > 0) {
+      const sorted = [...dogs].sort((a, b) => {
+        const nameA = (a.call_name || '').toLowerCase();
+        const nameB = (b.call_name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      setSortedDogs(sorted);
+    }
+  }, [dogs]);
   
   // Filter adult dogs (handle undefined by using empty array as fallback)
   const adultDogs = (dogs || []).filter(dog => dog.is_adult);
@@ -262,7 +273,7 @@ function Overview() {
               
               {adultDogs.length > 0 ? (
                 <Box>
-                  {adultDogs.map((dog, index) => (
+                  {sortedDogs.map((dog, index) => (
                     <React.Fragment key={dog.id || index}>
                       <Box 
                         sx={{ 

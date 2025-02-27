@@ -14,6 +14,7 @@ import {
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import LitterForm from "./LitterForm";
 import DogContext from "../../context/DogContext";
+import { apiGet, apiPut } from '../../utils/apiUtils';
 
 const EditLitterPage = () => {
   const { litterId } = useParams();
@@ -26,50 +27,35 @@ const EditLitterPage = () => {
   const sireOptions = dogs.filter((d) => d.gender === "Male");
   const damOptions = dogs.filter((d) => d.gender === "Female");
 
+  const fetchLitterData = async () => {
+    try {
+      const response = await apiGet(`litters/${litterId}`);
+      if (!response.ok) throw new Error('Failed to fetch litter');
+      
+      const data = await response.json();
+      setLitter(data);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    debugLog("Fetching litter data for editing:", litterId);
-    fetch(`${API_URL}/litters/${litterId}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("Litter data received:", data);
-        setLitter(data);
-        setLoading(false);
-      })
-      .catch((error) => {
-        debugError("Error fetching litter:", error);
-        setError(error.message);
-        setLoading(false);
-      });
+    fetchLitterData();
   }, [litterId]);
 
-  const handleSave = (updatedLitter) => {
-    debugLog("Updating litter:", updatedLitter);
-    const payload = { ...updatedLitter };
-    delete payload.cover_photo_file;
-    delete payload.cover_photo_preview;
-
-    fetch(`${API_URL}/litters/${litterId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("Updated litter:", data);
-        navigate(`/dashboard/litters/${litterId}`);
-      })
-      .catch((error) => {
-        debugError("Error updating litter:", error);
-        setError(error.message);
-      });
+  const handleSave = async (updatedLitter) => {
+    try {
+      const response = await apiPut(`litters/${litterId}`, updatedLitter);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      debugLog("Updated litter:", data);
+      navigate(`/dashboard/litters/${litterId}`);
+    } catch (error) {
+      debugError("Error updating litter:", error);
+      setError(error.message);
+    }
   };
 
   if (loading) {

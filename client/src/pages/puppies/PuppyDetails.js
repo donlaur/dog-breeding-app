@@ -16,7 +16,7 @@ import {
     InputLabel,
     Divider
 } from '@mui/material';
-import { API_URL } from '../../config';
+import { apiGet, apiPut, apiDelete } from '../../utils/apiUtils';
 
 const PuppyDetails = () => {
     const { puppyId } = useParams();
@@ -43,7 +43,7 @@ const PuppyDetails = () => {
 
     const fetchPuppyDetails = async () => {
         try {
-            const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`);
+            const response = await apiGet(`litters/puppies/${puppyId}`);
             if (!response.ok) throw new Error('Failed to fetch puppy details');
             const data = await response.json();
             setPuppy(data);
@@ -64,13 +64,7 @@ const PuppyDetails = () => {
 
     const handleSave = async () => {
         try {
-            const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(puppy)
-            });
+            const response = await apiPut(`litters/puppies/${puppyId}`, puppy);
             if (!response.ok) throw new Error('Failed to update puppy');
             // Show success message or redirect
         } catch (error) {
@@ -82,9 +76,7 @@ const PuppyDetails = () => {
         if (!window.confirm('Are you sure you want to delete this puppy?')) return;
         
         try {
-            const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`, {
-                method: 'DELETE'
-            });
+            const response = await apiDelete(`litters/puppies/${puppyId}`);
             if (!response.ok) throw new Error('Failed to delete puppy');
             // Redirect to litter page
         } catch (error) {

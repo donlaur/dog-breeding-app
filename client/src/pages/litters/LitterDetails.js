@@ -18,6 +18,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { API_URL } from '../../config';
 import { formatDate, calculateAge } from '../../utils/dateUtils';
 import { getPhotoUrl } from '../../utils/photoUtils';
+import { apiGet, apiPut, apiDelete } from '../../utils/apiUtils';
 
 const LitterDetails = () => {
     const { litterId } = useParams();
@@ -31,22 +32,15 @@ const LitterDetails = () => {
     useEffect(() => {
         const fetchLitterDetails = async () => {
             try {
-                const [litterRes, puppiesRes, dogsRes] = await Promise.all([
-                    fetch(`${API_URL}/litters/${litterId}`),
-                    fetch(`${API_URL}/litters/${litterId}/puppies`),
-                    fetch(`${API_URL}/dogs/`)
-                ]);
-
-                const litterData = await litterRes.json();
-                const puppiesData = await puppiesRes.json();
-                const dogsData = await dogsRes.json();
-
-                setLitter(litterData);
-                setPuppies(puppiesData);
+                const response = await apiGet(`litters/${litterId}`);
+                if (!response.ok) throw new Error('Failed to fetch litter details');
+                
+                const data = await response.json();
+                setLitter(data);
                 
                 // Find sire and dam using their IDs
-                const foundSire = dogsData.find(dog => dog.id === litterData.sire_id);
-                const foundDam = dogsData.find(dog => dog.id === litterData.dam_id);
+                const foundSire = await apiGet(`dogs/${data.sire_id}`);
+                const foundDam = await apiGet(`dogs/${data.dam_id}`);
                 
                 console.log('Found sire:', foundSire);
                 console.log('Found dam:', foundDam);

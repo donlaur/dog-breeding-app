@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/BreederProfile.css';
 import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPut } from '../utils/apiUtils';
 
 const BreederProfile = () => {
   const [program, setProgram] = useState({
@@ -15,53 +16,38 @@ const BreederProfile = () => {
 
   // Fetch the breeder program details using the environment variable
   useEffect(() => {
-    fetch(`${API_URL}/program/`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        debugLog("Program data received:", data);
-        setProgram({
-          name: data.name || '',
-          description: data.description || '',
-          contact_email: data.contact_email || '',
-          website: data.website || '',
-          facility_details: data.facility_details || '',
-          testimonial: data.testimonial || ''
-        });
-      })
-      .catch((error) => {
-        debugError('Error fetching program:', error);
-        debugError('Error details:', error.message);
-      });
+    fetchProfile();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await apiGet('breeders/profile');
+      if (!response.ok) throw new Error('Failed to fetch profile');
+      
+      const data = await response.json();
+      setProgram(data);
+    } catch (error) {
+      debugError('Error fetching program:', error);
+      debugError('Error details:', error.message);
+    }
+  };
 
   const handleChange = (e) => {
     setProgram({ ...program, [e.target.name]: e.target.value });
   };
 
+  const saveProfile = async (profileData) => {
+    try {
+      const response = await apiPut('breeders/profile', profileData);
+      // Handle response...
+    } catch (error) {
+      // Handle error...
+    }
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
-    fetch(`${API_URL}/program`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(program),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setProgram({
-          name: data.name || '',
-          description: data.description || '',
-          contact_email: data.contact_email || '',
-          website: data.website || '',
-          facility_details: data.facility_details || '',
-          testimonial: data.testimonial || ''
-        });
-      })
-      .catch((error) => console.error('Error updating program:', error));
+    saveProfile(program);
   };
 
   return (

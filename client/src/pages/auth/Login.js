@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { apiPost } from '../../utils/apiUtils';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,19 +15,22 @@ const Login = () => {
   // Get the intended destination or use dashboard as default
   const from = location.state?.from?.pathname || '/dashboard';
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
     
     try {
-      setError('');
-      setLoading(true);
-      await login(email, password);
+      const response = await apiPost('auth/login', { email, password });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
       
-      // Redirect to the dashboard (not /dashboard/profile)
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      console.error('Login failed:', err);
-      setError('Failed to log in. Please check your credentials.');
+      const data = await response.json();
+      localStorage.setItem('token', data.token);
+      // Handle successful login logic
+    } catch (error) {
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -47,7 +51,7 @@ const Login = () => {
           </div>
         )}
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">Email address</label>

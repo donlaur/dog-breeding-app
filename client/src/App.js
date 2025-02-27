@@ -44,7 +44,8 @@ function App() {
               <Route index element={<Overview />} />
               <Route path="profile" element={<BreederProfile />} />
               <Route path="dogs" element={<ManageDogs />} />
-              <Route path="dogs/:dogId/:dogName?" element={<DogDetails />} />
+              <Route path="dogs/:id" element={<DogDetails />} />
+              <Route path="dogs/:id/:name" element={<DogDetails />} />
               <Route path="dogs/add" element={<DogForm />} />
               <Route path="dogs/edit/:id" element={<DogForm />} />
               <Route path="litters" element={<ManageLitters />} />
