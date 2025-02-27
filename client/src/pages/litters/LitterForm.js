@@ -69,58 +69,60 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Create object URL for preview
+      const previewUrl = URL.createObjectURL(file);
+      
       setLitter(prev => ({
         ...prev,
         cover_photo_file: file,
-        cover_photo_preview: URL.createObjectURL(file)
+        cover_photo_preview: previewUrl
       }));
     }
   };
 
-  // Submit the form
   const handleSubmit = (e) => {
     e.preventDefault();
     debugLog("Submitting litter form:", litter);
-    onSave(litter);
-
-    // If adding a new litter, you might reset the form. If editing, you might not.
-    if (!initialData) {
-      setLitter({
-        litter_name: "",
-        status: "Planned",
-        birth_date: "",
-        expected_date: "",
-        planned_date: "",
-        breed_id: breedOptions.length > 0 ? breedOptions[0].id : "",
-        sire_id: "",
-        dam_id: "",
-        price: "",
-        deposit: "",
-        extras: "",
-        socialization: "",
-        cover_photo_file: null,
-        cover_photo_preview: null
-      });
-    }
+    
+    // Create FormData object for file uploads
+    const formData = new FormData();
+    
+    // Add all litter data as individual form fields
+    Object.keys(litter).forEach(key => {
+      // Skip the preview URL as we don't need to send it to the server
+      if (key === 'cover_photo_preview') return;
+      
+      // Add the actual file for cover_photo_file
+      if (key === 'cover_photo_file' && litter[key]) {
+        formData.append('cover_photo', litter[key]);
+      } else if (litter[key] !== null) {
+        // Add all other fields, converting null to empty string
+        formData.append(key, litter[key]);
+      }
+    });
+    
+    // Pass the FormData to the onSave callback
+    onSave(formData);
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate>
+    <Box component="form" onSubmit={handleSubmit}>
       <Grid container spacing={3}>
-        {/* Basic Information */}
+        {/* Litter Name */}
         <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Basic Information</Typography>
           <TextField
-            fullWidth
             required
+            fullWidth
             name="litter_name"
             label="Litter Name"
             value={litter.litter_name}
             onChange={handleChange}
-            sx={{ mb: 2 }}
           />
+        </Grid>
 
-          <FormControl component="fieldset" sx={{ mb: 2 }}>
+        {/* Status */}
+        <Grid item xs={12}>
+          <FormControl component="fieldset">
             <FormLabel component="legend">Status</FormLabel>
             <RadioGroup
               row
@@ -128,64 +130,27 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               value={litter.status}
               onChange={handleChange}
             >
-              <FormControlLabel value="Born" control={<Radio />} label="Born" />
-              <FormControlLabel value="Expected" control={<Radio />} label="Expected" />
               <FormControlLabel value="Planned" control={<Radio />} label="Planned" />
+              <FormControlLabel value="Expected" control={<Radio />} label="Expected" />
+              <FormControlLabel value="Born" control={<Radio />} label="Born" />
+              <FormControlLabel value="Available" control={<Radio />} label="Available" />
+              <FormControlLabel value="Completed" control={<Radio />} label="Completed" />
             </RadioGroup>
           </FormControl>
         </Grid>
 
-        {/* Dates */}
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            type="date"
-            name="birth_date"
-            label="Birth Date"
-            value={litter.birth_date}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            type="date"
-            name="expected_date"
-            label="Expected Date"
-            value={litter.expected_date}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            type="date"
-            name="planned_date"
-            label="Planned Date"
-            value={litter.planned_date}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-
-        {/* Parents and Breed */}
-        <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Parents & Breed</Typography>
-        </Grid>
-
-        <Grid item xs={12} sm={4}>
+        {/* Breed */}
+        <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
-            <InputLabel>Breed</InputLabel>
+            <InputLabel id="breed-select-label">Breed</InputLabel>
             <Select
+              labelId="breed-select-label"
               name="breed_id"
               value={litter.breed_id}
               onChange={handleChange}
               label="Breed"
             >
-              <MenuItem value="">-- Select Breed --</MenuItem>
-              {breedOptions.map((breed) => (
+              {breedOptions.map(breed => (
                 <MenuItem key={breed.id} value={breed.id}>
                   {breed.name}
                 </MenuItem>
@@ -194,82 +159,141 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
           </FormControl>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        {/* Puppies Count */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            type="number"
+            name="num_puppies"
+            label="Number of Puppies"
+            value={litter.num_puppies || ''}
+            onChange={handleChange}
+          />
+        </Grid>
+
+        {/* Sire */}
+        <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
-            <InputLabel>Sire (Male)</InputLabel>
+            <InputLabel id="sire-select-label">Sire (Father)</InputLabel>
             <Select
+              labelId="sire-select-label"
               name="sire_id"
-              value={litter.sire_id}
+              value={litter.sire_id || ''}
               onChange={handleChange}
-              label="Sire (Male)"
+              label="Sire (Father)"
             >
-              <MenuItem value="">-- Select Sire --</MenuItem>
-              {sireOptions.map((dog) => (
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {sireOptions.map(dog => (
                 <MenuItem key={dog.id} value={dog.id}>
-                  {dog.registered_name}
+                  {dog.call_name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        {/* Dam */}
+        <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
-            <InputLabel>Dam (Female)</InputLabel>
+            <InputLabel id="dam-select-label">Dam (Mother)</InputLabel>
             <Select
+              labelId="dam-select-label"
               name="dam_id"
-              value={litter.dam_id}
+              value={litter.dam_id || ''}
               onChange={handleChange}
-              label="Dam (Female)"
+              label="Dam (Mother)"
             >
-              <MenuItem value="">-- Select Dam --</MenuItem>
-              {damOptions.map((dog) => (
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {damOptions.map(dog => (
                 <MenuItem key={dog.id} value={dog.id}>
-                  {dog.registered_name}
+                  {dog.call_name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
-        {/* Financial Information */}
-        <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Financial Information</Typography>
-        </Grid>
-
+        {/* Price */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             type="number"
             name="price"
-            label="Price"
-            value={litter.price}
+            label="Price ($)"
+            value={litter.price || ''}
             onChange={handleChange}
-            InputProps={{
-              startAdornment: <Typography>$</Typography>
-            }}
           />
         </Grid>
 
+        {/* Deposit */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             type="number"
             name="deposit"
-            label="Deposit"
-            value={litter.deposit}
+            label="Deposit ($)"
+            value={litter.deposit || ''}
             onChange={handleChange}
-            InputProps={{
-              startAdornment: <Typography>$</Typography>
-            }}
           />
         </Grid>
 
-        {/* Additional Information */}
-        <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Additional Information</Typography>
+        {/* Birth Date */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            type="date"
+            name="birth_date"
+            label="Birth Date"
+            value={litter.birth_date || ''}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+          />
         </Grid>
 
+        {/* Expected Date */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            type="date"
+            name="expected_date"
+            label="Expected Date"
+            value={litter.expected_date || ''}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+
+        {/* Planned Date */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            type="date"
+            name="planned_date"
+            label="Planned Date"
+            value={litter.planned_date || ''}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+
+        {/* Availability Date */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            type="date"
+            name="availability_date"
+            label="Available From"
+            value={litter.availability_date || ''}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+
+        {/* Extras */}
         <Grid item xs={12}>
           <TextField
             fullWidth
@@ -277,7 +301,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             rows={4}
             name="extras"
             label="Extras Included"
-            value={litter.extras}
+            value={litter.extras || ''}
             onChange={handleChange}
           />
         </Grid>
@@ -289,7 +313,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             rows={4}
             name="socialization"
             label="Socialization & Enrichment"
-            value={litter.socialization}
+            value={litter.socialization || ''}
             onChange={handleChange}
           />
         </Grid>

@@ -7,7 +7,7 @@ Blueprint for all dog-related endpoints (CRUD + file uploads).
 import os
 import uuid
 import tempfile
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from server.supabase_client import supabase
@@ -79,19 +79,46 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             debug_log(f"Error fetching dogs: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
-    @dogs_bp.route("/<int:dog_id>", methods=["GET"])
-    def get_dog(dog_id):
-        debug_log(f"Fetching dog with ID: {dog_id}")
-        try:
-            dog = db.get_by_id("dogs", dog_id)
-            if not dog:
-                debug_log(f"Dog {dog_id} not found")
-                return jsonify({"error": "Dog not found"}), 404
-            debug_log(f"Found dog: {dog}")
-            return jsonify(dog)
-        except DatabaseError as e:
-            debug_log(f"Error fetching dog: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+    @dogs_bp.route("/<int:dog_id>", methods=["GET", "PUT", "OPTIONS"])
+    def get_or_update_dog(dog_id):
+        """Get or update a specific dog."""
+        # Handle CORS preflight requests
+        if request.method == 'OPTIONS':
+            return '', 200
+        
+        if request.method == 'GET':
+            debug_log(f"Fetching dog with ID: {dog_id}")
+            try:
+                dog = db.get_by_id("dogs", dog_id)
+                
+                if not dog:
+                    debug_log(f"Dog with ID {dog_id} not found")
+                    return jsonify({"error": "Dog not found"}), 404
+                    
+                debug_log(f"Found dog: {dog}")
+                return jsonify(dog)
+            except Exception as e:
+                debug_log(f"Error fetching dog: {str(e)}")
+                return jsonify({"error": str(e)}), 500
+        
+        elif request.method == 'PUT':
+            debug_log(f"Updating dog with ID: {dog_id}")
+            try:
+                data = request.get_json()
+                debug_log(f"Update data: {data}")
+                
+                # Update the dog record
+                updated_dog = db.update("dogs", dog_id, data)
+                
+                if not updated_dog:
+                    debug_log(f"Dog with ID {dog_id} not found for update")
+                    return jsonify({"error": "Dog not found"}), 404
+                    
+                debug_log(f"Updated dog: {updated_dog}")
+                return jsonify(updated_dog)
+            except Exception as e:
+                debug_log(f"Error updating dog: {str(e)}")
+                return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/", methods=["POST"])
     def create_dog():
@@ -135,5 +162,22 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
 
         file_url = f"https://{domain}/storage/v1/object/public/uploads/{filepath}"
         return jsonify({"file_url": file_url})
+
+    @dogs_bp.route('/full', methods=['GET', 'OPTIONS'])
+    def get_dogs_with_full_details():
+        """Get all dogs with complete details for the current program."""
+        # Handle CORS preflight requests
+        if request.method == 'OPTIONS':
+            return '', 200
+            
+        debug_log("Fetching all dogs with full details...")
+        try:
+            # Just get all basic dog data for now
+            dogs = db.get_all("dogs")
+            debug_log(f"Returning {len(dogs)} dogs with basic details")
+            return jsonify(dogs)
+        except DatabaseError as e:
+            debug_log(f"Error fetching dogs with full details: {str(e)}")
+            return jsonify({"error": str(e)}), 500
 
     return dogs_bp

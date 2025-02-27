@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDog } from '../../context/DogContext';
 import { 
   Box, 
@@ -6,26 +6,104 @@ import {
   Button, 
   Card, 
   CardContent, 
+  CardMedia,
   Grid, 
   Paper, 
   Divider,
-  Container 
+  Container,
+  Skeleton,
+  Chip,
+  Avatar
 } from '@mui/material';
 import { 
   Add as AddIcon, 
   Pets as PetsIcon, 
-  Visibility as LittersIcon 
+  Female as FemaleIcon,
+  Male as MaleIcon
 } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 function Litters() {
-  const { litters, loading, error, refreshLitters } = useDog();
-
+  const { litters, dogs, loading } = useDog();
+  const [displayLoading, setDisplayLoading] = useState(true);
+  const navigate = useNavigate();
+  
+  // Use this effect to prevent the flash
   useEffect(() => {
-    refreshLitters();
-  }, [refreshLitters]);
+    // Only stop loading when we actually have data
+    if (litters && litters.length > 0 && dogs && dogs.length > 0) {
+      // Add a small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setDisplayLoading(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [litters, dogs]);
 
-  console.log("Litters rendering, litters:", litters); // Debug log
+  // Helper function to find a dog by ID
+  const findDogById = (dogId) => {
+    return dogs.find(dog => dog.id === dogId) || null;
+  };
+  
+  // Function to handle clicking on a litter card
+  const handleLitterClick = (litterId) => {
+    navigate(`/dashboard/litters/${litterId}`);
+  };
+
+  // Format date consistently
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  console.log("Current litters:", litters);
+  console.log("Display loading state:", displayLoading);
+  console.log("Dogs:", dogs);
+
+  // Show the loading skeleton during initial load
+  if (loading || displayLoading) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ py: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4" component="h1">
+              Litters
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              component={Link}
+              to="/dashboard/litters/add"
+            >
+              Add Litter
+            </Button>
+          </Box>
+          
+          <Grid container spacing={3}>
+            {[1, 2, 3].map(item => (
+              <Grid item xs={12} md={6} lg={4} key={item}>
+                <Card sx={{ height: '100%' }}>
+                  <Skeleton variant="rectangular" height={140} />
+                  <CardContent>
+                    <Skeleton variant="text" height={40} />
+                    <Skeleton variant="text" />
+                    <Skeleton variant="text" />
+                    <Skeleton variant="text" width="60%" />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg">
@@ -45,31 +123,17 @@ function Litters() {
           </Button>
         </Box>
         
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography>Loading litters...</Typography>
-          </Box>
-        ) : error ? (
-          <Box sx={{ textAlign: 'center', py: 8, color: 'error.main' }}>
-            <Typography variant="h6">Error loading litters</Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>{error}</Typography>
-            <Button onClick={refreshLitters} variant="outlined" sx={{ mt: 2 }}>
-              Retry
-            </Button>
-          </Box>
-        ) : (!litters || litters.length === 0) ? (
-          // Improved empty state - forcing this condition to be more explicit
-          <Paper sx={{ 
-            p: 4, 
-            textAlign: 'center', 
-            borderRadius: 2,
-            backgroundColor: '#f8f9fa',
-            maxWidth: 800,
-            mx: 'auto',
-            mt: 4
+        {(!litters || litters.length === 0) ? (
+          <Paper sx={{
+            p: 4,
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             <Box sx={{ mb: 3 }}>
-              <LittersIcon sx={{ fontSize: 60, color: 'primary.light', mb: 2 }} />
+              <PetsIcon sx={{ fontSize: 60, color: 'primary.light', mb: 2 }} />
               <Typography variant="h5" gutterBottom>No Litters Yet</Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
                 Track your breeding program by adding litters. Each litter entry allows you to record 
@@ -77,7 +141,7 @@ function Litters() {
               </Typography>
             </Box>
             
-            <Divider sx={{ my: 3 }} />
+            <Divider sx={{ my: 3, width: '100%' }} />
             
             <Box>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>
@@ -100,18 +164,127 @@ function Litters() {
             </Box>
           </Paper>
         ) : (
-          // Existing litters display
           <Grid container spacing={3}>
-            {litters.map(litter => (
-              <Grid item xs={12} key={litter.id}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">{litter.name || `Litter #${litter.id}`}</Typography>
-                    {/* Other litter details */}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+            {litters.map(litter => {
+              console.log("Rendering litter:", litter);
+              const sire = findDogById(litter.sire_id);
+              const dam = findDogById(litter.dam_id);
+              
+              return (
+                <Grid item xs={12} md={6} lg={4} key={litter.id}>
+                  <Card 
+                    sx={{ 
+                      height: '100%', 
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4
+                      }
+                    }}
+                    onClick={() => handleLitterClick(litter.id)}
+                  >
+                    {litter.cover_photo && (
+                      <CardMedia
+                        component="img"
+                        height="140"
+                        image={litter.cover_photo}
+                        alt={litter.litter_name || `Litter #${litter.id}`}
+                        sx={{ objectFit: 'cover' }}
+                      />
+                    )}
+                    <CardContent>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        {litter.litter_name || `Litter #${litter.id}`}
+                      </Typography>
+                      
+                      {litter.status && (
+                        <Chip 
+                          label={litter.status || 'Unknown'} 
+                          color={
+                            litter.status === 'Born' ? 'success' :
+                            litter.status === 'Available' ? 'primary' :
+                            litter.status === 'Planned' ? 'default' :
+                            litter.status === 'Expected' ? 'warning' : 'default'
+                          }
+                          size="small"
+                          sx={{ mb: 2 }}
+                        />
+                      )}
+                      
+                      <Grid container spacing={2} sx={{ mt: 1 }}>
+                        {sire && (
+                          <Grid item xs={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <MaleIcon color="primary" sx={{ mr: 1 }} fontSize="small" />
+                              <Typography variant="body2" fontWeight="bold">
+                                Sire:
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar 
+                                src={sire.photo_url} 
+                                alt={sire.name}
+                                sx={{ width: 40, height: 40, mr: 1 }}
+                              />
+                              <Typography variant="body2">
+                                {sire.name}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+                        
+                        {dam && (
+                          <Grid item xs={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <FemaleIcon color="error" sx={{ mr: 1 }} fontSize="small" />
+                              <Typography variant="body2" fontWeight="bold">
+                                Dam:
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar 
+                                src={dam.photo_url} 
+                                alt={dam.name}
+                                sx={{ width: 40, height: 40, mr: 1 }}
+                              />
+                              <Typography variant="body2">
+                                {dam.name}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+                      </Grid>
+                      
+                      {litter.birth_date && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                          Born: {formatDate(litter.birth_date)}
+                        </Typography>
+                      )}
+                      
+                      {litter.expected_date && !litter.birth_date && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                          Expected: {formatDate(litter.expected_date)}
+                        </Typography>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLitterClick(litter.id);
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         )}
       </Box>

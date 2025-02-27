@@ -13,6 +13,7 @@ export function DogProvider({ children }) {
   const [breeds, setBreeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState({
     dogs: null,
     litters: null,
@@ -136,14 +137,20 @@ export function DogProvider({ children }) {
     loadAllData();
   }, [fetchData, auth?.token]); // Only re-run when auth token changes
 
-  // Add this comprehensive dog loading function to your context
+  // Update loadFullDogData to use the correct API endpoint path
   const loadFullDogData = useCallback(async () => {
     console.log("Loading complete dog data for program...");
     setLoading(true);
     
     try {
-      // Make a single API call to get all dogs with full details
-      const response = await apiGet('dogs/full');
+      // Update the API path to match the server route structure
+      const response = await fetch(`${API_URL}/dogs/full`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth?.token}`
+        }
+      });
       
       if (response.ok) {
         const fullDogsData = await response.json();
@@ -190,7 +197,7 @@ export function DogProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [apiGet, setDogs, setError, setLoading]);
+  }, [API_URL, auth?.token, setDogs, setError, setLoading]);
 
   // Replace your existing refreshDogs with this
   const refreshDogs = useCallback(() => {
@@ -361,6 +368,240 @@ export function DogProvider({ children }) {
     refreshAttempted: false
   });
 
+  // Add these missing functions
+  const addDog = useCallback(async (dogData) => {
+    console.log("Adding new dog:", dogData);
+    setLoading(true);
+    
+    try {
+      const response = await apiPost('dogs', dogData);
+      
+      if (response.ok) {
+        const newDog = await response.json();
+        console.log("Successfully added dog:", newDog);
+        
+        // Update dogs array with the new dog
+        setDogs(prevDogs => [...prevDogs, newDog]);
+        
+        // Cache the new dog
+        try {
+          localStorage.setItem(`dog_${newDog.id}`, JSON.stringify(newDog));
+          if (newDog.call_name) {
+            localStorage.setItem(`dog_name_${newDog.call_name.toLowerCase()}`, JSON.stringify(newDog));
+          }
+        } catch (e) {
+          console.error("Error caching new dog:", e);
+        }
+        
+        setError(null);
+        return newDog;
+      } else {
+        console.error("Failed to add dog:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to add dog. Please try again.";
+        setError(errorMessage);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error adding dog:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiPost, setDogs, setError, setLoading]);
+
+  const updateDog = useCallback(async (id, dogData) => {
+    console.log(`Updating dog ${id}:`, dogData);
+    setLoading(true);
+    
+    try {
+      // Make sure we're using the correct API URL format
+      const response = await fetch(`${API_URL}/dogs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth?.token}`
+        },
+        body: JSON.stringify(dogData)
+      });
+      
+      if (response.ok) {
+        const updatedDog = await response.json();
+        console.log("Successfully updated dog:", updatedDog);
+        
+        // Update dogs array with the updated dog
+        setDogs(prevDogs => 
+          prevDogs.map(dog => dog.id === id ? updatedDog : dog)
+        );
+        
+        // Update cache
+        try {
+          localStorage.setItem(`dog_${id}`, JSON.stringify(updatedDog));
+          if (updatedDog.call_name) {
+            localStorage.setItem(`dog_name_${updatedDog.call_name.toLowerCase()}`, JSON.stringify(updatedDog));
+            
+            // Update cached versions with different name formats
+            const hyphenVersion = updatedDog.call_name.toLowerCase().replace(/\s+/g, '-');
+            localStorage.setItem(`dog_name_${hyphenVersion}`, JSON.stringify(updatedDog));
+            
+            const encodedVersion = encodeURIComponent(updatedDog.call_name.toLowerCase());
+            localStorage.setItem(`dog_name_${encodedVersion}`, JSON.stringify(updatedDog));
+          }
+        } catch (e) {
+          console.error("Error updating dog cache:", e);
+        }
+        
+        setError(null);
+        return updatedDog;
+      } else {
+        console.error("Failed to update dog:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to update dog. Please try again.";
+        setError(errorMessage);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error updating dog:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL, auth?.token, setDogs, setError, setLoading]);
+
+  const deleteDog = useCallback(async (id) => {
+    console.log(`Deleting dog ${id}`);
+    setLoading(true);
+    
+    try {
+      const response = await apiDelete(`dogs/${id}`);
+      
+      if (response.ok) {
+        console.log(`Successfully deleted dog ${id}`);
+        
+        // Remove from dogs array
+        setDogs(prevDogs => prevDogs.filter(dog => dog.id !== id));
+        
+        // Remove from cache
+        try {
+          localStorage.removeItem(`dog_${id}`);
+          // We can't easily remove by name since we don't have the dog object anymore
+        } catch (e) {
+          console.error("Error removing dog from cache:", e);
+        }
+        
+        setError(null);
+        return true;
+      } else {
+        console.error("Failed to delete dog:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to delete dog. Please try again.";
+        setError(errorMessage);
+        return false;
+      }
+    } catch (err) {
+      console.error("Error deleting dog:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiDelete, setDogs, setError, setLoading]);
+
+  // Litter functions
+  const addLitter = useCallback(async (litterData) => {
+    console.log("Adding new litter:", litterData);
+    setLoading(true);
+    
+    try {
+      const response = await apiPost('litters', litterData);
+      
+      if (response.ok) {
+        const newLitter = await response.json();
+        console.log("Successfully added litter:", newLitter);
+        
+        // You might need to update some state here depending on your app structure
+        
+        setError(null);
+        return newLitter;
+      } else {
+        console.error("Failed to add litter:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to add litter. Please try again.";
+        setError(errorMessage);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error adding litter:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiPost, setError, setLoading]);
+
+  const updateLitter = useCallback(async (id, litterData) => {
+    console.log(`Updating litter ${id}:`, litterData);
+    setLoading(true);
+    
+    try {
+      const response = await apiPut(`litters/${id}`, litterData);
+      
+      if (response.ok) {
+        const updatedLitter = await response.json();
+        console.log("Successfully updated litter:", updatedLitter);
+        
+        // You might need to update some state here depending on your app structure
+        
+        setError(null);
+        return updatedLitter;
+      } else {
+        console.error("Failed to update litter:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to update litter. Please try again.";
+        setError(errorMessage);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error updating litter:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiPut, setError, setLoading]);
+
+  const deleteLitter = useCallback(async (id) => {
+    console.log(`Deleting litter ${id}`);
+    setLoading(true);
+    
+    try {
+      const response = await apiDelete(`litters/${id}`);
+      
+      if (response.ok) {
+        console.log(`Successfully deleted litter ${id}`);
+        
+        // You might need to update some state here depending on your app structure
+        
+        setError(null);
+        return true;
+      } else {
+        console.error("Failed to delete litter:", response.status);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to delete litter. Please try again.";
+        setError(errorMessage);
+        return false;
+      }
+    } catch (err) {
+      console.error("Error deleting litter:", err);
+      setError("Error connecting to server. Please check your connection.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiDelete, setError, setLoading]);
+
   const value = {
     dogs,
     puppies,
@@ -369,6 +610,7 @@ export function DogProvider({ children }) {
     breeds,
     loading,
     error,
+    isInitialized,
     refreshDogs,
     refreshLitters: refreshDogs,
     refreshBreeds: refreshDogs,
@@ -378,7 +620,8 @@ export function DogProvider({ children }) {
     addLitter,
     updateLitter,
     deleteLitter,
-    getDogById
+    getDogById,
+    loadFullDogData
   };
 
   return (

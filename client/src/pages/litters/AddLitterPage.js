@@ -20,7 +20,17 @@ const AddLitterPage = () => {
     try {
       setLoading(true);
       
-      const response = await apiPost('litters', litterData);
+      // Check if litterData is FormData (for file uploads) or regular JSON
+      const isFormData = litterData instanceof FormData;
+      
+      // Set the appropriate headers and body based on data type
+      const options = {
+        method: 'POST',
+        headers: isFormData ? {} : { 'Content-Type': 'application/json' },
+        body: isFormData ? litterData : JSON.stringify(litterData)
+      };
+      
+      const response = await fetch(`${API_URL}/litters/`, options);
       
       if (!response.ok) {
         const errorData = await response.json();

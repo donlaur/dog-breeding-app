@@ -37,7 +37,7 @@ const normalizeNumericField = (value) => {
 };
 
 function DogForm() {
-  const { dogs, setDogs, breeds } = useContext(DogContext);
+  const { dogs, updateDog, addDog, breeds } = useContext(DogContext);
   const navigate = useNavigate();
   const { id } = useParams();
   const editingDog = dogs.find((dog) => dog.id === parseInt(id));
@@ -140,33 +140,25 @@ function DogForm() {
     e.preventDefault();
     debugLog("Submitting dog form:", dog);
 
-    const method = id ? "PUT" : "POST";
-    const url = id ? `${API_URL}/dogs/${id}` : `${API_URL}/dogs/`;
-
-    fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dog),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("Dog saved successfully:", data);
-        if (id) {
-          setDogs((prev) => prev.map((d) => (d.id === parseInt(id) ? data : d)));
-        } else {
-          setDogs((prev) => [...prev, data]);
-        }
-        navigate("/dashboard/dogs");
-      })
-      .catch((err) => {
-        debugError("Error saving dog:", err);
-        debugError("Error details:", err.message);
-      });
+    if (id) {
+      updateDog(parseInt(id), dog)
+        .then((updatedDog) => {
+          debugLog("Dog updated successfully:", updatedDog);
+          navigate("/dashboard/dogs");
+        })
+        .catch((err) => {
+          debugError("Error updating dog:", err);
+        });
+    } else {
+      addDog(dog)
+        .then((newDog) => {
+          debugLog("Dog added successfully:", newDog);
+          navigate("/dashboard/dogs");
+        })
+        .catch((err) => {
+          debugError("Error adding dog:", err);
+        });
+    }
   };
 
   return (
