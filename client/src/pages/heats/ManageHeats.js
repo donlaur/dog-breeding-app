@@ -23,8 +23,8 @@ import {
   Delete as DeleteIcon,
   Pets as PetsIcon
 } from '@mui/icons-material';
-import HeatList from '../../components/HeatList';
-import HeatCalendar from '../../components/HeatCalendar';
+import HeatList from '../../components/heats/HeatList';
+import HeatCalendar from '../../components/heats/HeatCalendar';
 import { apiGet } from '../../utils/apiUtils';
 
 const ManageHeats = () => {

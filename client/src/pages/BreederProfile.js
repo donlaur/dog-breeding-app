@@ -1,6 +1,17 @@
 // src/pages/BreederProfile.js
 import React, { useState, useEffect } from 'react';
 import '../styles/BreederProfile.css';
+import { 
+  Box, 
+  Typography, 
+  Paper, 
+  TextField, 
+  Button, 
+  CircularProgress, 
+  Alert,
+  Container,
+  Grid
+} from '@mui/material';
 import { API_URL, debugLog, debugError } from '../config';
 import { apiGet, apiPut } from '../utils/apiUtils';
 
@@ -13,74 +24,203 @@ const BreederProfile = () => {
     facility_details: '',
     testimonial: ''
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Fetch the breeder program details using the environment variable
+  // Fetch the breeder program details
   useEffect(() => {
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const response = await apiGet('breeders/profile');
-      if (!response.ok) throw new Error('Failed to fetch profile');
+      // Using your apiGet utility to handle errors consistently
+      const response = await fetch(`${API_URL}/program/breeders/profile`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          // If profile doesn't exist yet, we'll handle it gracefully
+          debugLog('Profile not found, will create a new one when saved');
+          setLoading(false);
+          return;
+        }
+        throw new Error(`Failed to fetch profile: ${response.status}`);
+      }
       
       const data = await response.json();
+      debugLog('Profile data loaded:', data);
       setProgram(data);
     } catch (error) {
       debugError('Error fetching program:', error);
-      debugError('Error details:', error.message);
+      setError('Failed to load breeder profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setProgram({ ...program, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setProgram(prev => ({ ...prev, [name]: value }));
   };
 
-  const saveProfile = async (profileData) => {
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveSuccess(false);
+    setError(null);
+    
     try {
-      const response = await apiPut('breeders/profile', profileData);
-      // Handle response...
+      const response = await fetch(`${API_URL}/program/breeders/profile`, {
+        method: 'POST', // Use POST instead of PUT as it's more forgiving if record doesn't exist
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(program),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save profile: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      debugLog('Profile saved successfully:', data);
+      setSaveSuccess(true);
+      
+      // Update the program data with the response
+      if (data) {
+        setProgram(data);
+      }
     } catch (error) {
-      // Handle error...
+      debugError('Error saving profile:', error);
+      setError('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    saveProfile(program);
-  };
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <div className="breeder-profile-container">
-      <h2 className="page-title">Manage Breeder Profile</h2>
-      <form className="breeder-form" onSubmit={handleSave}>
-        <div className="form-group">
-          <label>Program Name</label>
-          <input type="text" name="name" value={program.name} readOnly />
-        </div>
-        <div className="form-group">
-          <label>Description</label>
-          <textarea name="description" value={program.description} onChange={handleChange} placeholder="Describe your breeding program..." />
-        </div>
-        <div className="form-group">
-          <label>Contact Email</label>
-          <input type="email" name="contact_email" value={program.contact_email} onChange={handleChange} placeholder="Enter your contact email" />
-        </div>
-        <div className="form-group">
-          <label>Website</label>
-          <input type="text" name="website" value={program.website} onChange={handleChange} placeholder="Enter your website URL" />
-        </div>
-        <div className="form-group">
-          <label>Facility Details</label>
-          <textarea name="facility_details" value={program.facility_details} onChange={handleChange} placeholder="Describe your facilities..." />
-        </div>
-        <div className="form-group">
-          <label>Testimonial</label>
-          <textarea name="testimonial" value={program.testimonial} onChange={handleChange} placeholder="Include a customer testimonial..." />
-        </div>
-        <button type="submit" className="save-button">Save Changes</button>
-      </form>
-    </div>
+    <Container maxWidth="md">
+      <Paper sx={{ p: 4, mt: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Manage Breeder Profile
+        </Typography>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {saveSuccess && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Profile saved successfully!
+          </Alert>
+        )}
+        
+        <Box component="form" onSubmit={saveProfile}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Program Name"
+                name="name"
+                value={program.name || ''}
+                onChange={handleChange}
+                placeholder="Your breeding program name"
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Description"
+                name="description"
+                value={program.description || ''}
+                onChange={handleChange}
+                placeholder="Describe your breeding program..."
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="email"
+                label="Contact Email"
+                name="contact_email"
+                value={program.contact_email || ''}
+                onChange={handleChange}
+                placeholder="Enter your contact email"
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Website"
+                name="website"
+                value={program.website || ''}
+                onChange={handleChange}
+                placeholder="Enter your website URL"
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Facility Details"
+                name="facility_details"
+                value={program.facility_details || ''}
+                onChange={handleChange}
+                placeholder="Describe your facilities..."
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Testimonial"
+                name="testimonial"
+                value={program.testimonial || ''}
+                onChange={handleChange}
+                placeholder="Include a customer testimonial..."
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary" 
+                size="large"
+                disabled={saving}
+                sx={{ mt: 2 }}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+      </Paper>
+    </Container>
   );
 };
 

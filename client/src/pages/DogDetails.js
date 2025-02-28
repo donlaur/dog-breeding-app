@@ -68,7 +68,7 @@ function DogDetails() {
   console.log("Extracted dog ID:", dogId);
   console.log("Possible dog name segment:", possibleNameSegment);
   
-  const { dogs, getDogById } = useDog();
+  const { dogs, getDog } = useDog();
   const [dog, setDog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPartialData, setIsPartialData] = useState(false);
@@ -101,7 +101,7 @@ function DogDetails() {
         }
         
         console.log(`Looking for dog with ID: ${dogId} or name segment: ${possibleNameSegment}`);
-        const foundDog = await getDogById(dogId || possibleNameSegment);
+        const foundDog = await getDog(dogId || possibleNameSegment);
         
         if (foundDog) {
           console.log("Loaded dog data:", foundDog);
@@ -147,7 +147,7 @@ function DogDetails() {
       loadStatus.current.attempted = true;
       loadDog();
     }
-  }, [dogId, possibleNameSegment, getDogById, dogs]);
+  }, [dogId, possibleNameSegment, getDog, dogs]);
   
   // Fetch heat cycles for female dogs
   useEffect(() => {

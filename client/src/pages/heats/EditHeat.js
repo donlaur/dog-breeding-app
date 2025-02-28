@@ -10,7 +10,7 @@ import {
   Paper
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import HeatForm from '../../components/HeatForm';
+import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
 
 const EditHeat = () => {

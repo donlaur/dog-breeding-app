@@ -9,7 +9,7 @@ import {
   Paper
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
-import HeatForm from '../../components/HeatForm';
+import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 

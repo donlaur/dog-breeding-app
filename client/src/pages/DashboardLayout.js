@@ -1,7 +1,7 @@
 // src/components/DashboardLayout.js
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // MUI components
 import {

@@ -16,7 +16,7 @@ import StatCards from '../components/overview/StatCards';
 import AdultDogsList from '../components/overview/AdultDogsList';
 import PuppiesList from '../components/overview/PuppiesList';
 import LittersList from '../components/overview/LittersList';
-import UpcomingEvents from '../components/UpcomingEvents';
+import UpcomingEvents from '../components/overview/UpcomingEvents';
 
 // Import utility functions
 import { getImageUrl, getGenderDisplay } from '../utils/imageUtils';
