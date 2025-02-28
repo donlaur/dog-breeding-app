@@ -1,13 +1,31 @@
 // src/index.js
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { DogProvider } from './context/DogContext';
+import { DogProvider, useDog } from './context/DogContext';
 import 'bootstrap/dist/css/bootstrap.min.css';  // Import Bootstrap globally
 import '@fortawesome/fontawesome-free/css/all.min.css';  // Import FontAwesome
 import App from './App';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
+
+// Component to initialize data
+const DataInitializer = ({ children }) => {
+  const { refreshData } = useDog();
+  const initialized = useRef(false);
+  
+  useEffect(() => {
+    // Only run once, and only if not already initialized
+    if (!initialized.current) {
+      console.log("DataInitializer: Loading initial data");
+      initialized.current = true;
+      // This will be skipped if already loading or loaded in DogProvider
+      refreshData();
+    }
+  }, [refreshData]);
+  
+  return children;
+};
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -16,7 +34,9 @@ root.render(
     <DogProvider>
       <BrowserRouter>
         <ThemeProvider theme={theme}>
-          <App />
+          <DataInitializer>
+            <App />
+          </DataInitializer>
         </ThemeProvider>
       </BrowserRouter>
     </DogProvider>

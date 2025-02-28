@@ -36,6 +36,7 @@ def create_app(test_config=None):
     from .heats import create_heats_bp
     from .messages import create_messages_bp
     from .breeds import breeds_bp
+    from .puppies import create_puppies_bp
     # Import auth blueprint
     
     # Create auth blueprint directly in __init__.py
@@ -320,10 +321,16 @@ def create_app(test_config=None):
         print(f"✗ Failed to register heats_bp: {str(e)}")
     
     try:
-        app.register_blueprint(create_messages_bp(db), url_prefix="/api")
+        app.register_blueprint(create_messages_bp(db), url_prefix="/api/messages")
         print("✓ Registered messages_bp")
     except Exception as e:
         print(f"✗ Failed to register messages_bp: {str(e)}")
+    
+    try:
+        app.register_blueprint(create_puppies_bp(db), url_prefix="/api/puppies")
+        print("✓ Registered puppies_bp")
+    except Exception as e:
+        print(f"✗ Failed to register puppies_bp: {str(e)}")
     
     try:
         app.register_blueprint(auth_bp, url_prefix="/api/auth")

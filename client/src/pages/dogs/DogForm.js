@@ -37,7 +37,7 @@ const normalizeNumericField = (value) => {
 };
 
 function DogForm() {
-  const { dogs, updateDog, addDog, breeds } = useContext(DogContext);
+  const { dogs, updateDog, addDog, breeds, refreshData } = useContext(DogContext);
   const navigate = useNavigate();
   const { id } = useParams();
   const editingDog = dogs.find((dog) => dog.id === parseInt(id));
@@ -144,6 +144,7 @@ function DogForm() {
       updateDog(parseInt(id), dog)
         .then((updatedDog) => {
           debugLog("Dog updated successfully:", updatedDog);
+          refreshData();
           navigate("/dashboard/dogs");
         })
         .catch((err) => {
@@ -153,6 +154,7 @@ function DogForm() {
       addDog(dog)
         .then((newDog) => {
           debugLog("Dog added successfully:", newDog);
+          refreshData();
           navigate("/dashboard/dogs");
         })
         .catch((err) => {

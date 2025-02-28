@@ -11,7 +11,7 @@ const AddLitterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { dogs, breeds, addLitter } = useContext(DogContext);
+  const { dogs, breeds, addLitter, refreshData } = useContext(DogContext);
 
   const sireOptions = dogs.filter((d) => d.gender === "Male");
   const damOptions = dogs.filter((d) => d.gender === "Female");
@@ -39,6 +39,7 @@ const AddLitterPage = () => {
       
       const newLitter = await response.json();
       addLitter(newLitter);
+      refreshData();
       navigate('/dashboard/litters');
     } catch (error) {
       console.error('Error saving litter:', error);

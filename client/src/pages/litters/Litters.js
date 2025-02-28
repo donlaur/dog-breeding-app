@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDog } from '../../context/DogContext';
 import { 
   Box, 
@@ -24,22 +24,25 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
+console.log('Litters component is loading');
+
 function Litters() {
-  const { litters, dogs, loading } = useDog();
-  const [displayLoading, setDisplayLoading] = useState(true);
+  const { litters, dogs, loading, refreshData } = useDog();
+  const [contentReady, setContentReady] = useState(false);
   const navigate = useNavigate();
   
-  // Use this effect to prevent the flash
+  // Ensure we have complete data before showing content
   useEffect(() => {
-    // Only stop loading when we actually have data
-    if (litters && litters.length > 0 && dogs && dogs.length > 0) {
-      // Add a small delay to ensure smooth transition
+    // If we have data, set contentReady to true with a small delay
+    if (!loading && litters && dogs && litters.length >= 0 && dogs.length > 0) {
       const timer = setTimeout(() => {
-        setDisplayLoading(false);
+        setContentReady(true);
       }, 100);
       return () => clearTimeout(timer);
+    } else {
+      setContentReady(false);
     }
-  }, [litters, dogs]);
+  }, [loading, litters, dogs]);
 
   // Helper function to find a dog by ID
   const findDogById = (dogId) => {
@@ -61,12 +64,8 @@ function Litters() {
     }
   };
 
-  console.log("Current litters:", litters);
-  console.log("Display loading state:", displayLoading);
-  console.log("Dogs:", dogs);
-
-  // Show the loading skeleton during initial load
-  if (loading || displayLoading) {
+  // Show the loading skeleton until we have content ready
+  if (!contentReady) {
     return (
       <Container maxWidth="lg">
         <Box sx={{ py: 3 }}>
@@ -166,7 +165,6 @@ function Litters() {
         ) : (
           <Grid container spacing={3}>
             {litters.map(litter => {
-              console.log("Rendering litter:", litter);
               const sire = findDogById(litter.sire_id);
               const dam = findDogById(litter.dam_id);
               
@@ -200,7 +198,7 @@ function Litters() {
                       
                       {litter.status && (
                         <Chip 
-                          label={litter.status || 'Unknown'} 
+                          label={litter.status} 
                           color={
                             litter.status === 'Born' ? 'success' :
                             litter.status === 'Available' ? 'primary' :
