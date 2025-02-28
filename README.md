@@ -1,124 +1,35 @@
-# Dog Breeding App
+# Breeder Management System
 
-Welcome to the Dog Breeding App – a web application designed to help breeders manage dogs, litters, puppies, and track heat cycles. This project uses a Flask backend with Supabase as its database and storage provider, and a React front end with Material UI for an intuitive dashboard.
+A comprehensive solution for dog breeders to manage their breeding program, track litters, puppies, and related activities.
 
-## Table of Contents
+## Project Overview
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Endpoints](#api-endpoints)
-- [Design Decisions](#design-decisions)
-- [Future Enhancements](#future-enhancements)
-- [License](#license)
-
-## Overview
-
-The Dog Breeding App provides breeders with tools to:
-- Manage adult dogs and litters.
-- Add, edit, and delete dog and litter records.
-- Upload and preview cover photos for dogs and litters.
-- Track heat cycles of adult females (new feature).
-- Manage inquiries and messages.
-- (Future) Integrate with Salesforce for advanced CRM features.
-
-## Features
-
-Current Features:
-- **Dogs Management**: View, add, edit, and delete dog records with Material UI interface.
-- **Litters Management**: Manage litters including details such as litter name, birth dates, and associated puppies.
-- **Puppy Management**: Add puppies to litters with breed, gender, and status tracking.
-- **Heat Cycle Tracking**: Track heat cycles for female dogs. Log start/end dates, mating dates, and whelp dates.
-- **Responsive Dashboard**: Mobile-friendly breeder dashboard with Material UI components.
-- **File Uploads**: Cover photos are uploaded to Supabase Storage with preview capabilities.
-- **Error Handling**: Comprehensive error handling and loading states.
-
-Planned Features:
-- **Customer/Buyer Management**:
-  - Waitlist management
-  - Customer contact information
-  - Deposit tracking
-  - Contract management
-  - Communication history
-  - Application forms
-
-- **Health Testing & Records**:
-  - OFA/health test results
-  - Vaccination records
-  - Veterinary visits
-  - Medication tracking
-  - Health certifications
-
-- **Pedigree Management**:
-  - Family tree visualization
-  - Coefficient of inbreeding calculations
-  - Title tracking
-  - Show records
-  - DNA test results
-
-- **Financial Management**:
-  - Expense tracking
-  - Income tracking
-  - Invoice generation
-  - Payment tracking
-  - Financial reports
-
-- **Calendar/Schedule**:
-  - Breeding schedule
-  - Vet appointments
-  - Show dates
-  - Puppy visitation schedule
-  - Vaccination due dates
-
-- **Document Management**:
-  - Contracts
-  - Registration papers
-  - Health certificates
-  - Insurance documents
-  - Export/import documents
-
-## Installation
-
-1. **Clone the repository**  
-   - `git clone https://github.com/donlaur/dog-breeding-app.git`  
-   - `cd dog-breeding-app`
-
-2. **Install backend dependencies**  
-   - `cd server`  
-   - `pip install -r requirements.txt`
-
-3. **Install frontend dependencies**  
-   - `cd ../client`  
-   - `npm install`
-
-4. **Run the backend**  
-   - `flask run`
-
-5. **Run the frontend**  
-   - `npm start`
-
-## Configuration
-
-Create a `.env` file in the **backend** directory with:
-
-SUPABASE_URL=https://your-project.supabase.co SUPABASE_KEY=your-supabase-key
-
-For the **frontend**, you might have a `.env` file with:
-
-REACT_APP_API_URL=http://127.0.0.1:5000/api REACT_APP_DEFAULT_BREED_ID=123
-
+This application helps breeders track dogs, litters, puppies, health records, and customer interactions. It includes both a management dashboard for breeders and a public-facing website for potential puppy buyers.
 
 ## API Endpoints
 
+**Authentication** (`/api/auth`)
+- `POST /api/auth/login` — Authenticate user and receive token
+- `POST /api/auth/register` — Register new user
+- `GET /api/auth/user` — Get current user info
+
 **Dogs** (`/api/dogs`)
 - `GET /api/dogs` — Retrieve all dogs
-- `GET /api/dogs/<id>` — Retrieve a single dog by ID
-- `POST /api/dogs` — Create or update a dog record
+- `GET /api/dogs/<id>` — Retrieve a specific dog
+- `POST /api/dogs` — Create a new dog
+- `PUT /api/dogs/<id>` — Update an existing dog
 - `DELETE /api/dogs/<id>` — Delete a dog
+- `POST /api/dogs/<id>/photos` — Upload photo for a dog
 
-**Breeds** (`/api/breeds`)
-- `GET /api/breeds` — Retrieve all dog breeds
+**Puppies** (`/api/puppies`)
+- `GET /api/puppies` — Retrieve all puppies
+- `GET /api/puppies/<id>` — Retrieve a specific puppy
+- `POST /api/puppies` — Create a new puppy
+- `PUT /api/puppies/<id>` — Update an existing puppy
+- `DELETE /api/puppies/<id>` — Delete a puppy
+- `POST /api/puppies/<id>/photos` — Upload photo for a puppy
+
+**Breeding Program** (`/api/breeder-program`)
 - `GET /api/breeder-program` — Retrieve breeding program details
 
 **Litters** (`/api/litters`)
@@ -135,6 +46,24 @@ REACT_APP_API_URL=http://127.0.0.1:5000/api REACT_APP_DEFAULT_BREED_ID=123
 - `PUT /api/heat-cycles/<id>` — Update an existing heat cycle
 - `DELETE /api/heat-cycles/<id>` — Delete a heat cycle
 
+## Technical Architecture
+
+### Backend (Python/Flask)
+
+- **Flask Application**: Structured using blueprints for organizing API endpoints
+- **Database Layer**: Uses abstraction pattern with Supabase implementation
+- **Authentication**: JWT-based auth with secure password handling
+- **File Storage**: Integrated with Supabase storage
+- **Blueprint Registration**: All endpoints are organized in blueprints and registered in `server/api/__init__.py`
+
+### Frontend (React)
+
+- **React Application**: Component-based architecture with hooks
+- **State Management**: Context-based approach (DogContext, LitterContext, AuthContext, etc.)
+- **UI Framework**: Material UI components with custom styling
+- **Routing**: React Router with protected routes
+- **API Communication**: Centralized in `src/utils/apiUtils.js` handling CORS, auth, and errors
+
 ## Design Decisions
 
 - **Supabase Integration**: We use Supabase for both database and file storage, offloading storage and using a managed PostgreSQL instance.
@@ -146,6 +75,37 @@ REACT_APP_API_URL=http://127.0.0.1:5000/api REACT_APP_DEFAULT_BREED_ID=123
 - **Material UI Integration**: Consistent use of Material UI components for better UX and mobile responsiveness
 - **Loading States**: Implemented proper loading states to prevent data flashing and improve user experience
 - **Mobile-First Design**: All new features are designed with mobile users in mind
+- **API Utilities**: All frontend API calls MUST use the utilities in `src/utils/apiUtils.js` to ensure proper CORS handling
+
+## Key Implementation Details
+
+### Database Abstraction
+The database layer is abstracted through an interface defined in `server/database/interface.py` with implementation in `server/database/supabase_db.py`. This allows for swapping database implementations without changing business logic.
+
+### API Utilities
+Frontend API calls should always use the utilities from `src/utils/apiUtils.js`:
+- `apiGet(endpoint, options)` - For GET requests
+- `apiPost(endpoint, data, options)` - For POST requests
+- `apiPut(endpoint, data, options)` - For PUT requests
+- `apiDelete(endpoint, options)` - For DELETE requests
+
+These handle authentication headers, CORS requirements, and consistent error handling.
+
+### Context System
+The application uses React Context for state management:
+- `DogContext` - Manages dog data and operations
+- `LitterContext` - Manages litter data and operations
+- `AuthContext` - Manages authentication state
+- `HeatContext` - Manages heat cycle data
+
+## Common Pitfalls to Avoid
+
+1. **Direct fetch calls**: Always use apiUtils instead of direct fetch to avoid CORS issues
+2. **Forgetting API pattern**: New endpoints must follow the blueprint pattern
+3. **Bypassing DB abstraction**: All database operations must use the abstraction layer
+4. **Duplicating state**: Use the context system for shared state
+5. **Missing auth checks**: Ensure protected routes have proper authentication
+6. **Inconsistent file handling**: Use the standard file upload utilities
 
 ## Future Enhancements
 
@@ -155,28 +115,13 @@ REACT_APP_API_URL=http://127.0.0.1:5000/api REACT_APP_DEFAULT_BREED_ID=123
 - **Analytics Dashboard**: Provide breeding performance metrics and heat cycle analytics.
 - **Improved Error Handling**: Possibly serve static JSON as a fallback if the database is down.
 
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-For more details, visit the [GitHub repository](https://github.com/donlaur/dog-breeding-app).
-
-## Recent Updates
-
-- Enhanced Material UI implementation across all pages
-- Improved mobile responsiveness
-- Added loading states to prevent data flashing
-- Restructured litter management interface
-- Standardized form layouts and styling
-- Enhanced error handling and user feedback
-
 ## Setup Instructions
 
 ### Environment Variables
 
 Create a `.env` file in the root directory with the following variables:
 
-SUPABASE_URL=your_supabase
+SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
 ADMIN_EMAILS=admin@example.com,another.admin@example.com
 
@@ -202,3 +147,29 @@ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- Insert an admin user (Replace with your information)
 INSERT INTO users (email, name, password_hash, role)
 VALUES ('your.email@example.com', 'Admin User', 'your_password', 'admin');
+
+
+AI Helper - Context Updates if the AI gets confused while building
+# Breeder App Context Helper
+
+## File Structure
+- Frontend: client/src/* (React)
+- Backend: server/* (Python Flask)
+
+## Frontend Components
+- No .jsx extension used, all files are .js
+- Main pages in client/src/pages/*
+- Dogs, Puppies, and Litters managed through DogContext
+
+## Data Structure
+- DogContext manages: dogs, litters, breeds, and heatCycles
+- Puppies are dogs with is_adult=false
+
+## API Structure
+- All API calls go through client/src/utils/apiUtils.js
+- Backend endpoints: /api/dogs/, /api/puppies/, /api/litters/, etc.
+
+## Naming Conventions
+- Frontend: camelCase for variables and functions
+- Backend: snake_case for database fields and API parameters
+- DB mappings: birthdate → birth_date, weight_birth → weight_at_birth
