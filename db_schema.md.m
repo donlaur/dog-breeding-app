@@ -1,0 +1,123 @@
+| table_name                  | column_name                   | data_type                   | is_nullable | column_default                                |
+| --------------------------- | ----------------------------- | --------------------------- | ----------- | --------------------------------------------- |
+| breeder_program_association | breeder_id                    | bigint                      | YES         | null                                          |
+| breeder_program_association | program_id                    | bigint                      | YES         | null                                          |
+| breeding_programs           | id                            | bigint                      | NO          | nextval('breeding_programs_id_seq'::regclass) |
+| breeding_programs           | name                          | text                        | NO          | null                                          |
+| breeding_programs           | description                   | text                        | YES         | null                                          |
+| breeding_programs           | facility_details              | text                        | YES         | null                                          |
+| breeding_programs           | testimonial                   | text                        | YES         | null                                          |
+| breeding_programs           | breeder_id                    | bigint                      | YES         | null                                          |
+| breeding_programs           | contact_email                 | text                        | YES         | null                                          |
+| breeding_programs           | website                       | text                        | YES         | null                                          |
+| contact_messages            | id                            | bigint                      | NO          | nextval('contact_messages_id_seq'::regclass)  |
+| contact_messages            | name                          | text                        | NO          | null                                          |
+| contact_messages            | email                         | text                        | NO          | null                                          |
+| contact_messages            | message                       | text                        | NO          | null                                          |
+| contact_messages            | created_at                    | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| dog_breeds                  | id                            | bigint                      | NO          | nextval('dog_breeds_id_seq'::regclass)        |
+| dog_breeds                  | name                          | text                        | NO          | null                                          |
+| dog_breeds                  | slug                          | text                        | NO          | null                                          |
+| dog_breeds                  | coat_colors                   | text                        | YES         | null                                          |
+| dog_breeds                  | breed_type                    | text                        | YES         | null                                          |
+| dog_breeds                  | traits                        | text                        | YES         | null                                          |
+| dog_photos                  | id                            | bigint                      | NO          | nextval('dog_photos_id_seq'::regclass)        |
+| dog_photos                  | dog_id                        | bigint                      | YES         | null                                          |
+| dog_photos                  | photo_url                     | text                        | NO          | null                                          |
+| dogs                        | id                            | bigint                      | NO          | nextval('dogs_id_seq'::regclass)              |
+| dogs                        | registered_name               | text                        | NO          | null                                          |
+| dogs                        | call_name                     | text                        | YES         | null                                          |
+| dogs                        | breed_id                      | bigint                      | YES         | null                                          |
+| dogs                        | gender                        | text                        | YES         | null                                          |
+| dogs                        | birth_date                    | date                        | YES         | null                                          |
+| dogs                        | status                        | text                        | YES         | null                                          |
+| dogs                        | cover_photo                   | text                        | YES         | null                                          |
+| dogs                        | breeder_id                    | bigint                      | YES         | null                                          |
+| dogs                        | cover_photo_original_filename | text                        | YES         | null                                          |
+| dogs                        | color                         | text                        | YES         | null                                          |
+| dogs                        | weight                        | numeric                     | YES         | null                                          |
+| dogs                        | microchip                     | text                        | YES         | null                                          |
+| dogs                        | notes                         | text                        | YES         | null                                          |
+| dogs                        | sire_id                       | bigint                      | YES         | null                                          |
+| dogs                        | dam_id                        | bigint                      | YES         | null                                          |
+| dogs                        | litter_id                     | integer                     | YES         | null                                          |
+| dogs                        | is_adult                      | boolean                     | YES         | false                                         |
+| file_uploads                | id                            | bigint                      | NO          | nextval('file_uploads_id_seq'::regclass)      |
+| file_uploads                | file_name                     | text                        | NO          | null                                          |
+| file_uploads                | file_url                      | text                        | NO          | null                                          |
+| file_uploads                | uploaded_at                   | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| heats                       | id                            | integer                     | NO          | nextval('heat_cycles_id_seq'::regclass)       |
+| heats                       | dog_id                        | integer                     | NO          | null                                          |
+| heats                       | start_date                    | date                        | NO          | null                                          |
+| heats                       | end_date                      | date                        | YES         | null                                          |
+| heats                       | mating_date                   | date                        | YES         | null                                          |
+| heats                       | expected_whelp_date           | date                        | YES         | null                                          |
+| heats                       | actual_whelp_date             | date                        | YES         | null                                          |
+| heats                       | notes                         | text                        | YES         | null                                          |
+| heats                       | created_at                    | timestamp with time zone    | NO          | now()                                         |
+| heats                       | updated_at                    | timestamp with time zone    | NO          | now()                                         |
+| heats                       | sire_id                       | integer                     | YES         | null                                          |
+| litters                     | id                            | bigint                      | NO          | nextval('litters_id_seq'::regclass)           |
+| litters                     | program_id                    | bigint                      | YES         | null                                          |
+| litters                     | breed_id                      | bigint                      | YES         | null                                          |
+| litters                     | sire_id                       | bigint                      | YES         | null                                          |
+| litters                     | dam_id                        | bigint                      | YES         | null                                          |
+| litters                     | status                        | text                        | YES         | null                                          |
+| litters                     | num_puppies                   | integer                     | YES         | null                                          |
+| litters                     | availability_date             | date                        | YES         | null                                          |
+| litters                     | expected_date                 | date                        | YES         | null                                          |
+| litters                     | planned_date                  | date                        | YES         | null                                          |
+| litters                     | price                         | numeric                     | YES         | null                                          |
+| litters                     | deposit                       | numeric                     | YES         | null                                          |
+| litters                     | extras                        | text                        | YES         | null                                          |
+| litters                     | socialization                 | text                        | YES         | null                                          |
+| litters                     | cover_photo                   | text                        | YES         | null                                          |
+| litters                     | litter_name                   | text                        | YES         | null                                          |
+| litters                     | created_at                    | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| litters                     | updated_at                    | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| litters                     | whelp_date                    | date                        | YES         | null                                          |
+| litters                     | expected_size                 | integer                     | YES         | null                                          |
+| program_users               | id                            | uuid                        | NO          | uuid_generate_v4()                            |
+| program_users               | user_id                       | uuid                        | NO          | null                                          |
+| program_users               | program_id                    | uuid                        | NO          | null                                          |
+| program_users               | role                          | text                        | NO          | null                                          |
+| program_users               | created_at                    | timestamp with time zone    | NO          | timezone('utc'::text, now())                  |
+| programs                    | id                            | uuid                        | NO          | uuid_generate_v4()                            |
+| programs                    | name                          | text                        | NO          | null                                          |
+| programs                    | created_at                    | timestamp with time zone    | NO          | timezone('utc'::text, now())                  |
+| programs                    | updated_at                    | timestamp with time zone    | NO          | timezone('utc'::text, now())                  |
+| puppies                     | id                            | bigint                      | NO          | nextval('puppies_id_seq'::regclass)           |
+| puppies                     | name                          | text                        | NO          | null                                          |
+| puppies                     | gender                        | text                        | YES         | null                                          |
+| puppies                     | litter_id                     | bigint                      | YES         | null                                          |
+| puppies                     | owner_id                      | bigint                      | YES         | null                                          |
+| puppies                     | price                         | numeric                     | YES         | null                                          |
+| puppies                     | status                        | text                        | YES         | null                                          |
+| puppies                     | is_available                  | boolean                     | YES         | null                                          |
+| puppies                     | registered_name               | text                        | YES         | null                                          |
+| puppies                     | call_name                     | text                        | YES         | null                                          |
+| puppies                     | breed_id                      | integer                     | YES         | null                                          |
+| puppies                     | color                         | text                        | YES         | null                                          |
+| puppies                     | markings                      | text                        | YES         | null                                          |
+| puppies                     | microchip                     | text                        | YES         | null                                          |
+| puppies                     | description                   | text                        | YES         | null                                          |
+| puppies                     | notes                         | text                        | YES         | null                                          |
+| puppies                     | birth_date                    | date                        | YES         | null                                          |
+| puppies                     | sire_id                       | integer                     | YES         | null                                          |
+| puppies                     | dam_id                        | integer                     | YES         | null                                          |
+| puppies                     | program_id                    | integer                     | YES         | null                                          |
+| puppies                     | registration_type             | text                        | YES         | null                                          |
+| puppies                     | weight_at_birth               | numeric                     | YES         | null                                          |
+| puppies                     | collar_color                  | text                        | YES         | null                                          |
+| puppies                     | min_adult_weight              | numeric                     | YES         | null                                          |
+| puppies                     | max_adult_weight              | numeric                     | YES         | null                                          |
+| puppies                     | markings_description          | text                        | YES         | null                                          |
+| users                       | id                            | bigint                      | NO          | nextval('users_id_seq'::regclass)             |
+| users                       | email                         | text                        | NO          | null                                          |
+| users                       | password_hash                 | text                        | NO          | null                                          |
+| users                       | role                          | text                        | YES         | 'BUYER'::text                                 |
+| users                       | location                      | text                        | YES         | null                                          |
+| users                       | contact_number                | text                        | YES         | null                                          |
+| users                       | created_at                    | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| users                       | updated_at                    | timestamp without time zone | YES         | CURRENT_TIMESTAMP                             |
+| users                       | name                          | text                        | YES         | null                                          |

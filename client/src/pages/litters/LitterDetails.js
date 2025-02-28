@@ -13,7 +13,8 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  IconButton
+  IconButton,
+  Avatar
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -24,6 +25,7 @@ import {
   Add as AddIcon,
   Pets as PetsIcon
 } from '@mui/icons-material';
+import { formatDate, formatAge } from '../../utils/dateUtils';
 
 function LitterDetail() {
   const { litterId } = useParams();
@@ -62,11 +64,6 @@ function LitterDetail() {
     
     fetchLitter();
   }, [litterId]);
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString();
-  };
 
   const handleDeleteLitter = () => {
     // Add confirmation and deletion logic
@@ -237,21 +234,45 @@ function LitterDetail() {
                       borderLeft: '4px solid pink'
                     }}
                   >
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 60, 
-                      borderRadius: '50%', 
-                      bgcolor: 'pink', 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center',
-                      mr: 2
-                    }}>
-                      <FemaleIcon sx={{ fontSize: 30, color: 'white' }} />
-                    </Box>
+                    {litter.dam_photo ? (
+                      <Avatar
+                        src={litter.dam_photo}
+                        alt={litter.dam_name || 'Dam'}
+                        sx={{ 
+                          width: 60, 
+                          height: 60,
+                          mr: 2
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        width: 60, 
+                        height: 60, 
+                        borderRadius: '50%', 
+                        bgcolor: 'pink', 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        mr: 2
+                      }}>
+                        <FemaleIcon sx={{ fontSize: 30, color: 'white' }} />
+                      </Box>
+                    )}
                     
                     <Box>
-                      <Typography variant="h6">{litter.dam_name || 'Unknown'}</Typography>
+                      <Typography variant="h6">
+                        {litter.dam_name || 'Unknown'}
+                        {litter.dam_birth_date && (
+                          <Typography 
+                            component="span" 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ ml: 1 }}
+                          >
+                            ({formatAge(litter.dam_birth_date)})
+                          </Typography>
+                        )}
+                      </Typography>
                       <Button 
                         size="small" 
                         sx={{ mt: 0.5 }}
@@ -281,21 +302,45 @@ function LitterDetail() {
                       borderLeft: '4px solid primary.main'
                     }}
                   >
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 60, 
-                      borderRadius: '50%', 
-                      bgcolor: 'primary.main', 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center',
-                      mr: 2
-                    }}>
-                      <MaleIcon sx={{ fontSize: 30, color: 'white' }} />
-                    </Box>
+                    {litter.sire_photo ? (
+                      <Avatar
+                        src={litter.sire_photo}
+                        alt={litter.sire_name || 'Sire'}
+                        sx={{ 
+                          width: 60, 
+                          height: 60,
+                          mr: 2
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        width: 60, 
+                        height: 60, 
+                        borderRadius: '50%', 
+                        bgcolor: 'primary.main', 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        mr: 2
+                      }}>
+                        <MaleIcon sx={{ fontSize: 30, color: 'white' }} />
+                      </Box>
+                    )}
                     
                     <Box>
-                      <Typography variant="h6">{litter.sire_name || 'Unknown'}</Typography>
+                      <Typography variant="h6">
+                        {litter.sire_name || 'Unknown'}
+                        {litter.sire_birth_date && (
+                          <Typography 
+                            component="span" 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ ml: 1 }}
+                          >
+                            ({formatAge(litter.sire_birth_date)})
+                          </Typography>
+                        )}
+                      </Typography>
                       <Button 
                         size="small" 
                         sx={{ mt: 0.5 }}

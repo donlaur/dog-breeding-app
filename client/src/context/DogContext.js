@@ -1,7 +1,7 @@
 // src/context/DogContext.js
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
-import { API_URL, debugLog } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
 import axios from 'axios';
 
@@ -77,7 +77,7 @@ export const DogProvider = ({ children }) => {
     try {
       // Create promises but don't await them yet
       pendingRequests.current.dogs = apiGet('dogs');
-      pendingRequests.current.litters = apiGet('litters/full');
+      pendingRequests.current.litters = apiGet('litters');
       pendingRequests.current.puppies = apiGet('puppies');
       
       // Handle dogs
@@ -279,14 +279,24 @@ export const DogProvider = ({ children }) => {
     }
   };
 
-  const refreshLitters = async () => {
+  const refreshLitters = async (force = false) => {
+    if (loading && !force) return;
+    
     try {
+      setLoading(true);
       const response = await apiGet('litters');
-      if (response && response.ok) {
-        setLitters(response.data || []);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch litters');
       }
+      
+      debugLog('Litters loaded:', response.data);
+      setLitters(response.data || []);
     } catch (error) {
-      console.error('Error fetching litters:', error);
+      debugError('Error fetching litters:', error);
+      setError('Failed to load litters');
+    } finally {
+      setLoading(false);
     }
   };
 

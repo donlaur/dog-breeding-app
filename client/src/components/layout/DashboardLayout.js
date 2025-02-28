@@ -1,4 +1,4 @@
-// src/components/DashboardLayout.js
+// src/components/layout/DashboardLayout.js
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -369,4 +369,4 @@ const DashboardLayout = () => {
   );
 };
 
-export default DashboardLayout;
+export default DashboardLayout; 

@@ -39,8 +39,8 @@ const BreederProfile = () => {
     setError(null);
     
     try {
-      // Using your apiGet utility to handle errors consistently
-      const response = await fetch(`${API_URL}/program/breeders/profile`);
+      // Using the correct endpoint from program.py
+      const response = await fetch(`${API_URL}/program/`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -75,8 +75,9 @@ const BreederProfile = () => {
     setError(null);
     
     try {
-      const response = await fetch(`${API_URL}/program/breeders/profile`, {
-        method: 'POST', // Use POST instead of PUT as it's more forgiving if record doesn't exist
+      // Using PUT method as specified in the backend
+      const response = await fetch(`${API_URL}/program/`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },

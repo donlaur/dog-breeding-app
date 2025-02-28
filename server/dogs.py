@@ -7,7 +7,7 @@ Blueprint for all dog-related endpoints (CRUD + file uploads).
 import os
 import uuid
 import tempfile
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, make_response
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from server.supabase_client import supabase
@@ -72,64 +72,118 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
     def get_dogs():
         debug_log("Fetching all dogs...")
         try:
-            dogs = db.get_all("dogs")
+            # Include timestamp fields in the query
+            response = db.supabase.table("dogs").select(
+                "id",
+                "call_name",
+                "registered_name",
+                "breed_id",
+                "gender",
+                "color",
+                "birth_date",
+                "cover_photo",
+                "status",
+                "created_at",
+                "updated_at"
+            ).order("created_at.desc").execute()
+            
+            dogs = response.data if response else []
             debug_log(f"Found {len(dogs)} dogs")
-            return jsonify(dogs)
-        except DatabaseError as e:
+            
+            # Add CORS headers
+            response = make_response(jsonify(dogs))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        except Exception as e:
             debug_log(f"Error fetching dogs: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
-    @dogs_bp.route("/<int:dog_id>", methods=["GET", "PUT", "OPTIONS"])
-    def get_or_update_dog(dog_id):
-        """Get or update a specific dog."""
-        # Handle CORS preflight requests
-        if request.method == 'OPTIONS':
-            return '', 200
-        
-        if request.method == 'GET':
-            debug_log(f"Fetching dog with ID: {dog_id}")
-            try:
-                dog = db.get_by_id("dogs", dog_id)
+    @dogs_bp.route("/<int:dog_id>", methods=["GET"])
+    def get_dog(dog_id):
+        debug_log(f"Fetching dog with ID: {dog_id}")
+        try:
+            response = db.supabase.table("dogs").select(
+                "id",
+                "call_name",
+                "registered_name",
+                "breed_id",
+                "gender",
+                "color",
+                "birth_date",
+                "cover_photo",
+                "status",
+                "description",
+                "notes",
+                "markings",
+                "microchip",
+                "registration_type",
+                "program_id",
+                "litter_id",
+                "created_at",
+                "updated_at"
+            ).eq("id", dog_id).single().execute()
+            
+            if not response.data:
+                debug_log(f"No dog found with ID: {dog_id}")
+                return jsonify({"error": "Dog not found"}), 404
                 
-                if not dog:
-                    debug_log(f"Dog with ID {dog_id} not found")
-                    return jsonify({"error": "Dog not found"}), 404
-                    
-                debug_log(f"Found dog: {dog}")
-                return jsonify(dog)
-            except Exception as e:
-                debug_log(f"Error fetching dog: {str(e)}")
-                return jsonify({"error": str(e)}), 500
-        
-        elif request.method == 'PUT':
-            debug_log(f"Updating dog with ID: {dog_id}")
-            try:
-                data = request.get_json()
-                debug_log(f"Update data: {data}")
-                
-                # Update the dog record
-                updated_dog = db.update("dogs", dog_id, data)
-                
-                if not updated_dog:
-                    debug_log(f"Dog with ID {dog_id} not found for update")
-                    return jsonify({"error": "Dog not found"}), 404
-                    
-                debug_log(f"Updated dog: {updated_dog}")
-                return jsonify(updated_dog)
-            except Exception as e:
-                debug_log(f"Error updating dog: {str(e)}")
-                return jsonify({"error": str(e)}), 500
+            dog = response.data
+            debug_log(f"Found dog: {dog}")
+            
+            # Add CORS headers
+            response = make_response(jsonify(dog))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        except Exception as e:
+            debug_log(f"Error fetching dog: {str(e)}")
+            return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/", methods=["POST"])
     def create_dog():
         try:
             data = request.get_json()
+            # created_at and updated_at will be set automatically by the database
             dog = db.create("dogs", data)
-            return jsonify(dog), 201
+            
+            # Return the created dog with timestamps
+            response = make_response(jsonify({
+                **dog,
+                "message": "Dog created successfully",
+                "timestamp": datetime.utcnow().isoformat()
+            }), 201)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            return response
+            
         except DatabaseError as e:
             return jsonify({"error": str(e)}), 500
 
-    @dogs_bp.route("/<int:dog_id>", methods=["DELETE"])
+    @dogs_bp.route("/<int:dog_id>", methods=["PUT"])
+    def update_dog(dog_id):
+        try:
+            data = request.get_json()
+            # updated_at will be set automatically by the database trigger
+            dog = db.update("dogs", dog_id, data)
+            
+            response = make_response(jsonify({
+                **dog,
+                "message": "Dog updated successfully",
+                "timestamp": datetime.utcnow().isoformat()
+            }))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            return response
+            
+        except DatabaseError as e:
+            return jsonify({"error": str(e)}), 500
+
+    @dogs_bp.route("/", methods=["DELETE"])
     def delete_dog(dog_id):
         response = supabase.table("dogs").delete().eq("id", dog_id).execute()
         if response.error:
@@ -172,9 +226,19 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             
         debug_log("Fetching all dogs with full details...")
         try:
-            # Just get all basic dog data for now
-            dogs = db.get_all("dogs")
-            debug_log(f"Returning {len(dogs)} dogs with basic details")
+            # Enhanced query to get all relevant fields with correct column names
+            response = db.supabase.table("dogs").select(
+                "*",
+                "breed:breed_id(id,breed_name)",
+                "sire:sire_id(id,call_name,photo_url,birth_date)",
+                "dam:dam_id(id,call_name,photo_url,birth_date)"
+            ).execute()
+            
+            if response.error:
+                raise DatabaseError(str(response.error))
+                
+            dogs = response.data
+            debug_log(f"Returning {len(dogs)} dogs with full details")
             return jsonify(dogs)
         except DatabaseError as e:
             debug_log(f"Error fetching dogs with full details: {str(e)}")

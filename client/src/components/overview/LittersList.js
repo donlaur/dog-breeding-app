@@ -7,12 +7,17 @@ import {
   Button, 
   Avatar, 
   Divider, 
-  IconButton 
+  IconButton,
+  Chip,
+  Grid
 } from '@mui/material';
 import { 
   Visibility as LittersIcon, 
   Add as AddIcon, 
-  MoreVert as MoreVertIcon 
+  MoreVert as MoreVertIcon,
+  Female as FemaleIcon,
+  Male as MaleIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../utils/dateUtils';
@@ -28,13 +33,18 @@ const LittersList = ({
   litters = [], 
   getImageUrl 
 }) => {
+  // Show all current litters instead of filtering by 'active' status
+  const currentLitters = litters.filter(litter => 
+    litter.status && ['born', 'active', 'expected'].includes(litter.status.toLowerCase())
+  );
+
   return (
     <Card elevation={1}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <LittersIcon color="primary" />
-            <Typography variant="h6">Litters</Typography>
+            <Typography variant="h6">Current Litters</Typography>
           </Box>
           <Box>
             <Button 
@@ -53,15 +63,15 @@ const LittersList = ({
           </Box>
         </Box>
         
-        {litters && litters.length > 0 ? (
+        {currentLitters && currentLitters.length > 0 ? (
           <Box>
-            {litters.map((litter, index) => (
+            {currentLitters.map((litter, index) => (
               <React.Fragment key={litter?.id || index}>
                 <Box 
                   sx={{ 
                     display: 'flex', 
-                    py: 1.5, 
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    py: 1.5,
                     cursor: 'pointer',
                     '&:hover': {
                       backgroundColor: 'rgba(0, 0, 0, 0.04)',
@@ -72,36 +82,70 @@ const LittersList = ({
                   to={`/dashboard/litters/${litter.id}`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
-                  <Avatar 
-                    src={getImageUrl && getImageUrl(litter?.cover_photo)}
-                    alt={litter?.name || `Litter ${index + 1}`}
-                    sx={{ width: 48, height: 48 }}
-                  >
-                    {!litter?.cover_photo && <LittersIcon />}
-                  </Avatar>
-                  <Box sx={{ ml: 2, flex: 1 }}>
-                    <Typography variant="subtitle1">
-                      {litter?.name || `Litter ${index + 1}`}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {litter?.dam_name && litter?.sire_name ? 
-                        `${litter.dam_name} × ${litter.sire_name}` : 
-                        formatDate(litter?.whelp_date) || 'New Litter'}
-                    </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Avatar 
+                        src={getImageUrl && getImageUrl(litter?.cover_photo)}
+                        alt={litter?.name || `Litter ${index + 1}`}
+                        sx={{ width: 48, height: 48, mr: 2 }}
+                      >
+                        {!litter?.cover_photo && <LittersIcon />}
+                      </Avatar>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                        {litter?.litter_name || `Litter #${litter.id}`}
+                      </Typography>
+                    </Box>
+                    <Chip 
+                      label={litter.status || 'Born'} 
+                      color="success"
+                      size="small"
+                    />
                   </Box>
-                  <Box sx={{ 
-                    bgcolor: '#e8f5e9',
-                    color: '#2e7d32',
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 1,
-                    fontSize: '0.75rem',
-                    fontWeight: 'medium'
-                  }}>
-                    {litter?.puppies_count || 0} puppies
+
+                  <Grid container spacing={2} sx={{ mb: 1, pl: 8 }}>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <FemaleIcon sx={{ mr: 1, color: 'error.light', fontSize: '1rem' }} />
+                        <Typography variant="body2">
+                          {litter.dam_name || 'Unknown Dam'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <MaleIcon sx={{ mr: 1, color: 'primary.light', fontSize: '1rem' }} />
+                        <Typography variant="body2">
+                          {litter.sire_name || 'Unknown Sire'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pl: 8 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {litter.whelp_date ? `Born ${formatDate(litter.whelp_date)}` : 'Due date not set'}
+                    </Typography>
+                    {litter.expected_size && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {litter.puppy_count < litter.expected_size ? (
+                          <Chip
+                            icon={<WarningIcon sx={{ fontSize: '1rem' }} />}
+                            label={`${litter.puppy_count || 0}/${litter.expected_size} puppies`}
+                            color="warning"
+                            size="small"
+                          />
+                        ) : (
+                          <Chip
+                            label={`${litter.puppy_count} puppies`}
+                            color="success"
+                            size="small"
+                          />
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 </Box>
-                {index < litters.length - 1 && <Divider />}
+                {index < currentLitters.length - 1 && <Divider />}
               </React.Fragment>
             ))}
           </Box>
@@ -114,14 +158,14 @@ const LittersList = ({
             flexDirection: 'column',
             alignItems: 'center'
           }}>
-            <Typography sx={{ mb: 2 }}>No litters recorded yet</Typography>
+            <Typography sx={{ mb: 2 }}>No active litters</Typography>
             <Button 
               component={Link} 
               to="/dashboard/litters/add" 
               variant="contained" 
               startIcon={<AddIcon />}
             >
-              Create Your First Litter
+              Create New Litter
             </Button>
           </Box>
         )}

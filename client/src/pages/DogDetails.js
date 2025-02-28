@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDog } from '../context/DogContext';
-import { formatDate, calculateAge } from '../utils/dateUtils';
+import { formatDate, formatAge } from '../utils/dateUtils';
 import { API_URL } from '../config';
 import {
   Box,
@@ -25,7 +25,8 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  CircularProgress
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -75,6 +76,8 @@ function DogDetails() {
   const [activeTab, setActiveTab] = useState(0);
   const [heatCycles, setHeatCycles] = useState([]);
   const [heatsLoading, setHeatsLoading] = useState(false);
+  const [siredLitters, setSiredLitters] = useState([]);
+  const [littersLoading, setLittersLoading] = useState(false);
   
   // Use ref to track loading status
   const loadStatus = useRef({
@@ -95,59 +98,34 @@ function DogDetails() {
   // Effect to load dog based on URL info
   useEffect(() => {
     const loadDog = async () => {
+      if (!dogId) return;
+      
       try {
-        if (!dogId && !possibleNameSegment) {
-          throw new Error("Unable to determine dog from URL");
-        }
+        // First try to get from context
+        let foundDog = dogs.find(d => d.id === parseInt(dogId));
         
-        console.log(`Looking for dog with ID: ${dogId} or name segment: ${possibleNameSegment}`);
-        const foundDog = await getDog(dogId || possibleNameSegment);
+        // If not in context, fetch directly from API
+        if (!foundDog) {
+          const response = await apiGet(`dogs/${dogId}`);
+          if (response && response.ok && response.data) {
+            foundDog = response.data;
+          }
+        }
         
         if (foundDog) {
           console.log("Loaded dog data:", foundDog);
           setDog(foundDog);
-          
-          // Check if this is a fallback object with limited data
-          if (foundDog._isFallbackObject) {
-            console.log("Note: This is a fallback dog object with limited data");
-            setIsPartialData(true);
-          }
-          
-          setLoading(false);
-        } else {
-          // This should never happen with our new fallback approach
-          console.error("No dog data returned");
-          setLoading(false);
         }
       } catch (err) {
         console.error("Error in loadDog:", err);
-        // Even on error, try to create a fallback dog with proper capitalization
-        let displayName = "Unknown Dog";
-        
-        if (possibleNameSegment) {
-          // Convert kebab-case or snake_case to proper title case
-          displayName = possibleNameSegment
-            .replace(/[-_]/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        }
-        
-        setDog({
-          id: dogId,
-          call_name: displayName,
-          _isFallbackObject: true
-        });
-        setIsPartialData(true);
+      } finally {
+        // Only set loading to false if we either have a dog or a definitive error
         setLoading(false);
       }
     };
     
-    if (!loadStatus.current.attempted) {
-      loadStatus.current.attempted = true;
-      loadDog();
-    }
-  }, [dogId, possibleNameSegment, getDog, dogs]);
+    loadDog();
+  }, [dogId, dogs]);
   
   // Fetch heat cycles for female dogs
   useEffect(() => {
@@ -173,6 +151,27 @@ function DogDetails() {
     };
     
     fetchHeatCycles();
+  }, [dogId, dog]);
+
+  // Add effect to fetch sired litters for male dogs
+  useEffect(() => {
+    const fetchSiredLitters = async () => {
+      if (dog && dog.gender === 'Male') {
+        setLittersLoading(true);
+        try {
+          const response = await apiGet(`litters?sire_id=${dogId}`);
+          if (response && response.ok) {
+            setSiredLitters(response.data || []);
+          }
+        } catch (error) {
+          console.error('Error fetching sired litters:', error);
+        } finally {
+          setLittersLoading(false);
+        }
+      }
+    };
+
+    fetchSiredLitters();
   }, [dogId, dog]);
 
   // Handle tab change
@@ -235,9 +234,11 @@ function DogDetails() {
 
   if (loading) {
     return (
-      <div className="loading-container" style={{ textAlign: 'center', padding: '50px' }}>
-        <p>Loading dog details...</p>
-      </div>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+          <CircularProgress />
+        </Box>
+      </Container>
     );
   }
   
@@ -344,9 +345,7 @@ function DogDetails() {
                   Born: {formatDate(dog.birth_date)} 
                   {dog.birth_date && (
                     <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                      ({dog.is_adult ? 
-                        formatAdultAge(dog.birth_date) : 
-                        calculateAge(dog.birth_date)})
+                      ({formatAge(dog.birth_date)})
                     </Typography>
                   )}
                 </Typography>
@@ -394,8 +393,8 @@ function DogDetails() {
               {activeTab === 0 && (
                 <Box>
                   <Typography variant="h6" sx={{ mb: 2 }}>About</Typography>
-                  {dog.description ? (
-                    <Typography variant="body1">{dog.description}</Typography>
+                  {dog.notes ? (
+                    <Typography variant="body1">{dog.notes}</Typography>
                   ) : (
                     <Typography variant="body1" color="text.secondary">
                       No additional information available for this dog.
@@ -439,9 +438,64 @@ function DogDetails() {
                 <Box>
                   <Typography variant="h6" sx={{ mb: 2 }}>Breeding Information</Typography>
                   
-                  {/* Heat Cycles section for female dogs */}
-                  {dog.gender === 'Female' && (
+                  {dog.gender === 'Male' ? (
                     <>
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
+                          Sired Litters
+                        </Typography>
+                        
+                        {littersLoading ? (
+                          <LinearProgress sx={{ my: 2 }} />
+                        ) : siredLitters.length > 0 ? (
+                          <TableContainer component={Paper} variant="outlined">
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Dam</TableCell>
+                                  <TableCell>Whelp Date</TableCell>
+                                  <TableCell>Status</TableCell>
+                                  <TableCell>Puppies</TableCell>
+                                  <TableCell align="right">Actions</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {siredLitters.map((litter) => (
+                                  <TableRow key={litter.id} hover>
+                                    <TableCell>{litter.dam_name || 'Unknown'}</TableCell>
+                                    <TableCell>{formatDate(litter.whelp_date)}</TableCell>
+                                    <TableCell>
+                                      <Chip 
+                                        label={litter.status} 
+                                        color={litter.status === 'Born' ? 'success' : 'default'}
+                                        size="small"
+                                      />
+                                    </TableCell>
+                                    <TableCell>{litter.num_puppies || 0}</TableCell>
+                                    <TableCell align="right">
+                                      <Button
+                                        size="small"
+                                        onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
+                                      >
+                                        View
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No sired litters recorded for this dog.
+                          </Typography>
+                        )}
+                      </Box>
+                    </>
+                  ) : (
+                    <>
+                      {/* Heat Cycles section for female dogs */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center' }}>
                           <HeartIcon sx={{ mr: 1, color: 'error.light' }} />
@@ -507,31 +561,6 @@ function DogDetails() {
                         </Typography>
                       )}
                     </>
-                  )}
-                  
-                  {/* Breeding section depending on gender */}
-                  {dog.gender === 'Female' ? (
-                    // For females - Litters
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                        <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
-                        Litters
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        No litters recorded for this dog.
-                      </Typography>
-                    </Box>
-                  ) : (
-                    // For males - Sired Litters
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                        <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
-                        Sired Litters
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        No sired litters recorded for this dog.
-                      </Typography>
-                    </Box>
                   )}
                 </Box>
               )}
