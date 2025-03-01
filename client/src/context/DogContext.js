@@ -34,8 +34,11 @@ export const DogProvider = ({ children }) => {
   // Cache expiration time (5 minutes)
   const CACHE_EXPIRATION = 5 * 60 * 1000; 
 
-  // Get puppies (non-adult dogs)
-  const adultDogs = dogs.filter(dog => dog.is_adult);
+  // Get adult dogs (is_adult === true)
+  const adultDogs = dogs.filter(dog => dog.is_adult === true);
+
+  // Get puppies (from the puppies table)
+  const actualPuppies = puppies;
 
   // Function to check if cache is valid
   const isCacheValid = () => {
@@ -350,7 +353,7 @@ export const DogProvider = ({ children }) => {
   // Value to provide in context
   const value = {
     dogs,
-    puppies,
+    puppies: actualPuppies,
     adultDogs,
     litters,
     loading,

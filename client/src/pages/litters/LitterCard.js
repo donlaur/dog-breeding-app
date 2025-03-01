@@ -14,7 +14,7 @@ const LitterCard = ({ litter }) => {
       )}
       <h3>{litter.litter_name}</h3>
       <p>
-        <strong>Born:</strong> {litter.birth_date}
+        <strong>Born:</strong> {litter.whelp_date}
       </p>
       <p>
         <strong>Price:</strong> ${litter.price}

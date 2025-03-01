@@ -26,9 +26,14 @@ import {
 } from '@mui/icons-material';
 import { formatDate } from '../../utils/dateUtils';
 import { useDog } from '../../context/DogContext';
+import { API_URL, debugLog, debugError } from '../../config';
 
 const ManageLitters = () => {
   const { litters, loading, error, refreshLitters } = useDog();
+  const [breeds, setBreeds] = useState([]);
+  const [sires, setSires] = useState([]);
+  const [dams, setDams] = useState([]);
+  const [errorBreeds, setErrorBreeds] = useState(null);
 
   useEffect(() => {
     // Only refresh if we don't have any litters and aren't currently loading
@@ -36,6 +41,49 @@ const ManageLitters = () => {
       refreshLitters();
     }
   }, []); // Empty dependency array - only run on mount
+
+  useEffect(() => {
+    const fetchBreeds = async () => {
+      try {
+        const response = await fetch(`${API_URL}/breeds`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        debugLog("Fetched breeds:", data);
+        setBreeds(data);
+      } catch (error) {
+        debugError("Error fetching breeds:", error);
+        setErrorBreeds("Failed to load breeds. Please try again later.");
+      }
+    };
+
+    fetchBreeds();
+  }, []);
+
+  useEffect(() => {
+    const fetchDogs = async () => {
+      try {
+        const response = await fetch(`${API_URL}/dogs`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        // Filter for male and female dogs
+        const males = data.filter(dog => dog.gender === 'Male');
+        const females = data.filter(dog => dog.gender === 'Female');
+        
+        setSires(males);
+        setDams(females);
+      } catch (error) {
+        debugError("Error fetching dogs:", error);
+        setErrorBreeds("Failed to load dogs. Please try again later.");
+      }
+    };
+
+    fetchDogs();
+  }, []);
 
   const handleRefresh = () => {
     refreshLitters(true);  // Force refresh when user clicks refresh button

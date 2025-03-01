@@ -191,7 +191,7 @@ function LitterDetail() {
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Date of Birth
+                    Whelp Date
                   </Typography>
                   <Typography variant="body1">
                     {formatDate(litter.whelp_date) || 'Not recorded'}

@@ -28,14 +28,23 @@ import { API_URL, debugLog, debugError } from "../../config";
  * @param {Array} [damOptions] - Optional array of dog objects (female) for dam_id selection
  */
 const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], damOptions = [] }) => {
+  // Debug the props received
+  debugLog("LitterForm props:", { 
+    initialData: initialData ? "present" : "not present", 
+    breedOptions, 
+    breedOptionsLength: breedOptions.length,
+    sireOptions: sireOptions.length, 
+    damOptions: damOptions.length 
+  });
+
   // Local state for all the fields
   const [litter, setLitter] = useState({
     litter_name: "",
     status: "Planned",
-    birth_date: "",
+    whelp_date: "",
     expected_date: "",
     planned_date: "",
-    breed_id: breedOptions.length > 0 ? breedOptions[0].id : "",
+    breed_id: "",  // Initialize as empty string
     sire_id: "",
     dam_id: "",
     price: "",
@@ -48,14 +57,24 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
 
   // Update initial data with default breed if not set
   useEffect(() => {
+    debugLog("breedOptions:", breedOptions);
+    
     if (initialData) {
       const data = { ...initialData };
+      // If editing a litter without a breed_id and we have breed options
       if (!data.breed_id && breedOptions.length > 0) {
         data.breed_id = breedOptions[0].id;
+        debugLog("Setting breed_id for existing litter to:", breedOptions[0].id);
       }
       setLitter(data);
-    } else if (breedOptions.length > 0 && !litter.breed_id) {
-      setLitter(prev => ({ ...prev, breed_id: breedOptions[0].id }));
+    } 
+    // For new litters, set default breed_id if we have breed options
+    else if (breedOptions.length > 0) {
+      debugLog("Setting default breed_id for new litter to:", breedOptions[0].id);
+      setLitter(prev => ({ 
+        ...prev, 
+        breed_id: breedOptions[0].id 
+      }));
     }
   }, [initialData, breedOptions]);
 
@@ -95,7 +114,16 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
       // Add the actual file for cover_photo_file
       if (key === 'cover_photo_file' && litter[key]) {
         formData.append('cover_photo', litter[key]);
-      } else if (litter[key] !== null) {
+      } 
+      // Handle bigint fields - don't send empty strings
+      else if (['breed_id', 'sire_id', 'dam_id'].includes(key)) {
+        // Only append if the value is not an empty string
+        if (litter[key] !== '') {
+          formData.append(key, litter[key]);
+        }
+      }
+      // Handle other fields
+      else if (litter[key] !== null) {
         // Add all other fields, converting null to empty string
         formData.append(key, litter[key]);
       }
@@ -150,12 +178,21 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               onChange={handleChange}
               label="Breed"
             >
-              {breedOptions.map(breed => (
-                <MenuItem key={breed.id} value={breed.id}>
-                  {breed.name}
+              {breedOptions.length > 0 ? (
+                breedOptions.map(breed => (
+                  <MenuItem key={breed.id} value={breed.id}>
+                    {breed.name}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value="">
+                  <em>No breeds available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
+            <FormHelperText>
+              {breedOptions.length === 0 && "Loading breeds..."}
+            </FormHelperText>
           </FormControl>
         </Grid>
 
@@ -246,9 +283,9 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
           <TextField
             fullWidth
             type="date"
-            name="birth_date"
+            name="whelp_date"
             label="Birth Date"
-            value={litter.birth_date || ''}
+            value={litter.whelp_date || ''}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />

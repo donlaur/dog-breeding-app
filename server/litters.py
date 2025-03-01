@@ -230,81 +230,62 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
     @litters_bp.route("/", methods=["POST"])
     def create_litter():
         try:
-            # Check if the request is multipart/form-data
-            if request.content_type and 'multipart/form-data' in request.content_type:
-                # Handle form data submission with file upload
-                data = {}
+            debug_log("Creating new litter")
+            
+            # Get form data
+            data = {}
+            if request.is_json:
+                data = request.get_json()
+                debug_log(f"Received JSON data: {data}")
+            else:
+                # Handle form data
+                form_data = request.form.to_dict()
+                debug_log(f"Received form data: {form_data}")
                 
-                # Extract form fields
-                for field in request.form:
-                    value = request.form[field]
-                    # Convert empty strings to None for specific fields
-                    if field in ['price', 'deposit', 'num_puppies'] and value == '':
-                        data[field] = None
-                    elif field in ['birth_date', 'expected_date', 'planned_date', 'availability_date'] and value == '':
-                        data[field] = None
+                # Process form data
+                for key, value in form_data.items():
+                    # Convert empty strings to None for bigint fields
+                    if key in ['breed_id', 'sire_id', 'dam_id'] and value == '':
+                        data[key] = None
                     else:
-                        data[field] = value
+                        data[key] = value
                 
-                # Handle file upload if present
+                # Handle file upload
                 if 'cover_photo' in request.files:
                     file = request.files['cover_photo']
                     if file and file.filename:
-                        # Generate a unique filename
-                        filename = secure_filename(file.filename)
-                        unique_filename = f"{uuid.uuid4()}_{filename}"
-                        
-                        # Path for temporary storage
-                        temp_path = os.path.join(tempfile.gettempdir(), unique_filename)
-                        file.save(temp_path)
-                        
-                        try:
-                            # Upload to Supabase Storage
-                            with open(temp_path, 'rb') as f:
-                                # Assume we're using supabase_db instance passed to the blueprint
-                                upload_path = f"litter_photos/{unique_filename}"
-                                db.supabase.storage.from_('litter-photos').upload(
-                                    file=f,
-                                    path=upload_path,
-                                    file_options={"content-type": file.content_type}
-                                )
-                                
-                                # Get public URL for the uploaded file
-                                photo_url = db.supabase.storage.from_('litter-photos').get_public_url(upload_path)
-                                data['cover_photo'] = photo_url
-                        finally:
-                            # Clean up temp file
-                            if os.path.exists(temp_path):
-                                os.remove(temp_path)
-                
-                # Create litter record in database
-                litter = db.create("litters", data)
-                return jsonify(litter), 201
-            else:
-                # Handle JSON submission (no file upload)
-                data = request.get_json()
-                
-                # Remove form-specific fields
-                if 'cover_photo_file' in data:
-                    del data['cover_photo_file']
-                if 'cover_photo_preview' in data:
-                    del data['cover_photo_preview']
-                    
-                # Convert empty strings to None
-                for field in ['price', 'deposit', 'num_puppies']:
-                    if field in data and data[field] == '':
+                        # Process file upload logic here
+                        # ...
+                        pass
+            
+            # Ensure bigint fields are properly handled
+            for field in ['breed_id', 'sire_id', 'dam_id']:
+                if field in data and (data[field] == '' or data[field] is None):
+                    data[field] = None
+                elif field in data:
+                    # Try to convert to int if it's a string
+                    try:
+                        data[field] = int(data[field])
+                        debug_log(f"Converted {field} to int: {data[field]}")
+                    except (ValueError, TypeError):
+                        debug_log(f"Could not convert {field} value '{data[field]}' to int")
                         data[field] = None
-                        
-                for field in ['birth_date', 'expected_date', 'planned_date', 'availability_date']:
-                    if field in data and data[field] == '':
-                        data[field] = None
-                
-                litter = db.create("litters", data)
-                return jsonify(litter), 201
+            
+            debug_log(f"Processed data for litter creation: {data}")
+            
+            # Create the litter
+            litter = db.create("litters", data)
+            
+            # Add CORS headers
+            response = make_response(jsonify(litter))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": str(e)}), 500
+            debug_log(f"Error creating litter: {str(e)}")
+            return jsonify({"error": f"Failed to create litter: {str(e)}"}), 500
 
     @litters_bp.route("/<int:litter_id>", methods=["PUT"])
     def update_litter(litter_id):

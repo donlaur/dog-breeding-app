@@ -6,8 +6,9 @@ Blueprint for breed-related endpoints, including:
 - Retrieving a specific breed
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request, make_response
 from server.database.supabase_db import SupabaseDatabase
+from .config import debug_log
 
 print("Initializing breeds blueprint...")  # Debug print
 
@@ -19,13 +20,21 @@ db = SupabaseDatabase()
 
 @breeds_bp.route('/', methods=['GET'])
 def get_breeds():
-    print("Breeds endpoint hit: get_breeds()")
+    debug_log("Fetching all breeds...")
     try:
         result = db.supabase.table('dog_breeds').select('*').execute()
-        print(f"Breeds fetch successful, found {len(result.data)} breeds")
-        return jsonify(result.data if result.data else [])
+        breeds = result.data if result else []
+        
+        debug_log(f"Found {len(breeds)} breeds: {breeds}")
+        
+        # Add CORS headers
+        response = make_response(jsonify(breeds))
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
     except Exception as e:
-        print(f"Error in get_breeds: {str(e)}")
+        debug_log(f"Error fetching breeds: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @breeds_bp.route('/<int:breed_id>', methods=['GET'])

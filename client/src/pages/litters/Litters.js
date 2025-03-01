@@ -254,13 +254,13 @@ function Litters() {
                         )}
                       </Grid>
                       
-                      {litter.birth_date && (
+                      {litter.whelp_date && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                          Born: {formatDate(litter.birth_date)}
+                          Born: {formatDate(litter.whelp_date)}
                         </Typography>
                       )}
                       
-                      {litter.expected_date && !litter.birth_date && (
+                      {litter.expected_date && !litter.whelp_date && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                           Expected: {formatDate(litter.expected_date)}
                         </Typography>
