@@ -41,16 +41,21 @@ function LitterDetail() {
     const fetchLitter = async () => {
       setLoading(true);
       try {
-        // Remove leading slash and properly handle the response format
+        // First get the litter details
         const response = await apiGet(`litters/${litterId}`);
         if (response && response.ok && response.data) {
-          setLitter(response.data);
+          const litterData = response.data;
           
-          // Also fetch puppies for this litter
+          // Fetch puppies for this litter
           const puppiesResponse = await apiGet(`litters/${litterId}/puppies`);
           if (puppiesResponse && puppiesResponse.ok) {
-            setPuppies(puppiesResponse.data || []);
+            const puppiesData = puppiesResponse.data || [];
+            setPuppies(puppiesData);
+            // Update the litter data with the correct puppy count
+            litterData.puppy_count = puppiesData.length;
           }
+          
+          setLitter(litterData);
         } else {
           throw new Error(response?.error || "Failed to fetch litter");
         }
@@ -354,6 +359,97 @@ function LitterDetail() {
                   </Paper>
                 </Grid>
               </Grid>
+            </Paper>
+
+            <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
+                Puppies
+              </Typography>
+
+              {puppies.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
+                    No puppies have been added to this litter yet.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate(`/dashboard/litters/${litterId}/puppies/add`)}
+                  >
+                    Add First Puppy
+                  </Button>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {puppies.map((puppy) => (
+                    <Grid item xs={12} sm={6} key={puppy.id}>
+                      <Paper 
+                        elevation={1} 
+                        sx={{ 
+                          p: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          '&:hover': {
+                            boxShadow: 3,
+                            cursor: 'pointer'
+                          }
+                        }}
+                        onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
+                      >
+                        <Avatar 
+                          sx={{ 
+                            width: 60, 
+                            height: 60,
+                            bgcolor: puppy.gender === 'Female' ? 'pink' : 'primary.light'
+                          }}
+                        >
+                          {puppy.gender === 'Female' ? <FemaleIcon /> : <MaleIcon />}
+                        </Avatar>
+                        
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="subtitle1">
+                              {puppy.name || 'Unnamed'}
+                            </Typography>
+                            <Chip
+                              label={puppy.gender}
+                              size="small"
+                              color={puppy.gender === 'Female' ? 'error' : 'primary'}
+                            />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {puppy.color || 'No color specified'}
+                          </Typography>
+                        </Box>
+
+                        <IconButton 
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/dashboard/litters/${litterId}/puppies/${puppy.id}/edit`);
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+
+              {puppies.length > 0 && (
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate(`/dashboard/litters/${litterId}/puppies/add`)}
+                  >
+                    Add Another Puppy
+                  </Button>
+                </Box>
+              )}
             </Paper>
           </Grid>
           

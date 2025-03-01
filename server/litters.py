@@ -66,6 +66,7 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
     def get_litters():
         debug_log("Fetching all litters...")
         try:
+            # First get all litters
             response = db.supabase.table("litters").select(
                 "id",
                 "litter_name",
@@ -84,13 +85,13 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
             
             litters = response.data if response else []
             
-            # If we have litters, fetch the parent details
+            # If we have litters, fetch additional data
             if litters:
                 # Get all unique dam and sire IDs
                 dam_ids = list(set(litter['dam_id'] for litter in litters if litter.get('dam_id')))
                 sire_ids = list(set(litter['sire_id'] for litter in litters if litter.get('sire_id')))
                 
-                # Fetch all dams and sires in one query each
+                # Fetch parent details
                 dams = {}
                 sires = {}
                 
@@ -113,9 +114,20 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
                             sires = {dog['id']: dog for dog in sire_response.data}
                 except Exception as e:
                     debug_log(f"Error fetching sire details: {str(e)}")
-                
-                # Add parent details to each litter
+
+                # Get puppy counts for each litter
                 for litter in litters:
+                    try:
+                        # Count puppies for this litter
+                        puppy_count_response = db.supabase.table("puppies").select(
+                            "id"
+                        ).eq("litter_id", litter['id']).execute()
+                        litter['puppy_count'] = len(puppy_count_response.data) if puppy_count_response.data else 0
+                    except Exception as e:
+                        debug_log(f"Error counting puppies for litter {litter['id']}: {str(e)}")
+                        litter['puppy_count'] = 0
+                    
+                    # Add parent details
                     if litter.get('dam_id') and litter['dam_id'] in dams:
                         dam = dams[litter['dam_id']]
                         litter['dam_name'] = dam.get('call_name')
@@ -311,61 +323,81 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
         except DatabaseError as e:
             return jsonify({"error": str(e)}), 500
 
-    @litters_bp.route("/<int:litter_id>/puppies", methods=["POST"])
-    def add_puppy_to_litter(litter_id):
-        try:
-            data = request.json
-            
-            # Add litter_id to the data
-            data['litter_id'] = litter_id
-            
-            # Ensure name field is set (use call_name if name is empty)
-            if not data.get('name') and data.get('call_name'):
-                data['name'] = data['call_name']
-            
-            # Convert empty strings to None for numeric fields
-            numeric_fields = ['weight_at_birth', 'min_adult_weight', 'max_adult_weight', 'price']
-            for field in numeric_fields:
-                if field in data and (data[field] == '' or data[field] == 'null'):
-                    data[field] = None
-            
-            # Convert empty strings to None for optional text fields
-            text_fields = ['registered_name', 'microchip', 'description', 'notes', 'markings', 'collar_color']
-            for field in text_fields:
-                if field in data and data[field] == '':
-                    data[field] = None
-            
-            # Use the db.create method
-            result = db.create('puppies', data)
-            
-            return jsonify(result), 201
-            
-        except DatabaseError as e:
-            return jsonify({'error': str(e)}), 500
-
     @litters_bp.route('/<int:litter_id>/puppies', methods=['GET'])
     def get_litter_puppies(litter_id):
         try:
-            print(f"Fetching puppies for litter {litter_id}")
+            debug_log(f"Fetching puppies for litter {litter_id}")
             
-            # Use Supabase query builder
-            result = db.supabase.table('puppies').select('*').eq('litter_id', litter_id).execute()
+            # First verify the litter exists
+            litter = db.supabase.table("litters").select("*").eq("id", litter_id).single().execute()
+            if not litter.data:
+                return jsonify({"error": "Litter not found"}), 404
+
+            # Get puppies for this litter - only select fields that exist
+            result = db.supabase.table("puppies").select(
+                "id",
+                "name",
+                "gender",
+                "color",
+                "birth_date",
+                "status",
+                "litter_id",
+                "created_at",
+                "updated_at"
+            ).eq("litter_id", litter_id).execute()
             
-            print(f"Query result: {result}")
+            debug_log(f"Found puppies: {result.data if result else []}")
             
-            # Extract data from result
-            puppies = result.data if result and hasattr(result, 'data') else []
-            
-            # Create response with required CORS headers
-            response = make_response(jsonify(puppies))
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            # Add CORS headers
+            response = make_response(jsonify(result.data if result else []))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
             
         except Exception as e:
-            print(f"Error fetching puppies: {str(e)}")
-            error_response = make_response(jsonify({'error': str(e)}), 500)
-            error_response.headers['Access-Control-Allow-Credentials'] = 'true'
-            return error_response
+            debug_log(f"Error fetching puppies: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
+    @litters_bp.route("/<int:litter_id>/puppies", methods=["POST"])
+    def add_puppy_to_litter(litter_id):
+        try:
+            debug_log(f"Adding puppy to litter {litter_id}")
+            data = request.get_json()
+            
+            # Verify litter exists
+            litter = db.supabase.table("litters").select("*").eq("id", litter_id).single().execute()
+            if not litter.data:
+                return jsonify({"error": "Litter not found"}), 404
+
+            # Add litter_id to the puppy data
+            data['litter_id'] = litter_id
+            
+            # Create the puppy record
+            result = db.supabase.table("puppies").insert(data).execute()
+            
+            if not result.data:
+                raise Exception("Failed to create puppy record")
+            
+            # Update puppy count in litter
+            current_count = db.supabase.table("puppies").select("id").eq("litter_id", litter_id).execute()
+            new_count = len(current_count.data) if current_count.data else 0
+            
+            # Update litter with new puppy count
+            db.supabase.table("litters").update({"puppy_count": new_count}).eq("id", litter_id).execute()
+            
+            debug_log(f"Successfully added puppy to litter {litter_id}")
+            
+            # Add CORS headers
+            response = make_response(jsonify(result.data[0]))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        except Exception as e:
+            debug_log(f"Error adding puppy: {str(e)}")
+            return jsonify({"error": str(e)}), 500
 
     @litters_bp.route('/puppies/<int:puppy_id>', methods=['GET'])
     def get_puppy(puppy_id):

@@ -39,98 +39,32 @@ export const apiRequest = async (endpoint, options = {}) => {
 };
 
 // GET request with proper error handling
-export const apiGet = async (endpoint, options = {}) => {
+export const apiGet = async (endpoint) => {
   try {
-    const token = localStorage.getItem('token');
-    const url = formatApiUrl(endpoint);
-    
-    // Using a simpler, more compatible fetch configuration
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-        ...options.headers
-      },
-      // Using mode: 'cors' instead of credentials: 'include' for better compatibility
-      mode: 'cors',
-      ...options
-    });
-    
-    // For 204 No Content responses
-    if (response.status === 204) {
-      return { ok: true, data: null };
-    }
-    
-    // Try to parse JSON, but don't fail if there's no content
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      data = null;
-    }
-    
-    if (!response.ok) {
-      console.error(`API Error (${response.status}):`, data);
-      return { 
-        ok: false, 
-        status: response.status,
-        error: data?.message || 'An error occurred while fetching data'
-      };
-    }
-    
-    return { ok: true, data };
+    const response = await fetch(`/api/${endpoint}`);
+    const data = await response.json();
+    return { ok: response.ok, data, status: response.status };
   } catch (error) {
-    console.error('API Request failed:', error);
-    return { 
-      ok: false, 
-      error: error.message || 'Network request failed'
-    };
+    console.error('API Error:', error);
+    return { ok: false, error: error.message };
   }
 };
 
 // POST with compatible CORS configuration
-export const apiPost = async (endpoint, data, options = {}) => {
+export const apiPost = async (endpoint, data) => {
   try {
-    const token = localStorage.getItem('token');
-    const url = formatApiUrl(endpoint);
-    
-    const response = await fetch(url, {
+    const response = await fetch(`/api/${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-        ...options.headers
       },
       body: JSON.stringify(data),
-      // Remove mode: 'cors' when using proxy
-      ...options
     });
-    
-    // Try to parse JSON, but don't fail if there's no content
-    let responseData;
-    try {
-      responseData = await response.json();
-    } catch (e) {
-      responseData = null;
-    }
-    
-    if (!response.ok) {
-      console.error(`API Error (${response.status}):`, responseData);
-      return { 
-        ok: false, 
-        status: response.status,
-        error: responseData?.message || 'An error occurred while saving data'
-      };
-    }
-    
-    return { ok: true, data: responseData };
+    const responseData = await response.json();
+    return { ok: response.ok, data: responseData, status: response.status };
   } catch (error) {
-    console.error('API Request failed:', error);
-    return { 
-      ok: false, 
-      error: error.message || 'Network request failed'
-    };
+    console.error('API Error:', error);
+    return { ok: false, error: error.message };
   }
 };
 
@@ -221,4 +155,12 @@ export const apiDelete = async (endpoint, options = {}) => {
       error: error.message || 'Network request failed'
     };
   }
+};
+
+export const getLitterPuppies = async (litterId) => {
+  return apiGet(`litters/${litterId}/puppies`);
+};
+
+export const addPuppyToLitter = async (litterId, puppyData) => {
+  return apiPost(`litters/${litterId}/puppies`, puppyData);
 };

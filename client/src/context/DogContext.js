@@ -239,8 +239,55 @@ export const DogProvider = ({ children }) => {
   }, [puppies]);
 
   // Methods to update data (will call API and update local state)
-  const addDog = (newDog) => {
-    setDogs(prev => [...prev, newDog]);
+  const addDog = async (dogData) => {
+    try {
+      // If there's a file to upload, handle it first
+      if (dogData.cover_photo_file) {
+        const formData = new FormData();
+        formData.append('cover_photo', dogData.cover_photo_file);
+        
+        // Add all other fields to formData
+        Object.keys(dogData).forEach(key => {
+          if (key !== 'cover_photo_file' && key !== 'cover_photo_preview') {
+            formData.append(key, dogData[key]);
+          }
+        });
+        
+        // Use multipart/form-data for file upload
+        const response = await fetch(`${API_URL}/dogs/`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create dog');
+        }
+        
+        const newDog = await response.json();
+        setDogs(prev => [...prev, newDog]);
+        return newDog;
+      } else {
+        // No file to upload, just send JSON data
+        const response = await fetch(`${API_URL}/dogs/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dogData)
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create dog');
+        }
+        
+        const newDog = await response.json();
+        setDogs(prev => [...prev, newDog]);
+        return newDog;
+      }
+    } catch (error) {
+      console.error('Error adding dog:', error);
+      throw error;
+    }
   };
 
   const updateDog = (updatedDog) => {

@@ -39,16 +39,19 @@ const AdultDogsList = ({
   // Create a safe sorting function for dogs
   const getSortedDogs = () => {
     try {
-      if (!dogs || dogs.length === 0) return [];
+      // Filter for adult dogs first
+      const adultDogs = dogs.filter(dog => dog.status === 'Active');
       
-      return [...dogs].sort((a, b) => {
+      if (!adultDogs || adultDogs.length === 0) return [];
+      
+      return [...adultDogs].sort((a, b) => {
         const nameA = ((a && a.call_name) || '').toLowerCase();
         const nameB = ((b && b.call_name) || '').toLowerCase();
         return nameA.localeCompare(nameB);
       });
     } catch (err) {
       console.error("Error sorting dogs:", err);
-      return dogs;
+      return [];
     }
   };
   

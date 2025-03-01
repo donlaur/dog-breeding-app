@@ -23,6 +23,7 @@ import Login from './pages/auth/Login';
 import SignUp from './pages/auth/SignUp';
 import DogDetails from './pages/DogDetails';
 import Litters from './pages/litters';
+import ManagePuppies from './pages/litters/ManagePuppies';
 
 function App() {
   return (
@@ -51,7 +52,7 @@ function App() {
             <Route path="litters/:litterId" element={<LitterDetails />} />
             <Route path="litters/edit/:litterId" element={<EditLitterPage />} />
             <Route path="litters/:litterId/add-puppy" element={<AddPuppy />} />
-            <Route path="litters/:litterId/puppies" element={<Navigate to="/dashboard/litters/:litterId" replace />} />
+            <Route path="litters/:litterId/puppies" element={<ManagePuppies />} />
             <Route path="litters/:litterId/puppies/add" element={<AddPuppy />} />
             <Route path="heats" element={<ManageHeats />} />
             <Route path="heats/add" element={<AddHeat />} />

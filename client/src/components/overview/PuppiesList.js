@@ -34,6 +34,9 @@ const PuppiesList = ({
   getImageUrl, 
   getGenderDisplay 
 }) => {
+  // Filter for non-adult dogs
+  const actualPuppies = puppies.filter(puppies => puppies.status === 'Available');
+
   return (
     <Card elevation={1}>
       <CardContent>
@@ -59,9 +62,9 @@ const PuppiesList = ({
           </Box>
         </Box>
         
-        {puppies && puppies.length > 0 ? (
+        {actualPuppies && actualPuppies.length > 0 ? (
           <Box>
-            {puppies.map((puppy, index) => (
+            {actualPuppies.map((puppy, index) => (
               <React.Fragment key={puppy?.id || index}>
                 <Box 
                   sx={{ 
@@ -151,7 +154,7 @@ const PuppiesList = ({
                     }} 
                   />
                 </Box>
-                {index < puppies.length - 1 && <Divider />}
+                {index < actualPuppies.length - 1 && <Divider />}
               </React.Fragment>
             ))}
           </Box>

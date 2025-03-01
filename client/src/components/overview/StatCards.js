@@ -24,7 +24,7 @@ const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0 }) =
   const statCards = [
     { 
       title: 'Adult Dogs', 
-      value: adultDogsCount, 
+      value: adultDogsCount,
       icon: <PetsIcon />, 
       color: '#1565c0',
       bgColor: '#e3f2fd',
@@ -32,7 +32,7 @@ const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0 }) =
     },
     { 
       title: 'Puppies', 
-      value: puppiesCount, 
+      value: puppiesCount,
       icon: <PetsIcon fontSize="small" />, 
       color: '#e65100',
       bgColor: '#fff3e0',

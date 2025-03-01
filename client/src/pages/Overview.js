@@ -82,10 +82,12 @@ function Overview() {
     }
   }, [loading, localLoading, dogs, refreshData]);
   
-  // Safely create adultDogs and puppies arrays
-  const adultDogs = Array.isArray(dogs) ? dogs.filter(dog => dog && dog.is_adult) : [];
-  const puppies = Array.isArray(dogs) ? dogs.filter(dog => dog && !dog.is_adult) : [];
-  const littersArray = Array.isArray(litters) ? litters : [];
+  // Calculate counts
+  const adultDogsCount = dogs.filter(dog => dog.is_adult === true).length;
+  const puppiesCount = dogs.filter(dog => !dog.is_adult).length;
+  const activeLittersCount = litters.filter(litter => 
+    litter.status && ['born', 'active', 'expected'].includes(litter.status.toLowerCase())
+  ).length;
 
   // Function to navigate to dog details with error handling
   const navigateToDogDetails = (dog) => {
@@ -136,72 +138,48 @@ function Overview() {
 
   // Show the dashboard content even if data isn't available
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Program Overview
-      </Typography>
-      
-      <Grid container spacing={3}>
-        {/* Summary statistics */}
-        <Grid item xs={12} md={8}>
-          <Paper
-            sx={{
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              height: 240,
-            }}
-          >
-            {/* Stats Cards Component */}
-            <StatCards 
-              adultDogsCount={adultDogs.length}
-              puppiesCount={puppies.length}
-              littersCount={littersArray.length}
-            />
-          </Paper>
-        </Grid>
-        
-        {/* Upcoming Events Section */}
-        <Grid item xs={12} md={4}>
-          <UpcomingEvents />
-        </Grid>
-        
-        {/* Recent activity or other overview sections */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Grid container spacing={3}>
-              {/* Adult Dogs Section */}
-              <Grid item xs={12}>
-                <AdultDogsList 
-                  dogs={adultDogs}
-                  navigateToDogDetails={navigateToDogDetails}
-                  getImageUrl={getImageUrl}
-                  getGenderDisplay={getGenderDisplay}
-                  formatAdultAge={formatAdultAge}
-                />
-              </Grid>
+    <Container maxWidth="lg">
+      <Box sx={{ py: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Program Overview
+        </Typography>
+
+        <StatCards 
+          adultDogsCount={adultDogsCount}
+          puppiesCount={puppiesCount}
+          littersCount={activeLittersCount}
+        />
+
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={8}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <AdultDogsList 
+                dogs={dogs}
+                navigateToDogDetails={navigateToDogDetails}
+                getImageUrl={getImageUrl}
+                getGenderDisplay={getGenderDisplay}
+                formatAdultAge={formatAdultAge}
+              />
               
-              {/* Puppies Section */}
-              <Grid item xs={12}>
-                <PuppiesList 
-                  puppies={puppies}
-                  navigateToDogDetails={navigateToDogDetails}
-                  getImageUrl={getImageUrl}
-                  getGenderDisplay={getGenderDisplay}
-                />
-              </Grid>
+              <PuppiesList 
+                puppies={dogs}  // Pass all dogs, the component will filter
+                navigateToDogDetails={navigateToDogDetails}
+                getImageUrl={getImageUrl}
+                getGenderDisplay={getGenderDisplay}
+              />
               
-              {/* Litters Section */}
-              <Grid item xs={12}>
-                <LittersList 
-                  litters={littersArray}
-                  getImageUrl={getImageUrl}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
+              <LittersList 
+                litters={litters}
+                getImageUrl={getImageUrl}
+              />
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <UpcomingEvents />
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
     </Container>
   );
 }

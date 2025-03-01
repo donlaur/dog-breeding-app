@@ -136,30 +136,25 @@ function DogForm() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     debugLog("Submitting dog form:", dog);
 
-    if (id) {
-      updateDog(parseInt(id), dog)
-        .then((updatedDog) => {
-          debugLog("Dog updated successfully:", updatedDog);
-          refreshData();
-          navigate("/dashboard/dogs");
-        })
-        .catch((err) => {
-          debugError("Error updating dog:", err);
-        });
-    } else {
-      addDog(dog)
-        .then((newDog) => {
-          debugLog("Dog added successfully:", newDog);
-          refreshData();
-          navigate("/dashboard/dogs");
-        })
-        .catch((err) => {
-          debugError("Error adding dog:", err);
-        });
+    try {
+      if (id) {
+        await updateDog(parseInt(id), dog);
+        debugLog("Dog updated successfully");
+      } else {
+        await addDog(dog);
+        debugLog("Dog added successfully");
+      }
+      
+      // Refresh data and navigate back
+      await refreshData();
+      navigate("/dashboard/dogs");
+    } catch (err) {
+      debugError("Error saving dog:", err);
+      // You might want to show an error message to the user here
     }
   };
 
