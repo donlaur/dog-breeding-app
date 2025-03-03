@@ -25,6 +25,8 @@ import {
 } from '@mui/icons-material';
 import { getLitterPuppies } from '../../utils/apiUtils';
 import { formatDate } from '../../utils/dateUtils';
+import { showSuccess, showError } from '../../utils/notifications';
+import { API_URL, debugLog, debugError } from '../../config';
 
 function ManagePuppies() {
   const { litterId } = useParams();
@@ -53,6 +55,43 @@ function ManagePuppies() {
 
     fetchPuppies();
   }, [litterId]);
+
+  const handleDeletePuppy = async (puppyId, puppyName) => {
+    try {
+      const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      showSuccess(`Successfully deleted puppy "${puppyName}"`);
+      refreshPuppies(); // Refresh the puppies list
+      
+    } catch (error) {
+      console.error("Error deleting puppy:", error);
+      showError(`Failed to delete puppy: ${error.message}`);
+    }
+  };
+
+  const refreshPuppies = async () => {
+    setLoading(true);
+    try {
+      const response = await getLitterPuppies(litterId);
+      if (response.ok) {
+        setPuppies(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to fetch puppies');
+      }
+    } catch (err) {
+      console.error('Error refreshing puppies:', err);
+      setError('Failed to refresh puppies data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -167,7 +206,7 @@ function ManagePuppies() {
                         color="error"
                         onClick={() => {
                           if (window.confirm('Are you sure you want to delete this puppy?')) {
-                            // Add delete functionality
+                            handleDeletePuppy(puppy.id, puppy.name);
                           }
                         }}
                       >

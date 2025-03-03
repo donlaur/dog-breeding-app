@@ -25,6 +25,7 @@ import {
   Male as MaleIcon
 } from '@mui/icons-material';
 import { apiPost } from '../../utils/apiUtils';
+import { showSuccess, showError } from '../../utils/notifications';
 
 function AddPuppy() {
   const { litterId } = useParams();
@@ -69,25 +70,36 @@ function AddPuppy() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+    
     try {
-      // Prepare data
-      const puppyData = {
-        ...puppy,
-        weight_birth: puppy.weight_birth ? parseFloat(puppy.weight_birth) : null
-      };
-
-      // API call to save puppy
-      await apiPost('/puppies', puppyData);
+      setLoading(true);
       
-      // Refresh data and navigate back
-      await refreshData();
-      navigate(`/dashboard/litters/${litterId}/puppies`);
-    } catch (err) {
-      console.error('Error adding puppy:', err);
-      setError(err.message || 'Failed to add puppy');
+      // Validate required fields
+      if (!puppy.name || !puppy.gender) {
+        setError("Name and gender are required");
+        showError("Name and gender are required");
+        setLoading(false);
+        return;
+      }
+      
+      const response = await apiPost(`litters/${litterId}/puppies`, puppy);
+      
+      if (response.ok) {
+        showSuccess("Puppy added successfully!");
+        
+        // Refresh data
+        await refreshData();
+        
+        // Navigate after a short delay to allow viewing the success message
+        setTimeout(() => {
+          navigate(`/dashboard/litters/${litterId}/puppies`);
+        }, 1500);
+      } else {
+        throw new Error(response.error || "Failed to add puppy");
+      }
+    } catch (error) {
+      setError(error.message);
+      showError(`Error adding puppy: ${error.message}`);
     } finally {
       setLoading(false);
     }

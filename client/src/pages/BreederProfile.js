@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { API_URL, debugLog, debugError } from '../config';
 import { apiGet, apiPut } from '../utils/apiUtils';
+import { showSuccess, showError } from '../utils/notifications';
 
 const BreederProfile = () => {
   const [program, setProgram] = useState({
@@ -75,30 +76,18 @@ const BreederProfile = () => {
     setError(null);
     
     try {
-      // Using PUT method as specified in the backend
-      const response = await fetch(`${API_URL}/program/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(program),
-      });
+      const response = await apiPut('breeder/profile', program);
       
-      if (!response.ok) {
-        throw new Error(`Failed to save profile: ${response.status}`);
+      if (response.ok) {
+        setSaveSuccess(true);
+        showSuccess("Profile updated successfully!");
+      } else {
+        throw new Error(response.error || "Failed to update profile");
       }
-      
-      const data = await response.json();
-      debugLog('Profile saved successfully:', data);
-      setSaveSuccess(true);
-      
-      // Update the program data with the response
-      if (data) {
-        setProgram(data);
-      }
-    } catch (error) {
-      debugError('Error saving profile:', error);
-      setError('Failed to save profile. Please try again.');
+    } catch (err) {
+      debugError("Error saving profile:", err);
+      setError(err.message);
+      showError(`Failed to update profile: ${err.message}`);
     } finally {
       setSaving(false);
     }

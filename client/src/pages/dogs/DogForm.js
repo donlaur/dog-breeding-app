@@ -20,6 +20,7 @@ import {
   Breadcrumbs
 } from '@mui/material';
 import { PhotoCamera, ArrowBack } from '@mui/icons-material';
+import { showSuccess, showError } from '../../utils/notifications';
 
 const DEFAULT_BREED_ID = process.env.REACT_APP_DEFAULT_BREED_ID || 1;
 const BREED_NAME = "Pembroke Welsh Corgi"; // Hardcoded for your specific use
@@ -144,17 +145,23 @@ function DogForm() {
       if (id) {
         await updateDog(parseInt(id), dog);
         debugLog("Dog updated successfully");
+        showSuccess("Dog updated successfully!");
       } else {
         await addDog(dog);
         debugLog("Dog added successfully");
+        showSuccess("Dog added successfully!");
       }
       
       // Refresh data and navigate back
       await refreshData();
-      navigate("/dashboard/dogs");
+      
+      // Navigate after a short delay to allow viewing the success message
+      setTimeout(() => {
+        navigate("/dashboard/dogs");
+      }, 1500);
     } catch (err) {
       debugError("Error saving dog:", err);
-      // You might want to show an error message to the user here
+      showError(`Error saving dog: ${err.message}`);
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiPost } from '../../utils/apiUtils';
+import { showSuccess, showError, showInfo } from '../../utils/notifications';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -48,9 +49,13 @@ const SignUp = () => {
       
       const data = await response.json();
       signUp(email, name, password);
-      navigate('/dashboard');
+      showSuccess("Registration successful! You can now log in.");
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (error) {
       setFormError(error.message);
+      showError(`Registration failed: ${error.message}`);
     }
   };
 

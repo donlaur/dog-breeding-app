@@ -163,53 +163,50 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
 
     @litters_bp.route("/<int:litter_id>", methods=["GET"])
     def get_litter(litter_id):
-        debug_log(f"Fetching litter with ID: {litter_id}")
         try:
-            # First get the litter details
-            response = db.supabase.table("litters").select(
-                "id",
-                "litter_name",
-                "status",
-                "whelp_date",
-                "expected_date",
-                "num_puppies",
-                "dam_id",
-                "sire_id",
-                "cover_photo",
-                "created_at",
-                "updated_at",
-                "price",
-                "deposit"
-            ).eq("id", litter_id).single().execute()
+            debug_log(f"Fetching litter with ID: {litter_id}")
             
-            litter = response.data
-            if not litter:
-                return jsonify({"error": "Litter not found"}), 404
+            # Check if litter exists
+            result = db.supabase.table("litters").select("*").eq("id", litter_id).execute()
+            if not result.data:
+                debug_log(f"Litter not found with ID: {litter_id}")
+                
+                # Return JSON error response
+                response = make_response(jsonify({"error": f"Litter with ID {litter_id} not found"}))
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+                response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+                response.status_code = 404
+                return response
             
+            litter = result.data[0]
+            
+            # Get breed details
             try:
-                # Fetch dam details if exists
+                if litter.get('breed_id'):
+                    breed_result = db.supabase.table("dog_breeds").select("*").eq("id", litter['breed_id']).execute()
+                    if breed_result.data:
+                        litter['breed'] = breed_result.data[0]
+            except Exception as e:
+                debug_log(f"Error fetching breed details: {str(e)}")
+                # Continue without breed details, don't fail the entire request
+            
+            # Get dam details (mother)
+            try:
                 if litter.get('dam_id'):
-                    dam_response = db.supabase.table("dogs").select(
-                        "id", "call_name", "cover_photo", "birth_date"
-                    ).eq("id", litter['dam_id']).single().execute()
-                    if dam_response.data:
-                        litter['dam_name'] = dam_response.data.get('call_name')
-                        litter['dam_photo'] = dam_response.data.get('cover_photo')
-                        litter['dam_birth_date'] = dam_response.data.get('birth_date')
+                    dam_result = db.supabase.table("dogs").select("*").eq("id", litter['dam_id']).execute()
+                    if dam_result.data:
+                        litter['dam'] = dam_result.data[0]
             except Exception as e:
                 debug_log(f"Error fetching dam details: {str(e)}")
                 # Continue without dam details
-                
+            
+            # Get sire details (father)
             try:
-                # Fetch sire details if exists
                 if litter.get('sire_id'):
-                    sire_response = db.supabase.table("dogs").select(
-                        "id", "call_name", "cover_photo", "birth_date"
-                    ).eq("id", litter['sire_id']).single().execute()
-                    if sire_response.data:
-                        litter['sire_name'] = sire_response.data.get('call_name')
-                        litter['sire_photo'] = sire_response.data.get('cover_photo')
-                        litter['sire_birth_date'] = sire_response.data.get('birth_date')
+                    sire_result = db.supabase.table("dogs").select("*").eq("id", litter['sire_id']).execute()
+                    if sire_result.data:
+                        litter['sire'] = sire_result.data[0]
             except Exception as e:
                 debug_log(f"Error fetching sire details: {str(e)}")
                 # Continue without sire details
@@ -225,7 +222,18 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
             
         except Exception as e:
             debug_log(f"Error fetching litter: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+            # Return JSON error response
+            error_response = {
+                "error": str(e),
+                "message": "Failed to fetch litter details",
+                "status": 500
+            }
+            response = make_response(jsonify(error_response))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.status_code = 500
+            return response
 
     @litters_bp.route("/", methods=["POST"])
     def create_litter():

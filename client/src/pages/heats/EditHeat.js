@@ -12,6 +12,7 @@ import {
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
+import { showSuccess, showError } from '../../utils/notifications';
 
 const EditHeat = () => {
   const { heatId } = useParams();
@@ -37,21 +38,36 @@ const EditHeat = () => {
     fetchHeat();
   }, [heatId]);
 
-  const handleUpdate = async (updatedHeat) => {
+  const handleUpdateHeat = async (heatData) => {
     try {
+      setLoading(true);
+      
       const response = await fetch(`${API_URL}/heats/${heatId}`, {
-        method: 'PUT', // Use PUT instead of POST
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updatedHeat),
+        body: JSON.stringify(heatData),
       });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      navigate('/dashboard/heats');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      showSuccess("Heat cycle updated successfully!");
+      
+      // Navigate back to heat management after a short delay
+      setTimeout(() => {
+        navigate('/dashboard/heats');
+      }, 1500);
+      
     } catch (error) {
-      debugError("Error updating heat:", error);
-      setError("Failed to update heat");
+      console.error("Error updating heat cycle:", error);
+      showError(`Failed to update heat cycle: ${error.message}`);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +92,7 @@ const EditHeat = () => {
       <Paper sx={{ p: 3, mt: 3 }}>
         <HeatForm 
           initialData={heat} 
-          onSave={handleUpdate} 
+          onSave={handleUpdateHeat} 
           isEdit={true} // Add this prop to indicate edit mode
         />
       </Paper>

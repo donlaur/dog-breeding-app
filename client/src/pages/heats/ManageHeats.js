@@ -26,6 +26,7 @@ import {
 import HeatList from '../../components/heats/HeatList';
 import HeatCalendar from '../../components/heats/HeatCalendar';
 import { apiGet } from '../../utils/apiUtils';
+import { showSuccess, showError } from '../../utils/notifications';
 
 const ManageHeats = () => {
   const [view, setView] = useState('list'); // 'list' or 'calendar'
@@ -63,6 +64,42 @@ const ManageHeats = () => {
     } catch (error) {
       setError(error.message);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteHeat = async (heatId, dogName) => {
+    try {
+      const response = await fetch(`${API_URL}/heats/${heatId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      showSuccess(`Successfully deleted heat cycle for ${dogName}`);
+      refreshHeats(); // Refresh the heats list
+      
+    } catch (error) {
+      console.error("Error deleting heat cycle:", error);
+      showError(`Failed to delete heat cycle: ${error.message}`);
+    }
+  };
+
+  // Add this function to refresh the heats data
+  const refreshHeats = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/heats`);
+      if (!response.ok) throw new Error('Failed to fetch heats');
+      const data = await response.json();
+      setHeats(data);
+      setLoading(false);
+    } catch (err) {
+      debugError("Error refreshing heats:", err);
+      setError("Failed to refresh heats data");
       setLoading(false);
     }
   };

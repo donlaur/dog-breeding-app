@@ -237,8 +237,13 @@ const ManageLitters = () => {
                 <Card>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" component={Link} to={`/dashboard/litters/${litter.id}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
-                        {litter.litter_name}
+                      <Typography 
+                        variant="h6" 
+                        component={Link} 
+                        to={`/dashboard/litters/${litter.id}`} 
+                        sx={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        {litter.litter_name || 'Unnamed Litter'}
                       </Typography>
                       <Chip 
                         label={litter.status} 
@@ -299,6 +304,7 @@ const ManageLitters = () => {
                         to={`/dashboard/litters/${litter.id}`}
                         size="small"
                         sx={{ mr: 1 }}
+                        disabled={!litter.id}
                       >
                         View
                       </Button>

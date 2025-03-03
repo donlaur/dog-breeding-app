@@ -31,6 +31,7 @@ import { useDog } from '../../context/DogContext';
 import DogCard from '../../components/DogCard';
 import '../../styles/ManageDogs.css';
 import { getPhotoUrl } from '../../utils/photoUtils';
+import { showSuccess, showError } from '../../utils/notifications';
 
 const BREED_NAME = "Pembroke Welsh Corgi";
 
@@ -38,6 +39,7 @@ const ManageDogs = () => {
   const { dogs, loading, error, refreshDogs } = useDog();
   const [filter, setFilter] = useState('all'); // 'all', 'male', 'female'
   const [sortedDogs, setSortedDogs] = useState([]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Load dogs on component mount
   useEffect(() => {
@@ -66,20 +68,27 @@ const ManageDogs = () => {
     setSortedDogs(filteredDogs);
   }, [dogs, filter]);
 
-  const handleDelete = async (dogId) => {
-    if (!window.confirm("Are you sure you want to delete this dog?")) {
-      return;
-    }
-
+  const handleDelete = async (dogId, dogName) => {
     try {
+      setDeleteLoading(true);
+      
       const response = await fetch(`${API_URL}/dogs/${dogId}`, {
         method: 'DELETE',
       });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      showSuccess(`Successfully deleted dog "${dogName || 'Unknown'}"`);
       refreshDogs();
-    } catch (err) {
-      debugError("Error deleting dog:", err);
-      error("Failed to delete dog. Please try again.");
+      
+    } catch (error) {
+      debugError("Error deleting dog:", error);
+      showError(`Failed to delete dog: ${error.message}`);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 

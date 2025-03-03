@@ -350,6 +350,38 @@ export const DogProvider = ({ children }) => {
     }
   };
 
+  // Add proper validation before making litter-related API calls
+  const fetchLitter = async (litterId) => {
+    // Validate ID before making API call
+    if (!litterId || litterId === 'undefined') {
+      console.error("Invalid litter ID provided to fetchLitter:", litterId);
+      return { error: "Invalid litter ID" };
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/litters/${litterId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching litter:", error);
+      return { error: error.message };
+    }
+  };
+
+  // Similarly, update any other litter-related API calls:
+  const fetchLitterPuppies = async (litterId) => {
+    // Validate ID before making API call
+    if (!litterId || litterId === 'undefined') {
+      console.error("Invalid litter ID provided to fetchLitterPuppies:", litterId);
+      return { puppies: [], error: "Invalid litter ID" };
+    }
+    
+    // Rest of function...
+  };
+
   // Value to provide in context
   const value = {
     dogs,
@@ -371,7 +403,9 @@ export const DogProvider = ({ children }) => {
     updateLitter,
     deleteLitter,
     refreshDogs,
-    refreshLitters
+    refreshLitters,
+    fetchLitter,
+    fetchLitterPuppies
   };
 
   return <DogContext.Provider value={value}>{children}</DogContext.Provider>;

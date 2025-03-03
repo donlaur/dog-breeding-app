@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiPost } from '../../utils/apiUtils';
+import { showSuccess, showError } from '../../utils/notifications';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,13 +24,22 @@ const Login = () => {
       const response = await apiPost('auth/login', { email, password });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      localStorage.setItem('token', data.token);
-      // Handle successful login logic
+      
+      // Save the token and user data
+      login(data.token, data.user);
+      
+      showSuccess("Login successful!");
+      
+      // Redirect to dashboard
+      navigate('/dashboard');
+      
     } catch (error) {
+      console.error("Login error:", error);
+      showError(`Login failed: ${error.message}`);
       setError(error.message);
     } finally {
       setLoading(false);
