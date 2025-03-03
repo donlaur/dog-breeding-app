@@ -9,6 +9,7 @@ import { AuthProvider } from './context/AuthContext';
 import { HeatProvider } from './context/HeatContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './utils/errorBoundary';
 
 // Pages
 import Overview from './pages/Overview';
@@ -37,41 +38,43 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <HeatProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            
-            {/* Dashboard routes with layout */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Overview />} />
-              <Route path="profile" element={<BreederProfile />} />
-              <Route path="dogs" element={<ManageDogs />} />
-              <Route path="dogs/add" element={<DogForm />} />
-              <Route path="dogs/edit/:id" element={<DogForm />} />
-              <Route path="dogs/:id" element={<DogDetails />} />
+          <ErrorBoundary>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
               
-              <Route path="litters" element={<ManageLitters />} />
-              <Route path="litters/add" element={<AddLitterPage />} />
-              <Route path="litters/edit/:id" element={<EditLitterPage />} />
-              <Route path="litters/:id" element={<LitterDetails />} />
-              <Route path="litters/:id/puppies" element={<ManagePuppies />} />
-              <Route path="litters/:id/puppies/add" element={<AddPuppy />} />
-              <Route path="puppies/:id" element={<PuppyDetails />} />
+              {/* Dashboard routes with layout */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Overview />} />
+                <Route path="profile" element={<BreederProfile />} />
+                <Route path="dogs" element={<ManageDogs />} />
+                <Route path="dogs/add" element={<DogForm />} />
+                <Route path="dogs/edit/:id" element={<DogForm />} />
+                <Route path="dogs/:id" element={<DogDetails />} />
+                
+                <Route path="litters" element={<ManageLitters />} />
+                <Route path="litters/add" element={<AddLitterPage />} />
+                <Route path="litters/edit/:id" element={<EditLitterPage />} />
+                <Route path="litters/:id" element={<LitterDetails />} />
+                <Route path="litters/:id/puppies" element={<ManagePuppies />} />
+                <Route path="litters/:id/puppies/add" element={<AddPuppy />} />
+                <Route path="puppies/:id" element={<PuppyDetails />} />
+                
+                <Route path="heats" element={<ManageHeats />} />
+                <Route path="heats/add" element={<AddHeat />} />
+                <Route path="heats/edit/:id" element={<EditHeat />} />
+                <Route path="heats/calendar" element={<HeatCalendar />} />
+              </Route>
               
-              <Route path="heats" element={<ManageHeats />} />
-              <Route path="heats/add" element={<AddHeat />} />
-              <Route path="heats/edit/:id" element={<EditHeat />} />
-              <Route path="heats/calendar" element={<HeatCalendar />} />
-            </Route>
-            
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Overview />} />
-          </Routes>
+              {/* Redirect root to dashboard */}
+              <Route path="/" element={<Overview />} />
+            </Routes>
+          </ErrorBoundary>
         </HeatProvider>
       </AuthProvider>
     </ThemeProvider>

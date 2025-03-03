@@ -26,6 +26,8 @@ import {
   Pets as PetsIcon
 } from '@mui/icons-material';
 import { formatDate, formatAge } from '../../utils/dateUtils';
+import { API_URL, debugLog, debugError } from '../../config';
+import { showError, showInfo } from '../../utils/notifications';
 
 function LitterDetail() {
   const { litterId } = useParams();
@@ -38,40 +40,72 @@ function LitterDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchLitter = async () => {
-      setLoading(true);
-      try {
-        // First get the litter details
-        const response = await apiGet(`litters/${litterId}`);
-        if (response && response.ok && response.data) {
-          const litterData = response.data;
-          
-          // Fetch puppies for this litter
-          const puppiesResponse = await apiGet(`litters/${litterId}/puppies`);
-          if (puppiesResponse && puppiesResponse.ok) {
-            const puppiesData = puppiesResponse.data || [];
-            setPuppies(puppiesData);
-            // Update the litter data with the correct puppy count
-            litterData.puppy_count = puppiesData.length;
-          }
-          
-          setLitter(litterData);
-        } else {
-          throw new Error(response?.error || "Failed to fetch litter");
-        }
-      } catch (error) {
-        console.error("Error fetching litter:", error);
-        setError(error.message || "An error occurred while loading the litter.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!litterId || litterId === 'undefined') {
+      setError('Invalid litter ID. Please select a valid litter.');
+      setLoading(false);
+      showError('Invalid litter ID. Please select a valid litter.');
+      setTimeout(() => {
+        navigate('/dashboard/litters');
+      }, 2000);
+      return;
+    }
     
-    fetchLitter();
-  }, [litterId]);
+    fetchLitterDetails();
+  }, [litterId, navigate]);
+
+  const fetchLitterDetails = async () => {
+    if (!litterId || litterId === 'undefined') {
+      return;
+    }
+    
+    try {
+      debugLog(`Fetching litter details for ID: ${litterId}`);
+      const response = await fetch(`${API_URL}/litters/${litterId}`);
+      
+      if (!response.ok) {
+        const statusText = response.statusText || 'Unknown error';
+        throw new Error(`Failed to fetch litter: ${response.status} ${statusText}`);
+      }
+      
+      try {
+        const data = await response.json();
+        setLitter(data);
+        
+        fetchPuppies(litterId);
+      } catch (jsonError) {
+        debugError("Response is not valid JSON:", jsonError);
+        throw new Error(`Invalid response format. Server returned: ${await response.text().catch(() => 'Unreadable response')}`);
+      }
+    } catch (error) {
+      debugError("Error fetching litter details:", error);
+      setError(`Error: ${error.message}`);
+      showError(`Failed to load litter details: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPuppies = async (litterId) => {
+    if (!litterId || litterId === 'undefined') {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/litters/${litterId}/puppies`);
+      
+      if (!response.ok) {
+        debugError(`Failed to fetch puppies: ${response.status}`);
+        return;
+      }
+      
+      const data = await response.json();
+      setPuppies(data || []);
+    } catch (error) {
+      debugError("Error fetching puppies:", error);
+    }
+  };
 
   const handleDeleteLitter = () => {
-    // Add confirmation and deletion logic
     if (window.confirm('Are you sure you want to delete this litter? This action cannot be undone.')) {
       // Delete logic here
     }
