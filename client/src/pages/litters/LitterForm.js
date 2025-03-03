@@ -55,6 +55,10 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
     cover_photo_preview: null
   });
 
+  // Add state for validation errors
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
   // Update initial data with default breed if not set
   useEffect(() => {
     debugLog("breedOptions:", breedOptions);
@@ -78,59 +82,168 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
     }
   }, [initialData, breedOptions]);
 
+  // Validate form fields
+  const validateField = (name, value) => {
+    let error = "";
+    
+    switch (name) {
+      case "litter_name":
+        if (!value) error = "Litter name is required";
+        else if (value.length < 2) error = "Litter name must be at least 2 characters";
+        break;
+      case "breed_id":
+        if (!value) error = "Please select a breed";
+        break;
+      case "price":
+        if (value && isNaN(Number(value))) error = "Price must be a number";
+        break;
+      case "deposit":
+        if (value && isNaN(Number(value))) error = "Deposit must be a number";
+        break;
+      default:
+        // No validation for other fields
+        break;
+    }
+    
+    return error;
+  };
+
+  // Validate a field and update errors state
+  const validateAndUpdateErrors = (name, value) => {
+    const error = validateField(name, value);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+    return error === "";
+  };
+
   // Generic change handler for text/select inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setLitter(prev => ({ ...prev, [name]: value }));
+    
+    // Update litter data
+    setLitter(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Mark field as touched
+    setTouched(prev => ({
+      ...prev,
+      [name]: true
+    }));
+    
+    // Validate field
+    validateAndUpdateErrors(name, value);
   };
 
-  // For file input
+  // Handle focus on a field (mark as touched)
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    
+    // Mark field as touched
+    setTouched(prev => ({
+      ...prev,
+      [name]: true
+    }));
+    
+    // Validate field
+    validateAndUpdateErrors(name, litter[name]);
+  };
+
+  // Handle file input change (for photos)
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Create object URL for preview
-      const previewUrl = URL.createObjectURL(file);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
       
-      setLitter(prev => ({
-        ...prev,
-        cover_photo_file: file,
-        cover_photo_preview: previewUrl
-      }));
+      reader.onloadend = () => {
+        setLitter(prev => ({
+          ...prev,
+          cover_photo_file: file,
+          cover_photo_preview: reader.result
+        }));
+      }
+      
+      if (file) {
+        reader.readAsDataURL(file);
+      }
     }
   };
 
+  // Form submission handler
   const handleSubmit = (e) => {
     e.preventDefault();
     debugLog("Submitting litter form:", litter);
     
-    // Create FormData object for file uploads
-    const formData = new FormData();
+    // Validate all fields
+    let isValid = true;
+    const newTouched = {};
+    const newErrors = {};
     
-    // Add all litter data as individual form fields
-    Object.keys(litter).forEach(key => {
-      // Skip the preview URL as we don't need to send it to the server
-      if (key === 'cover_photo_preview') return;
-      
-      // Add the actual file for cover_photo_file
-      if (key === 'cover_photo_file' && litter[key]) {
-        formData.append('cover_photo', litter[key]);
-      } 
-      // Handle bigint fields - don't send empty strings
-      else if (['breed_id', 'sire_id', 'dam_id'].includes(key)) {
-        // Only append if the value is not an empty string
-        if (litter[key] !== '') {
-          formData.append(key, litter[key]);
+    // Check required fields
+    const requiredFields = ["litter_name", "breed_id"];
+    
+    for (const field of requiredFields) {
+      newTouched[field] = true;
+      const error = validateField(field, litter[field]);
+      if (error) {
+        isValid = false;
+        newErrors[field] = error;
+      }
+    }
+    
+    // Check optional fields that have values
+    const optionalFields = ["price", "deposit"];
+    for (const field of optionalFields) {
+      if (litter[field]) {
+        const error = validateField(field, litter[field]);
+        if (error) {
+          isValid = false;
+          newErrors[field] = error;
+          newTouched[field] = true;
         }
       }
-      // Handle other fields
-      else if (litter[key] !== null) {
-        // Add all other fields, converting null to empty string
-        formData.append(key, litter[key]);
-      }
-    });
+    }
     
-    // Pass the FormData to the onSave callback
-    onSave(formData);
+    // Update errors and touched state
+    setErrors(newErrors);
+    setTouched({ ...touched, ...newTouched });
+    
+    // If validation passes, submit the form
+    if (isValid) {
+      // Create FormData object for file uploads
+      const formData = new FormData();
+      
+      // Add all litter data as individual form fields
+      Object.keys(litter).forEach(key => {
+        // Skip the preview URL as we don't need to send it to the server
+        if (key === 'cover_photo_preview') return;
+        
+        // Add the actual file for cover_photo_file
+        if (key === 'cover_photo_file' && litter[key]) {
+          formData.append('cover_photo', litter[key]);
+        } 
+        // Handle bigint fields - don't send empty strings
+        else if (['breed_id', 'sire_id', 'dam_id'].includes(key)) {
+          // Only append if the value is not an empty string
+          if (litter[key] !== '') {
+            formData.append(key, litter[key]);
+          }
+        }
+        // Handle other fields
+        else if (litter[key] !== null) {
+          // Add all other fields, converting null to empty string
+          formData.append(key, litter[key]);
+        }
+      });
+      
+      // Pass the FormData to the onSave callback
+      onSave(formData);
+    } else {
+      debugLog("Form validation failed:", newErrors);
+    }
   };
 
   return (
@@ -141,13 +254,16 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
           <TextField
             required
             fullWidth
-            name="litter_name"
             label="Litter Name"
+            name="litter_name"
             value={litter.litter_name}
             onChange={handleChange}
+            onBlur={handleBlur}
+            error={touched.litter_name && Boolean(errors.litter_name)}
+            helperText={touched.litter_name && errors.litter_name}
           />
         </Grid>
-
+        
         {/* Status */}
         <Grid item xs={12}>
           <FormControl component="fieldset">
@@ -166,16 +282,20 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             </RadioGroup>
           </FormControl>
         </Grid>
-
+        
         {/* Breed */}
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
+          <FormControl 
+            fullWidth
+            error={touched.breed_id && Boolean(errors.breed_id)}
+          >
             <InputLabel id="breed-select-label">Breed</InputLabel>
             <Select
               labelId="breed-select-label"
               name="breed_id"
               value={litter.breed_id}
               onChange={handleChange}
+              onBlur={handleBlur}
               label="Breed"
             >
               {breedOptions.length > 0 ? (
@@ -191,209 +311,213 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               )}
             </Select>
             <FormHelperText>
-              {breedOptions.length === 0 && "Loading breeds..."}
+              {touched.breed_id && errors.breed_id ? 
+                errors.breed_id : 
+                breedOptions.length === 0 ? "Loading breeds..." : ""}
             </FormHelperText>
           </FormControl>
         </Grid>
-
-        {/* Puppies Count */}
+          
+        {/* Number of Puppies */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="number"
-            name="num_puppies"
             label="Number of Puppies"
-            value={litter.num_puppies || ''}
+            name="puppy_count"
+            type="number"
+            value={litter.puppy_count || ""}
             onChange={handleChange}
           />
         </Grid>
-
-        {/* Sire */}
+        
+        {/* Sire (Father) */}
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
             <InputLabel id="sire-select-label">Sire (Father)</InputLabel>
             <Select
               labelId="sire-select-label"
               name="sire_id"
-              value={litter.sire_id || ''}
+              value={litter.sire_id}
               onChange={handleChange}
               label="Sire (Father)"
             >
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {sireOptions.map(dog => (
-                <MenuItem key={dog.id} value={dog.id}>
-                  {dog.call_name}
+              {sireOptions.map(sire => (
+                <MenuItem key={sire.id} value={sire.id}>
+                  {sire.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
-
-        {/* Dam */}
+        
+        {/* Dam (Mother) */}
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
             <InputLabel id="dam-select-label">Dam (Mother)</InputLabel>
             <Select
               labelId="dam-select-label"
               name="dam_id"
-              value={litter.dam_id || ''}
+              value={litter.dam_id}
               onChange={handleChange}
               label="Dam (Mother)"
             >
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {damOptions.map(dog => (
-                <MenuItem key={dog.id} value={dog.id}>
-                  {dog.call_name}
+              {damOptions.map(dam => (
+                <MenuItem key={dam.id} value={dam.id}>
+                  {dam.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
-
+        
         {/* Price */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="number"
-            name="price"
             label="Price ($)"
-            value={litter.price || ''}
+            name="price"
+            value={litter.price}
             onChange={handleChange}
+            onBlur={handleBlur}
+            error={touched.price && Boolean(errors.price)}
+            helperText={touched.price && errors.price}
           />
         </Grid>
-
+        
         {/* Deposit */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="number"
-            name="deposit"
             label="Deposit ($)"
-            value={litter.deposit || ''}
+            name="deposit"
+            value={litter.deposit}
             onChange={handleChange}
+            onBlur={handleBlur}
+            error={touched.deposit && Boolean(errors.deposit)}
+            helperText={touched.deposit && errors.deposit}
           />
         </Grid>
-
+        
         {/* Birth Date */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            name="whelp_date"
             label="Birth Date"
-            value={litter.whelp_date || ''}
+            name="whelp_date"
+            type="date"
+            value={litter.whelp_date || ""}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
-
+        
         {/* Expected Date */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            name="expected_date"
             label="Expected Date"
-            value={litter.expected_date || ''}
+            name="expected_date"
+            type="date"
+            value={litter.expected_date || ""}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
-
+        
         {/* Planned Date */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            name="planned_date"
             label="Planned Date"
-            value={litter.planned_date || ''}
+            name="planned_date"
+            type="date"
+            value={litter.planned_date || ""}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
-
-        {/* Availability Date */}
+        
+        {/* Available From */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            name="availability_date"
             label="Available From"
-            value={litter.availability_date || ''}
+            name="available_date"
+            type="date"
+            value={litter.available_date || ""}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
-
-        {/* Extras */}
+        
+        {/* Extras Included */}
         <Grid item xs={12}>
           <TextField
             fullWidth
-            multiline
-            rows={4}
-            name="extras"
             label="Extras Included"
-            value={litter.extras || ''}
+            name="extras"
+            value={litter.extras || ""}
             onChange={handleChange}
+            multiline
+            rows={2}
+            placeholder="e.g., AKC registration, microchip, starter kit"
           />
         </Grid>
-
+        
+        {/* Socialization */}
         <Grid item xs={12}>
           <TextField
             fullWidth
-            multiline
-            rows={4}
+            label="Socialization"
             name="socialization"
-            label="Socialization & Enrichment"
-            value={litter.socialization || ''}
+            value={litter.socialization || ""}
             onChange={handleChange}
+            multiline
+            rows={2}
+            placeholder="e.g., Early Neurological Stimulation, Puppy Culture, household sounds"
           />
         </Grid>
-
+        
         {/* Cover Photo */}
         <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Cover Photo</Typography>
-          
+          <input
+            accept="image/*"
+            style={{ display: 'none' }}
+            id="cover-photo-upload"
+            type="file"
+            onChange={handleFileChange}
+          />
+          <label htmlFor="cover-photo-upload">
+            <Button variant="outlined" component="span">
+              Upload Cover Photo
+            </Button>
+          </label>
           {litter.cover_photo_preview && (
-            <Box sx={{ mb: 2 }}>
-              <img
-                src={litter.cover_photo_preview}
-                alt="Litter Cover Preview"
-                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: "cover" }}
+            <Box mt={2} textAlign="center">
+              <img 
+                src={litter.cover_photo_preview} 
+                alt="Cover Preview" 
+                style={{ maxWidth: '100%', maxHeight: '200px' }} 
               />
             </Box>
           )}
-          
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ mb: 2 }}
-          >
-            Upload Photo
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-          </Button>
         </Grid>
-
+        
         {/* Submit Button */}
         <Grid item xs={12}>
-          <Button
+          <Button 
             type="submit"
             variant="contained"
             color="primary"
-            size="large"
-            sx={{ mt: 2 }}
+            fullWidth
           >
-            {initialData ? "Save Changes" : "Add Litter"}
+            Save Litter
           </Button>
         </Grid>
       </Grid>
