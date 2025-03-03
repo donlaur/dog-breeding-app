@@ -40,6 +40,10 @@ export const DogProvider = ({ children }) => {
   // Get puppies (from the puppies table)
   const actualPuppies = puppies;
 
+  // Add a loading state flag specifically for dogs to prevent render loops
+  const [dogsLoading, setDogsLoading] = useState(false);
+  const [littersLoading, setLittersLoading] = useState(false);
+
   // Function to check if cache is valid
   const isCacheValid = () => {
     if (!dataTimestamp) return false;
@@ -165,8 +169,32 @@ export const DogProvider = ({ children }) => {
   }, [refreshData]);
   
   // Get a specific dog by ID
-  const getDog = (id) => {
-    return dogs.find(dog => dog.id && dog.id.toString() === id?.toString()) || null;
+  const getDog = async (dogId) => {
+    if (!dogId) {
+      debugError('Invalid dog ID provided to getDog:', dogId);
+      return null;
+    }
+    
+    try {
+      // First check if we already have this dog in our state
+      const cachedDog = dogs.find(dog => dog.id === parseInt(dogId, 10));
+      if (cachedDog) {
+        return cachedDog;
+      }
+      
+      // Otherwise fetch from API
+      const response = await fetch(`${API_URL}/dogs/${dogId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch dog: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      debugError(`Error fetching dog ${dogId}:`, error);
+      return null;
+    }
   };
   
   // Get a specific litter by ID with complete data
@@ -317,38 +345,95 @@ export const DogProvider = ({ children }) => {
     setLitters(prev => prev.filter(litter => litter.id !== litterId));
   };
 
-  // Single-purpose refresh functions that don't trigger full refresh
+  // Update the refreshDogs function to prevent re-render loops by using a dedicated loading state
   const refreshDogs = async () => {
+    // Only proceed if we're not already loading dogs
+    if (dogsLoading) {
+      return;
+    }
+    
+    setDogsLoading(true);
+    setError(null); // Clear any previous errors
+    
     try {
-      const response = await apiGet('dogs');
-      if (response && response.ok) {
-        setDogs(response.data || []);
+      const response = await fetch(`${API_URL}/dogs`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || errorData.message || `HTTP error ${response.status}`);
+        } catch (e) {
+          // If parsing failed, use the status text
+          throw new Error(response.statusText || `HTTP error ${response.status}`);
+        }
+      }
+      
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        setDogs(data);
+      } else {
+        debugError('Unexpected dogs response format:', data);
+        throw new Error('Unexpected response format');
       }
     } catch (error) {
-      console.error('Error fetching dogs:', error);
+      debugError('Error refreshing dogs:', error);
+      setError(error.message || 'Failed to load dogs');
+    } finally {
+      setDogsLoading(false);
     }
   };
 
-  const refreshLitters = async (force = false) => {
-    if (loading && !force) return;
+  // Similarly update the refreshLitters function
+  const refreshLitters = async () => {
+    // Only proceed if we're not already loading litters
+    if (littersLoading) {
+      return;
+    }
+    
+    setLittersLoading(true);
+    setError(null); // Clear any previous errors
     
     try {
-      setLoading(true);
-      const response = await apiGet('litters');
-      
+      const response = await fetch(`${API_URL}/litters`);
       if (!response.ok) {
-        throw new Error('Failed to fetch litters');
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || errorData.message || `HTTP error ${response.status}`);
+        } catch (e) {
+          // If parsing failed, use the status text
+          throw new Error(response.statusText || `HTTP error ${response.status}`);
+        }
       }
       
-      debugLog('Litters loaded:', response.data);
-      setLitters(response.data || []);
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        setLitters(data);
+      } else {
+        debugError('Unexpected litters response format:', data);
+        throw new Error('Unexpected response format');
+      }
     } catch (error) {
-      debugError('Error fetching litters:', error);
-      setError('Failed to load litters');
+      debugError('Error refreshing litters:', error);
+      setError(error.message || 'Failed to load litters');
     } finally {
-      setLoading(false);
+      setLittersLoading(false);
     }
   };
+
+  // Update the useEffect to only fetch data on mount, not on every render
+  useEffect(() => {
+    // Only fetch if we don't already have data
+    if (dogs.length === 0 && !dogsLoading) {
+      refreshDogs();
+    }
+    
+    if (litters.length === 0 && !littersLoading) {
+      refreshLitters();
+    }
+  }, []); // Empty dependency array means only run on mount
 
   // Add proper validation before making litter-related API calls
   const fetchLitter = async (litterId) => {
@@ -382,13 +467,35 @@ export const DogProvider = ({ children }) => {
     // Rest of function...
   };
 
-  // Value to provide in context
-  const value = {
+  // Add debug calls to trace where undefined requests are coming from
+  useEffect(() => {
+    // Add this debugging to trace where API calls to undefined litters are coming from
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      if (url.includes('undefined')) {
+        debugError('⚠️ Fetch with undefined in URL:', url);
+        debugError('⚠️ Call stack:', new Error().stack);
+        // Instead of making a failing request, return a rejected promise with helpful error
+        return Promise.reject(new Error(`Invalid API call to ${url} - URL contains undefined`));
+      }
+      return originalFetch.apply(this, arguments);
+    };
+
+    return () => {
+      // Restore original fetch when component unmounts
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  // Update the context value to include the new loading states
+  const contextValue = {
     dogs,
     puppies: actualPuppies,
     adultDogs,
     litters,
     loading,
+    dogsLoading,
+    littersLoading,
     error,
     dataTimestamp,
     refreshData,
@@ -408,15 +515,49 @@ export const DogProvider = ({ children }) => {
     fetchLitterPuppies
   };
 
-  return <DogContext.Provider value={value}>{children}</DogContext.Provider>;
+  return <DogContext.Provider value={contextValue}>{children}</DogContext.Provider>;
 };
 
 export const useDog = () => {
   const context = useContext(DogContext);
+  
   if (!context) {
     throw new Error('useDog must be used within a DogProvider');
   }
-  return context;
+  
+  // Create wrapped versions of API functions that validate IDs
+  const safeContext = {
+    ...context,
+    
+    // Override getLitter with a safe version
+    getLitter: (litterId) => {
+      if (!litterId || litterId === 'undefined' || litterId === 'null') {
+        debugError('⚠️ Attempted to call getLitter with invalid ID:', litterId);
+        return Promise.resolve({ error: 'Invalid litter ID' });
+      }
+      return context.getLitter(litterId);
+    },
+    
+    // Override getLitterPuppies with a safe version
+    getLitterPuppies: (litterId) => {
+      if (!litterId || litterId === 'undefined' || litterId === 'null') {
+        debugError('⚠️ Attempted to call getLitterPuppies with invalid ID:', litterId);
+        return Promise.resolve({ puppies: [], error: 'Invalid litter ID' });
+      }
+      return context.getLitterPuppies(litterId);
+    },
+    
+    // Similarly wrap other ID-based functions
+    getDog: (dogId) => {
+      if (!dogId || dogId === 'undefined' || dogId === 'null') {
+        debugError('⚠️ Attempted to call getDog with invalid ID:', dogId);
+        return null;
+      }
+      return context.getDog(dogId);
+    }
+  };
+  
+  return safeContext;
 };
 
 export default DogContext;

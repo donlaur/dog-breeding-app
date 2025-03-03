@@ -20,28 +20,35 @@ def make_json_response(data=None, status=200, error=None, message=None):
     Returns:
         Flask response object with JSON data and CORS headers
     """
-    response_data = {}
-    
-    # Add status indicator
-    response_data['success'] = 200 <= status < 300
-    
-    # Add data if provided
-    if data is not None:
-        response_data['data'] = data
-    
-    # Add error if provided
-    if error is not None:
-        response_data['error'] = error
-    
-    # Add message if provided
-    if message is not None:
-        response_data['message'] = message
-    
-    # Create response
-    response = make_response(jsonify(response_data))
-    
-    # Set status code
-    response.status_code = status
+    # For direct data responses (backward compatibility)
+    if data is not None and not isinstance(data, dict):
+        response = make_response(jsonify(data))
+        response.status_code = status
+    else:
+        # Standard response format
+        response_data = {}
+        
+        # Add status indicator
+        response_data['success'] = 200 <= status < 300
+        
+        # Add data if provided
+        if data is not None:
+            if isinstance(data, dict):
+                response_data['data'] = data
+            else:
+                response_data['data'] = data
+        
+        # Add error if provided
+        if error is not None:
+            response_data['error'] = error
+        
+        # Add message if provided
+        if message is not None:
+            response_data['message'] = message
+        
+        # Create response
+        response = make_response(jsonify(response_data))
+        response.status_code = status
     
     # Add CORS headers
     response.headers.add('Access-Control-Allow-Origin', '*')

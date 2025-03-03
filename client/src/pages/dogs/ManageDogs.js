@@ -35,16 +35,39 @@ import { showSuccess, showError } from '../../utils/notifications';
 
 const BREED_NAME = "Pembroke Welsh Corgi";
 
+// Helper function to get the dog's display name
+const getDogDisplayName = (dog) => {
+  if (!dog) return 'Unknown Dog';
+  
+  // Try different possible name fields
+  for (const prop of Object.keys(dog)) {
+    if (
+      prop.toLowerCase().includes('name') || 
+      prop.toLowerCase() === 'title' ||
+      prop.toLowerCase() === 'label'
+    ) {
+      return dog[prop] || `Dog #${dog.id}`;
+    }
+  }
+  
+  // If no name property found, use ID
+  return `Dog #${dog.id}`;
+};
+
 const ManageDogs = () => {
   const { dogs, loading, error, refreshDogs } = useDog();
   const [filter, setFilter] = useState('all'); // 'all', 'male', 'female'
   const [sortedDogs, setSortedDogs] = useState([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [dogsLoading, setDogsLoading] = useState(false);
 
   // Load dogs on component mount
   useEffect(() => {
-    refreshDogs();
-  }, [refreshDogs]);
+    // Only refresh dogs once when the component mounts if no data
+    if (dogs.length === 0 && !loading) {
+      refreshDogs();
+    }
+  }, []); // Empty dependency array means this only runs once on component mount
 
   // Apply filtering and sorting whenever dogs or filter changes
   useEffect(() => {
@@ -92,6 +115,14 @@ const ManageDogs = () => {
     }
   };
 
+  // Update the handleRefresh function to prevent rapid clicks
+  const handleRefresh = () => {
+    // Only allow refresh if not already loading
+    if (!loading) {
+      refreshDogs();
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={4}>
@@ -107,7 +138,7 @@ const ManageDogs = () => {
           severity="error" 
           sx={{ mt: 2 }}
           action={
-            <Button color="inherit" size="small" onClick={refreshDogs}>
+            <Button color="inherit" size="small" onClick={handleRefresh}>
               Retry
             </Button>
           }
@@ -155,71 +186,42 @@ const ManageDogs = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" align="center" gutterBottom>
-          My Dogs
-        </Typography>
-        
-        {/* Filter Buttons */}
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: 2, 
-            mb: 3 
-          }}
-        >
-          <Button 
-            variant={filter === 'all' ? 'contained' : 'outlined'}
-            onClick={() => setFilter('all')}
-            sx={{ borderRadius: 8, px: 3 }}
-          >
-            All Dogs
-          </Button>
-          <Button 
-            variant={filter === 'male' ? 'contained' : 'outlined'}
-            onClick={() => setFilter('male')}
-            sx={{ borderRadius: 8, px: 3 }}
-          >
-            Males
-          </Button>
-          <Button 
-            variant={filter === 'female' ? 'contained' : 'outlined'}
-            onClick={() => setFilter('female')}
-            sx={{ borderRadius: 8, px: 3 }}
-          >
-            Females
-          </Button>
-        </Box>
-        
-        {/* Add Dog Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            component={Link}
-            to="/dashboard/dogs/add"
-            fullWidth
-            sx={{ 
-              maxWidth: '100%', 
-              borderRadius: 1,
-              py: 1
-            }}
-          >
-            Add New Dog
-          </Button>
-        </Box>
-        
-        {/* Dogs Grid */}
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography>Loading dogs...</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Typography variant="h4" component="h1">
+            Manage Dogs
+          </Typography>
+          <Box>
+            <Button
+              variant="outlined"
+              sx={{ mr: 2 }}
+              onClick={handleRefresh}
+              disabled={loading} // Use the specific loading state
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              component={Link}
+              to="/dashboard/dogs/add"
+              startIcon={<AddIcon />}
+            >
+              Add Dog
+            </Button>
           </Box>
-        ) : error ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="error">Error: {error}</Typography>
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
+        {loading ? ( // Use the specific loading state
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
           </Box>
-        ) : (
+        ) : dogs.length > 0 ? (
           <Grid container spacing={3}>
             {sortedDogs.length > 0 ? (
               sortedDogs.map(dog => (
@@ -241,7 +243,7 @@ const ManageDogs = () => {
                     }}
                   >
                     <Link 
-                      to={`/dashboard/dogs/${dog.id}/${dog.call_name?.toLowerCase()}`} 
+                      to={`/dashboard/dogs/${dog.id}`} 
                       style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', height: '100%' }}
                     >
                       <Box 
@@ -287,8 +289,13 @@ const ManageDogs = () => {
                         )}
                       </Box>
                       
-                      <Typography variant="h5" component="h2" align="center" gutterBottom>
-                        {dog.call_name}
+                      <Typography 
+                        variant="h6" 
+                        component={Link} 
+                        to={`/dashboard/dogs/${dog.id}`}
+                        sx={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        {getDogDisplayName(dog)}
                       </Typography>
                       
                       <Typography variant="body2" align="center" sx={{ flexGrow: 1 }}>
@@ -322,6 +329,10 @@ const ManageDogs = () => {
               </Box>
             )}
           </Grid>
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography color="error">Error: {error}</Typography>
+          </Box>
         )}
       </Box>
     </Container>

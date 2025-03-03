@@ -1,5 +1,5 @@
 // src/App.js
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -10,6 +10,7 @@ import { HeatProvider } from './context/HeatContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './utils/errorBoundary';
+import { installInterceptors } from './utils/interceptors';
 
 // Pages
 import Overview from './pages/Overview';
@@ -33,6 +34,26 @@ import Litters from './pages/litters';
 import ManagePuppies from './pages/litters/ManagePuppies';
 
 function App() {
+  // Use a ref to track if interceptors are installed
+  const interceptorsInstalledRef = useRef(false);
+  
+  // Install interceptors just once
+  useEffect(() => {
+    // Only install if not already installed
+    if (!interceptorsInstalledRef.current) {
+      console.log('Installing API interceptors...');
+      const cleanup = installInterceptors();
+      interceptorsInstalledRef.current = true;
+      
+      // Clean up interceptors when app unmounts
+      return () => {
+        console.log('Cleaning up API interceptors...');
+        cleanup();
+        interceptorsInstalledRef.current = false;
+      };
+    }
+  }, []); // Empty dependency array ensures this runs only once
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -57,10 +78,12 @@ function App() {
                 <Route path="dogs/edit/:id" element={<DogForm />} />
                 <Route path="dogs/:id" element={<DogDetails />} />
                 
-                <Route path="litters" element={<ManageLitters />} />
-                <Route path="litters/add" element={<AddLitterPage />} />
+                {/* Litter Routes */}
+                <Route path="litters/new" element={<EditLitterPage />} />
                 <Route path="litters/edit/:id" element={<EditLitterPage />} />
                 <Route path="litters/:id" element={<LitterDetails />} />
+                <Route path="litters" element={<ManageLitters />} />
+                <Route path="litters/add" element={<AddLitterPage />} />
                 <Route path="litters/:id/puppies" element={<ManagePuppies />} />
                 <Route path="litters/:id/puppies/add" element={<AddPuppy />} />
                 <Route path="puppies/:id" element={<PuppyDetails />} />

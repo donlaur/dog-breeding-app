@@ -7,12 +7,32 @@
 import React from 'react';
 import { Snackbar, Alert } from '@mui/material';
 import { createRoot } from 'react-dom/client';
+import { debugError } from '../config';
+
+// Track active notification containers to prevent duplicate cleanup
+const activeContainers = new Set();
 
 // Default options for notifications
 const DEFAULT_OPTIONS = {
   autoHideDuration: 4000,
   anchorOrigin: { vertical: 'top', horizontal: 'right' },
   transitionDuration: { enter: 300, exit: 200 },
+};
+
+/**
+ * Safely removes a container element from the DOM
+ * @param {HTMLElement} containerDiv - The container to remove
+ */
+const safeRemoveContainer = (containerDiv) => {
+  try {
+    // Only proceed if the container is still in the DOM and tracked
+    if (document.body.contains(containerDiv) && activeContainers.has(containerDiv)) {
+      document.body.removeChild(containerDiv);
+      activeContainers.delete(containerDiv);
+    }
+  } catch (error) {
+    debugError('Error removing notification container:', error);
+  }
 };
 
 /**
@@ -24,10 +44,20 @@ const DEFAULT_OPTIONS = {
 const showNotification = (message, severity, options = {}) => {
   // Create a div to render the Snackbar into
   const containerDiv = document.createElement('div');
+  
+  // Add the container to tracked containers and to DOM
+  activeContainers.add(containerDiv);
   document.body.appendChild(containerDiv);
   
   // Create a root for the container
-  const root = createRoot(containerDiv);
+  let root;
+  try {
+    root = createRoot(containerDiv);
+  } catch (error) {
+    debugError('Error creating root for notification:', error);
+    safeRemoveContainer(containerDiv);
+    return;
+  }
   
   // Merge default options with custom options
   const snackbarOptions = {
@@ -39,31 +69,43 @@ const showNotification = (message, severity, options = {}) => {
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') return;
     
-    // Unmount and remove the container
-    setTimeout(() => {
+    // First unmount the component
+    try {
       root.unmount();
-      document.body.removeChild(containerDiv);
-    }, 300); // Small delay to allow exit animation
+    } catch (error) {
+      debugError('Error unmounting notification:', error);
+    }
+    
+    // Then remove the container after a small delay
+    setTimeout(() => {
+      safeRemoveContainer(containerDiv);
+    }, 100);
   };
   
   // Render the Snackbar with Alert
-  root.render(
-    <Snackbar
-      open={true}
-      autoHideDuration={snackbarOptions.autoHideDuration}
-      onClose={handleClose}
-      anchorOrigin={snackbarOptions.anchorOrigin}
-    >
-      <Alert 
-        onClose={handleClose} 
-        severity={severity} 
-        variant="filled"
-        sx={{ width: '100%' }}
+  try {
+    root.render(
+      <Snackbar
+        open={true}
+        autoHideDuration={snackbarOptions.autoHideDuration}
+        onClose={handleClose}
+        anchorOrigin={snackbarOptions.anchorOrigin}
       >
-        {message}
-      </Alert>
-    </Snackbar>
-  );
+        <Alert 
+          onClose={handleClose} 
+          severity={severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {message}
+        </Alert>
+      </Snackbar>
+    );
+  } catch (error) {
+    debugError('Error rendering notification:', error);
+    safeRemoveContainer(containerDiv);
+    return;
+  }
   
   // Automatically clean up after the autoHideDuration
   setTimeout(() => {

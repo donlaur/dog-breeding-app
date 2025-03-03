@@ -70,29 +70,16 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
 
     @dogs_bp.route("/", methods=["GET"])
     def get_dogs():
-        debug_log("Fetching all dogs...")
         try:
-            # Include timestamp fields in the query
-            response = db.supabase.table("dogs").select(
-                "id",
-                "call_name",
-                "registered_name",
-                "breed_id",
-                "gender",
-                "color",
-                "is_adult",
-                "birth_date",
-                "cover_photo",
-                "status",
-                "created_at",
-                "updated_at"
-            ).order("created_at.desc").execute()
+            debug_log("Fetching all dogs...")
             
-            dogs = response.data if response else []
+            # Use the abstracted db interface
+            dogs = db.find("dogs")
+            
             debug_log(f"Found {len(dogs)} dogs")
             
-            # Add CORS headers
-            response = make_response(jsonify(dogs))
+            # Add CORS headers to response
+            response = jsonify(dogs)
             response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
@@ -104,39 +91,25 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
 
     @dogs_bp.route("/<int:dog_id>", methods=["GET"])
     def get_dog(dog_id):
-        debug_log(f"Fetching dog with ID: {dog_id}")
         try:
-            response = db.supabase.table("dogs").select(
-                "id",
-                "call_name",
-                "registered_name",
-                "breed_id",
-                "gender",
-                "color",
-                "is_adult",
-                "birth_date",
-                "cover_photo",
-                "status",
-                "description",
-                "notes",
-                "markings",
-                "microchip",
-                "registration_type",
-                "program_id",
-                "litter_id",
-                "created_at",
-                "updated_at"
-            ).eq("id", dog_id).single().execute()
+            debug_log(f"Fetching dog with ID: {dog_id}")
             
-            if not response.data:
-                debug_log(f"No dog found with ID: {dog_id}")
-                return jsonify({"error": "Dog not found"}), 404
-                
-            dog = response.data
+            # Use the abstracted db interface
+            dog = db.get("dogs", dog_id)
+            
+            if not dog:
+                debug_log(f"Dog not found with ID: {dog_id}")
+                response = jsonify({"error": f"Dog with ID {dog_id} not found"})
+                response.status_code = 404
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+                response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+                return response
+            
             debug_log(f"Found dog: {dog}")
             
-            # Add CORS headers
-            response = make_response(jsonify(dog))
+            # Add CORS headers to response
+            response = jsonify(dog)
             response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
@@ -144,53 +117,103 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             
         except Exception as e:
             debug_log(f"Error fetching dog: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+            response = jsonify({"error": str(e)})
+            response.status_code = 500
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
 
     @dogs_bp.route("/", methods=["POST"])
     def create_dog():
         try:
-            data = request.get_json()
-            # created_at and updated_at will be set automatically by the database
+            debug_log("Creating new dog")
+            
+            # Get data from request
+            data = {}
+            if request.is_json:
+                data = request.get_json()
+                debug_log(f"Received JSON data: {data}")
+            else:
+                # Handle form data
+                form_data = request.form.to_dict()
+                debug_log(f"Received form data: {form_data}")
+                
+                # Process form data
+                for key, value in form_data.items():
+                    data[key] = value
+                
+                # Handle file upload
+                if 'photo' in request.files:
+                    file = request.files['photo']
+                    if file and file.filename:
+                        # Process file upload logic here
+                        # ...
+                        pass
+            
+            debug_log(f"Processed data for dog creation: {data}")
+            
+            # Create the dog using the abstracted db interface
             dog = db.create("dogs", data)
             
-            # Return the created dog with timestamps
-            response = make_response(jsonify({
-                **dog,
-                "message": "Dog created successfully",
-                "timestamp": datetime.utcnow().isoformat()
-            }), 201)
+            # Add CORS headers to response
+            response = jsonify(dog)
             response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
             
-        except DatabaseError as e:
+        except Exception as e:
+            debug_log(f"Error creating dog: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/<int:dog_id>", methods=["PUT"])
     def update_dog(dog_id):
         try:
-            data = request.get_json()
-            # updated_at will be set automatically by the database trigger
-            dog = db.update("dogs", dog_id, data)
+            # Check if dog exists
+            existing_dog = db.get("dogs", dog_id)
             
-            response = make_response(jsonify({
-                **dog,
-                "message": "Dog updated successfully",
-                "timestamp": datetime.utcnow().isoformat()
-            }))
+            if not existing_dog:
+                return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
+            
+            data = request.get_json()
+            
+            # Update the dog using the abstracted db interface
+            updated_dog = db.update("dogs", dog_id, data)
+            
+            # Add CORS headers to response
+            response = jsonify(updated_dog)
             response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
             
-        except DatabaseError as e:
+        except Exception as e:
+            debug_log(f"Error updating dog: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
-    @dogs_bp.route("/", methods=["DELETE"])
+    @dogs_bp.route("/<int:dog_id>", methods=["DELETE"])
     def delete_dog(dog_id):
-        response = supabase.table("dogs").delete().eq("id", dog_id).execute()
-        if response.error:
-            return jsonify({"error": response.error.message}), 400
-        return jsonify({"message": "Dog deleted successfully"}), 200
+        try:
+            # Check if dog exists
+            existing_dog = db.get("dogs", dog_id)
+            
+            if not existing_dog:
+                return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
+            
+            # Delete the dog using the abstracted db interface
+            db.delete("dogs", dog_id)
+            
+            # Add CORS headers to response
+            response = jsonify({"message": f"Dog with ID {dog_id} deleted successfully"})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        except Exception as e:
+            debug_log(f"Error deleting dog: {str(e)}")
+            return jsonify({"error": str(e)}), 500
 
     @dogs_bp.route("/upload", methods=["POST"])
     def upload_file():

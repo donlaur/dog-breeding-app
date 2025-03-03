@@ -38,3 +38,27 @@ class DatabaseInterface(ABC):
         """Delete a record"""
         debug_log(f"DatabaseInterface: Deleting record from {table} with id {id}")
         raise NotImplementedError
+
+    def find(self, table_name):
+        """Find all records in a table."""
+        pass
+
+    def find_by_field(self, table_name, field_name, field_value):
+        """Find records in a table where field_name equals field_value."""
+        pass
+
+    def get(self, table_name, item_id):
+        """Get a single record by ID."""
+        pass
+
+    def create(self, table_name, data):
+        """Create a new record."""
+        pass
+
+    def update(self, table_name, item_id, data):
+        """Update an existing record."""
+        pass
+
+    def delete(self, table_name, item_id):
+        """Delete a record."""
+        pass

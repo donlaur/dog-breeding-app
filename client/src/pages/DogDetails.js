@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDog } from '../context/DogContext';
 import { formatDate, formatAge } from '../utils/dateUtils';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
 import {
   Box,
   Container,
@@ -26,7 +26,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -41,6 +42,7 @@ import {
   CalendarToday as CalendarIcon
 } from '@mui/icons-material';
 import { apiGet, formatApiUrl } from '../utils/apiUtils';
+import { showError } from '../utils/notifications';
 
 function DogDetails() {
   const { id } = useParams();
@@ -78,6 +80,7 @@ function DogDetails() {
   const [heatsLoading, setHeatsLoading] = useState(false);
   const [siredLitters, setSiredLitters] = useState([]);
   const [littersLoading, setLittersLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Use ref to track loading status
   const loadStatus = useRef({
@@ -97,35 +100,53 @@ function DogDetails() {
   
   // Effect to load dog based on URL info
   useEffect(() => {
-    const loadDog = async () => {
-      if (!dogId) return;
+    const fetchDogDetails = async () => {
+      if (!dogId) {
+        setError('Dog ID is missing');
+        setLoading(false);
+        showError('Invalid dog ID');
+        return;
+      }
+
+      setLoading(true);
       
       try {
-        // First try to get from context
-        let foundDog = dogs.find(d => d.id === parseInt(dogId));
+        debugLog(`Fetching dog details for ID: ${dogId}`);
+        const response = await fetch(`${API_URL}/dogs/${dogId}`);
         
-        // If not in context, fetch directly from API
-        if (!foundDog) {
-          const response = await apiGet(`dogs/${dogId}`);
-          if (response && response.ok && response.data) {
-            foundDog = response.data;
+        if (!response.ok) {
+          const status = response.status;
+          const text = await response.text();
+          let errorMsg;
+          
+          try {
+            const errorData = JSON.parse(text);
+            errorMsg = errorData.error || `Failed to fetch dog (${status})`;
+          } catch (e) {
+            errorMsg = `Failed to fetch dog (${status})`;
           }
+          
+          throw new Error(errorMsg);
         }
         
-        if (foundDog) {
-          console.log("Loaded dog data:", foundDog);
-          setDog(foundDog);
+        const data = await response.json();
+        
+        if (!data) {
+          throw new Error('Dog not found');
         }
-      } catch (err) {
-        console.error("Error in loadDog:", err);
+        
+        setDog(data);
+      } catch (error) {
+        debugError('Error fetching dog details:', error);
+        setError(error.message);
+        showError(`Failed to load dog details: ${error.message}`);
       } finally {
-        // Only set loading to false if we either have a dog or a definitive error
         setLoading(false);
       }
     };
-    
-    loadDog();
-  }, [dogId, dogs]);
+
+    fetchDogDetails();
+  }, [dogId]);
   
   // Fetch heat cycles for female dogs
   useEffect(() => {
@@ -242,26 +263,39 @@ function DogDetails() {
     );
   }
   
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/dashboard/dogs')}
+          sx={{ mb: 3 }}
+        >
+          Back to Dogs
+        </Button>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+  
   if (!dog) {
     return (
-      <div className="not-found-container" style={{ textAlign: 'center', padding: '50px' }}>
-        <h2>Dog Not Found</h2>
-        <p>The dog you're looking for doesn't exist or has been removed.</p>
-        <button 
+      <Box sx={{ p: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/dashboard/dogs')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginTop: '10px'
-          }}
+          sx={{ mb: 3 }}
         >
-          Go to Dogs
-        </button>
-      </div>
+          Back to Dogs
+        </Button>
+        <Alert severity="warning">
+          Dog not found. It may have been deleted.
+        </Alert>
+      </Box>
     );
   }
   
@@ -276,7 +310,7 @@ function DogDetails() {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
-          {dog.call_name || dog.name}
+          {dog.dog_name || dog.name}
         </Typography>
         <Box>
           <Button 
@@ -327,7 +361,7 @@ function DogDetails() {
             </Box>
             <CardContent>
               <Typography variant="h5" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-                {dog.call_name || dog.name}
+                {dog.dog_name || dog.name}
                 <GenderIcon sx={{ ml: 1, color: genderColor }} />
               </Typography>
               
@@ -360,11 +394,11 @@ function DogDetails() {
               </Box>
               
               {/* Microchip if available */}
-              {dog.microchip && (
+              {dog.microchip_id && (
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                   <DocumentIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
                   <Typography variant="body2">
-                    Microchip: {dog.microchip}
+                    Microchip: {dog.microchip_id}
                   </Typography>
                 </Box>
               )}

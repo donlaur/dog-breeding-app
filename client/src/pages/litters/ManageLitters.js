@@ -1,6 +1,6 @@
 // src/pages/litters/ManageLitters.js
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Box,
   Card,
@@ -16,7 +16,8 @@ import {
   Divider,
   Avatar,
   IconButton,
-  Tooltip
+  Tooltip,
+  CardActions
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,6 +45,8 @@ const ManageLitters = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [litterToDelete, setLitterToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Only refresh if we don't have any litters and aren't currently loading
@@ -192,6 +195,35 @@ const ManageLitters = () => {
     </Box>
   );
 
+  // Add a helper function to validate litter links at the top of the component
+  const validateLitterId = (litter, action = 'viewing') => {
+    if (!litter || !litter.id) {
+      debugError(`⚠️ Attempted ${action} litter with missing/invalid ID:`, litter);
+      showError(`Cannot ${action} litter: Invalid litter ID`);
+      return false;
+    }
+    return true;
+  };
+
+  // Helper function to get the litter's display name
+  const getLitterDisplayName = (litter) => {
+    if (!litter) return 'Unknown Litter';
+    
+    // Try to find a name field
+    for (const prop of Object.keys(litter)) {
+      if (
+        prop.toLowerCase().includes('name') || 
+        prop.toLowerCase() === 'title' ||
+        prop.toLowerCase() === 'label'
+      ) {
+        return litter[prop] || `Litter #${litter.id}`;
+      }
+    }
+    
+    // If no name field is found, use ID
+    return `Litter #${litter.id}`;
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -239,11 +271,15 @@ const ManageLitters = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography 
                         variant="h6" 
-                        component={Link} 
-                        to={`/dashboard/litters/${litter.id}`} 
-                        sx={{ textDecoration: 'none', color: 'inherit' }}
+                        onClick={() => {
+                          console.log('Litter title clicked:', litter);
+                          console.log('Litter ID:', litter.id);
+                          console.log('Navigating to URL:', `/dashboard/litters/${litter.id}`);
+                          navigate(`/dashboard/litters/${litter.id}`);
+                        }}
+                        style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                       >
-                        {litter.litter_name || 'Unnamed Litter'}
+                        {getLitterDisplayName(litter)}
                       </Typography>
                       <Chip 
                         label={litter.status} 
@@ -298,23 +334,19 @@ const ManageLitters = () => {
                     
                     <Divider sx={{ my: 1 }} />
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <CardActions sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Button
-                        component={Link}
-                        to={`/dashboard/litters/${litter.id}`}
                         size="small"
-                        sx={{ mr: 1 }}
-                        disabled={!litter.id}
+                        onClick={() => {
+                          console.log('View button clicked for litter:', litter);
+                          console.log('Litter ID:', litter.id);
+                          console.log('Navigating to URL:', `/dashboard/litters/${litter.id}`);
+                          navigate(`/dashboard/litters/${litter.id}`);
+                        }}
                       >
                         View
                       </Button>
-                      <Button
-                        component={Link}
-                        to={`/dashboard/litters/edit/${litter.id}`}
-                        size="small"
-                        startIcon={<EditIcon />}
-                        sx={{ mr: 1 }}
-                      >
+                      <Button size="small" component={Link} to={`/dashboard/litters/edit/${litter.id}`}>
                         Edit
                       </Button>
                       <Tooltip title="Delete Litter">
@@ -326,7 +358,7 @@ const ManageLitters = () => {
                           <DeleteIcon />
                         </IconButton>
                       </Tooltip>
-                    </Box>
+                    </CardActions>
                   </CardContent>
                 </Card>
               </Grid>

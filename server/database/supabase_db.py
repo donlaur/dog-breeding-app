@@ -120,5 +120,60 @@ class SupabaseDatabase(DatabaseInterface):
             debug_log(f"Supabase error in delete: {str(e)}")
             raise DatabaseError(str(e))
 
+    def find(self, table_name):
+        try:
+            response = self.supabase.table(table_name).select('*').execute()
+            if not response.data:
+                raise DatabaseError('No data found')
+            return response.data
+        except Exception as e:
+            raise DatabaseError(str(e))
+
+    def get(self, table_name, item_id):
+        try:
+            response = self.supabase.table(table_name).select('*').eq('id', item_id).execute()
+            if not response.data:
+                raise DatabaseError('Item not found')
+            return response.data[0]
+        except Exception as e:
+            raise DatabaseError(str(e))
+
+    def create(self, table_name, data):
+        try:
+            response = self.supabase.table(table_name).insert(data).execute()
+            if not response.data:
+                raise DatabaseError('Failed to create item')
+            return response.data[0]
+        except Exception as e:
+            raise DatabaseError(str(e))
+
+    def update(self, table_name, item_id, data):
+        try:
+            response = self.supabase.table(table_name).update(data).eq('id', item_id).execute()
+            if not response.data:
+                raise DatabaseError('Failed to update item')
+            return response.data[0]
+        except Exception as e:
+            raise DatabaseError(str(e))
+
+    def delete(self, table_name, item_id):
+        try:
+            response = self.supabase.table(table_name).delete().eq('id', item_id).execute()
+            if not response.data:
+                raise DatabaseError('Failed to delete item')
+            return response.data
+        except Exception as e:
+            raise DatabaseError(str(e))
+
+    def find_by_field(self, table_name, field_name, field_value):
+        """Find records in a table where field_name equals field_value."""
+        try:
+            response = self.supabase.table(table_name).select('*').eq(field_name, field_value).execute()
+            if not response.data:
+                return []
+            return response.data
+        except Exception as e:
+            raise DatabaseError(str(e))
+
 class DatabaseError(Exception):
     pass 

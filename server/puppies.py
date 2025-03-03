@@ -12,6 +12,7 @@ from flask import Blueprint, request, jsonify, make_response
 from server.database.db_interface import DatabaseInterface
 from server.database.supabase_db import DatabaseError
 from server.config import debug_log
+import traceback
 
 def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
     puppies_bp = Blueprint("puppies_bp", __name__)
@@ -193,23 +194,32 @@ def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
                 return jsonify({"error": str(e)}), 500
 
     @puppies_bp.route('/litter/<int:litter_id>', methods=['GET', 'OPTIONS'])
-    def get_litter_puppies(litter_id):
-        # Handle CORS preflight requests
-        if request.method == 'OPTIONS':
-            response = make_response()
-            response.headers.add("Access-Control-Allow-Origin", "*")
-            response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            response.headers.add("Access-Control-Allow-Methods", "GET, OPTIONS")
-            return response, 204
-
-        debug_log(f"Fetching puppies for litter ID: {litter_id}")
+    def get_puppies_by_litter(litter_id):
         try:
-            # Query puppies with the specified litter_id
-            puppies = db.get_by_field("puppies", "litter_id", litter_id)
-            debug_log(f"Found {len(puppies)} puppies for litter {litter_id}")
-            return jsonify(puppies)
+            debug_log(f"Fetching puppies for litter ID: {litter_id}")
+            
+            # Use the database abstraction to find puppies by litter_id
+            puppies = db.find_by_field("puppies", "litter_id", litter_id)
+            
+            debug_log(f"Found {len(puppies)} puppies for litter ID {litter_id}")
+            
+            # Add CORS headers
+            response = make_response(jsonify(puppies))
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
         except Exception as e:
-            debug_log(f"Error fetching puppies for litter {litter_id}: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+            debug_log(f"Error fetching puppies for litter: {str(e)}")
+            debug_log(traceback.format_exc())
+            
+            # Add CORS headers to error response
+            response = jsonify({"error": str(e)})
+            response.status_code = 500
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
 
     return puppies_bp
