@@ -15,19 +15,19 @@ import {
   Avatar,
   IconButton,
   LinearProgress,
-  Chip,
   Paper,
   Tabs,
   Tab,
   Tooltip,
+  Alert,
+  CircularProgress,
+  Chip,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  CircularProgress,
-  Alert
+  TableRow
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -39,7 +39,8 @@ import {
   Female as FemaleIcon,
   Favorite as HeartIcon,
   Assignment as DocumentIcon,
-  CalendarToday as CalendarIcon
+  CalendarToday as CalendarIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { apiGet, formatApiUrl } from '../utils/apiUtils';
 import { showError } from '../utils/notifications';
@@ -81,6 +82,8 @@ function DogDetails() {
   const [siredLitters, setSiredLitters] = useState([]);
   const [littersLoading, setLittersLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [damLitters, setDamLitters] = useState([]);
+  const [loadingLitters, setLoadingLitters] = useState(false);
   
   // Use ref to track loading status
   const loadStatus = useRef({
@@ -136,6 +139,10 @@ function DogDetails() {
         }
         
         setDog(data);
+        
+        if (data && data.id && data.gender) {
+          fetchLitters(data.id, data.gender);
+        }
       } catch (error) {
         debugError('Error fetching dog details:', error);
         setError(error.message);
@@ -146,7 +153,7 @@ function DogDetails() {
     };
 
     fetchDogDetails();
-  }, [dogId]);
+  }, [dogId, dog?.gender]);
   
   // Fetch heat cycles for female dogs
   useEffect(() => {
@@ -251,6 +258,39 @@ function DogDetails() {
   // Update edit button navigation
   const navigateToEdit = () => {
     navigate(`/dashboard/dogs/edit/${dogId}`);
+  };
+
+  const fetchLitters = async (dogId, gender) => {
+    if (!dogId) return;
+    
+    setLoadingLitters(true);
+    try {
+      const endpoint = gender === 'male' 
+        ? `${API_URL}/litters/sire/${dogId}` 
+        : `${API_URL}/litters/dam/${dogId}`;
+      
+      console.log(`Fetching ${gender === 'male' ? 'sired' : 'dam'} litters from: ${endpoint}`);
+      
+      const response = await fetch(endpoint);
+      
+      if (!response.ok) {
+        console.error(`Error fetching litters: ${response.status}`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log(`Found ${data.length} ${gender === 'male' ? 'sired' : 'dam'} litters`, data);
+      
+      if (gender === 'male') {
+        setSiredLitters(data);
+      } else {
+        setDamLitters(data);
+      }
+    } catch (error) {
+      console.error(`Error fetching litters:`, error);
+    } finally {
+      setLoadingLitters(false);
+    }
   };
 
   if (loading) {
@@ -472,130 +512,136 @@ function DogDetails() {
                 <Box>
                   <Typography variant="h6" sx={{ mb: 2 }}>Breeding Information</Typography>
                   
-                  {dog.gender === 'Male' ? (
-                    <>
-                      <Box sx={{ mb: 3 }}>
-                        <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                          <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
-                          Sired Litters
-                        </Typography>
-                        
-                        {littersLoading ? (
-                          <LinearProgress sx={{ my: 2 }} />
-                        ) : siredLitters.length > 0 ? (
-                          <TableContainer component={Paper} variant="outlined">
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell>Dam</TableCell>
-                                  <TableCell>Whelp Date</TableCell>
-                                  <TableCell>Status</TableCell>
-                                  <TableCell>Puppies</TableCell>
-                                  <TableCell align="right">Actions</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {siredLitters.map((litter) => (
-                                  <TableRow key={litter.id} hover>
-                                    <TableCell>{litter.dam_name || 'Unknown'}</TableCell>
-                                    <TableCell>{formatDate(litter.whelp_date)}</TableCell>
-                                    <TableCell>
-                                      <Chip 
-                                        label={litter.status} 
-                                        color={litter.status === 'Born' ? 'success' : 'default'}
-                                        size="small"
-                                      />
-                                    </TableCell>
-                                    <TableCell>{litter.num_puppies || 0}</TableCell>
-                                    <TableCell align="right">
-                                      <Button
-                                        size="small"
-                                        onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
-                                      >
-                                        View
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            No sired litters recorded for this dog.
-                          </Typography>
-                        )}
+                  <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+                    <PetsIcon sx={{ mr: 1 }} />
+                    <Typography variant="subtitle1">
+                      {dog.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
+                    </Typography>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      sx={{ ml: 'auto' }}
+                      component={Link}
+                      to="/dashboard/litters/new"
+                      startIcon={<AddIcon />}
+                    >
+                      New Litter
+                    </Button>
+                  </Box>
+                  
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <PetsIcon sx={{ mr: 1 }} />
+                      {dog?.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
+                    </Typography>
+
+                    {loadingLitters ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress size={24} />
                       </Box>
-                    </>
-                  ) : (
-                    <>
-                      {/* Heat Cycles section for female dogs */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <HeartIcon sx={{ mr: 1, color: 'error.light' }} />
-                          Heat Cycles
+                    ) : dog?.gender === 'male' && siredLitters.length > 0 ? (
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                              <TableCell>Dam</TableCell>
+                              <TableCell>Whelp Date</TableCell>
+                              <TableCell>Status</TableCell>
+                              <TableCell>Puppies</TableCell>
+                              <TableCell>Actions</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {siredLitters.map((litter) => (
+                              <TableRow key={litter.id}>
+                                <TableCell>
+                                  {litter.dam?.call_name || `Dam #${litter.dam_id || 'Unknown'}`}
+                                </TableCell>
+                                <TableCell>
+                                  {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={litter.status || 'Unknown'} 
+                                    color={litter.status === 'Born' ? 'success' : 'primary'} 
+                                    size="small" 
+                                  />
+                                </TableCell>
+                                <TableCell>{litter.num_puppies || 0}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    size="small" 
+                                    component={Link} 
+                                    to={`/dashboard/litters/${litter.id}`}
+                                  >
+                                    View
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : dog?.gender === 'female' && damLitters.length > 0 ? (
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                              <TableCell>Sire</TableCell>
+                              <TableCell>Whelp Date</TableCell>
+                              <TableCell>Status</TableCell>
+                              <TableCell>Puppies</TableCell>
+                              <TableCell>Actions</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {damLitters.map((litter) => (
+                              <TableRow key={litter.id}>
+                                <TableCell>
+                                  {litter.sire?.call_name || `Sire #${litter.sire_id || 'Unknown'}`}
+                                </TableCell>
+                                <TableCell>
+                                  {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={litter.status || 'Unknown'} 
+                                    color={litter.status === 'Born' ? 'success' : 'primary'} 
+                                    size="small" 
+                                  />
+                                </TableCell>
+                                <TableCell>{litter.num_puppies || 0}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    size="small" 
+                                    component={Link} 
+                                    to={`/dashboard/litters/${litter.id}`}
+                                  >
+                                    View
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Box sx={{ textAlign: 'center', py: 3, px: 2, backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          No litters {dog?.gender === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
                         </Typography>
                         <Button 
-                          size="small" 
-                          variant="outlined"
-                          startIcon={<CalendarIcon />}
-                          onClick={() => navigate('/dashboard/heats')}
+                          variant="outlined" 
+                          component={Link} 
+                          to="/dashboard/litters/new" 
+                          sx={{ mt: 1 }}
+                          size="small"
                         >
-                          Manage Heats
+                          Create Litter
                         </Button>
                       </Box>
-                      
-                      {heatsLoading ? (
-                        <LinearProgress sx={{ my: 2 }} />
-                      ) : heatCycles && heatCycles.length > 0 ? (
-                        <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Start Date</TableCell>
-                                <TableCell>End Date</TableCell>
-                                <TableCell>Duration</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Notes</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {heatCycles.map((heat) => {
-                                const statusInfo = getHeatStatusDisplay(heat.status);
-                                const duration = calculateDaysBetween(heat.start_date, heat.end_date);
-                                
-                                return (
-                                  <TableRow key={heat.id} hover>
-                                    <TableCell>{formatDate(heat.start_date)}</TableCell>
-                                    <TableCell>{heat.end_date ? formatDate(heat.end_date) : 'In progress'}</TableCell>
-                                    <TableCell>
-                                      {duration ? `${duration} days` : '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Chip 
-                                        label={statusInfo.label} 
-                                        size="small"
-                                        sx={{ 
-                                          backgroundColor: `${statusInfo.color}`,
-                                          color: 'white',
-                                          fontSize: '0.75rem'
-                                        }} 
-                                      />
-                                    </TableCell>
-                                    <TableCell>{heat.notes || '-'}</TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                          No heat cycles recorded for this dog.
-                        </Typography>
-                      )}
-                    </>
-                  )}
+                    )}
+                  </Box>
                 </Box>
               )}
               
