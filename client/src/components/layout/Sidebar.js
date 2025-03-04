@@ -30,28 +30,28 @@ function Sidebar() {
           <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Program Management</h3>
           <div className="space-y-1">
             <Link
-              to="/dogs"
-              className={`block p-2 rounded ${isActive('/dogs') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              to="/dashboard/dogs"
+              className={`block p-2 rounded ${isActive('/dashboard/dogs') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
               Manage Dogs
             </Link>
             <Link
-              to="/litters"
-              className={`block p-2 rounded ${isActive('/litters') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              to="/dashboard/litters"
+              className={`block p-2 rounded ${isActive('/dashboard/litters') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
               Manage Litters
             </Link>
             <Link
-              to="/heats"
-              className={`block p-2 rounded ${isActive('/heats') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              to="/dashboard/heats"
+              className={`block p-2 rounded ${isActive('/dashboard/heats') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
               Manage Heats
             </Link>
             <Link
-              to="/heat-calendar"
-              className={`block p-2 rounded ${isActive('/heat-calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              to="/dashboard/calendar"
+              className={`block p-2 rounded ${isActive('/dashboard/calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
-              Heat Calendar
+              Events
             </Link>
           </div>
         </div>
@@ -59,8 +59,8 @@ function Sidebar() {
         <div className="pt-4">
           <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Settings</h3>
           <Link
-            to="/profile"
-            className={`block p-2 rounded ${isActive('/profile') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+            to="/dashboard/profile"
+            className={`block p-2 rounded ${isActive('/dashboard/profile') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
           >
             Breeder Profile
           </Link>

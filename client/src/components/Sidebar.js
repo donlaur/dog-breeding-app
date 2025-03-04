@@ -49,7 +49,7 @@ function Sidebar() {
             </Link>
             <Link
               to="/heat-calendar"
-              className={`block p-2 rounded ${isActive('/heat-calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              className={`block p-2 rounded ${isActive('/calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
               Heat Calendar
             </Link>

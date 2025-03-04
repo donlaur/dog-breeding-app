@@ -26,7 +26,7 @@ import ManageHeats from './pages/heats/ManageHeats';
 import AddHeat from './pages/heats/AddHeat';
 import EditHeat from './pages/heats/EditHeat';
 import PuppyDetails from './pages/puppies/PuppyDetails';
-import HeatCalendar from './components/heats/HeatCalendar';
+import CalendarPage from './pages/CalendarPage';
 import Login from './pages/auth/Login';
 import SignUp from './pages/auth/SignUp';
 import DogDetails from './pages/DogDetails';
@@ -91,7 +91,7 @@ function App() {
                 <Route path="heats" element={<ManageHeats />} />
                 <Route path="heats/add" element={<AddHeat />} />
                 <Route path="heats/edit/:id" element={<EditHeat />} />
-                <Route path="heats/calendar" element={<HeatCalendar />} />
+                <Route path="calendar" element={<CalendarPage />} />
               </Route>
               
               {/* Redirect root to dashboard */}

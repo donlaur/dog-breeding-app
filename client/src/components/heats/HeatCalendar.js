@@ -1,17 +1,42 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './HeatCalendar.css'; // Updated CSS path
-import { HeatContext } from '../../context/HeatContext';
-import DogContext from '../../context/DogContext';
 import { API_URL } from '../../config';
+import { CircularProgress, Box } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
 
-const HeatCalendar = ({ heats }) => {
+const HeatCalendar = ({ heats: propHeats }) => {
   const [selectedHeat, setSelectedHeat] = useState(null);
   const [dogList, setDogList] = useState([]);
+  const [heats, setHeats] = useState(propHeats || []);
+  const [loading, setLoading] = useState(!propHeats);
+
+  // Fetch heats if not provided as props
+  useEffect(() => {
+    // If heats were provided as props, no need to fetch
+    if (propHeats) {
+      setHeats(propHeats);
+      return;
+    }
+
+    const fetchHeats = async () => {
+      try {
+        const response = await fetch(`${API_URL}/heats`);
+        if (!response.ok) throw new Error('Failed to fetch heats');
+        const data = await response.json();
+        setHeats(data);
+      } catch (error) {
+        console.error('Error fetching heats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHeats();
+  }, [propHeats]);
 
   // Fetch all dogs when component mounts
   useEffect(() => {
@@ -30,8 +55,12 @@ const HeatCalendar = ({ heats }) => {
   }, []);
 
   // Don't render until we have both heats and dogs
-  if (!heats || !dogList || dogList.length === 0) {
-    return <div className="p-4">Loading...</div>;
+  if (loading || !dogList || dogList.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   // Transform heats into calendar events with proper dog name lookup
