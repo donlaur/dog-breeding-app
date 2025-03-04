@@ -29,13 +29,22 @@ import { formatDate, calculateAge } from '../../utils/dateUtils';
  * @param {Function} props.getGenderDisplay - Function to get gender icon and color
  */
 const PuppiesList = ({ 
-  puppies = [], 
+  puppies, 
   navigateToDogDetails, 
   getImageUrl, 
   getGenderDisplay 
 }) => {
-  // Filter for non-adult dogs
-  const actualPuppies = puppies.filter(puppies => puppies.status === 'Available');
+  // Ensure puppies is an array, even if it's null/undefined from props
+  const puppiesArray = puppies || [];
+  
+  // Debug log puppies prop in detail
+  console.log('PuppiesList received puppies array:', puppiesArray);
+  console.log('PuppiesList received puppies count:', puppiesArray.length);
+  console.log('PuppiesList received puppies type:', typeof puppiesArray);
+  console.log('PuppiesList is array?', Array.isArray(puppiesArray));
+  
+  // Display all puppies, regardless of status
+  const actualPuppies = puppiesArray;
 
   return (
     <Card elevation={1}>
@@ -62,7 +71,7 @@ const PuppiesList = ({
           </Box>
         </Box>
         
-        {actualPuppies && actualPuppies.length > 0 ? (
+        {actualPuppies.length > 0 ? (
           <Box>
             {actualPuppies.map((puppy, index) => (
               <React.Fragment key={puppy?.id || index}>

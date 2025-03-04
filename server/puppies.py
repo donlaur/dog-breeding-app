@@ -17,6 +17,7 @@ import traceback
 def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
     puppies_bp = Blueprint("puppies_bp", __name__)
 
+    @puppies_bp.route('', methods=['GET', 'POST', 'OPTIONS'])
     @puppies_bp.route('/', methods=['GET', 'POST', 'OPTIONS'])
     def handle_puppies():
         # Handle CORS preflight requests

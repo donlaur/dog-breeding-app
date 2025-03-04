@@ -10,8 +10,13 @@ export const formatApiUrl = (endpoint) => {
   // Remove any leading slash from endpoint
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
   
+  // Ensure no trailing slashes for consistency (avoid redirect issues with CORS)
+  const noTrailingSlash = cleanEndpoint.endsWith('/') 
+    ? cleanEndpoint.slice(0, -1) 
+    : cleanEndpoint;
+  
   // For development with proxy, use relative URL
-  return `/api/${cleanEndpoint}`;
+  return `/api/${noTrailingSlash}`;
 };
 
 /**
@@ -64,8 +69,9 @@ export const apiGet = async (endpoint, options = {}) => {
   }
   
   try {
-    debugLog(`GET ${API_URL}/${endpoint}`);
-    const response = await fetch(`${API_URL}/${endpoint}`, {
+    const url = formatApiUrl(endpoint);
+    debugLog(`GET ${url}`);
+    const response = await fetch(url, {
       method: 'GET',
       ...options,
     });
@@ -161,7 +167,9 @@ export const apiPost = async (endpoint, data, options = {}) => {
   }
   
   try {
-    const response = await fetch(`${API_URL}/${endpoint}`, {
+    const url = formatApiUrl(endpoint);
+    debugLog(`POST ${url}`);
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,7 +222,9 @@ export const apiPut = async (endpoint, data, options = {}) => {
   }
   
   try {
-    const response = await fetch(`${API_URL}/${endpoint}`, {
+    const url = formatApiUrl(endpoint);
+    debugLog(`PUT ${url}`);
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -266,7 +276,9 @@ export const apiDelete = async (endpoint, options = {}) => {
   }
   
   try {
-    const response = await fetch(`${API_URL}/${endpoint}`, {
+    const url = formatApiUrl(endpoint);
+    debugLog(`DELETE ${url}`);
+    const response = await fetch(url, {
       method: 'DELETE',
       ...options,
     });

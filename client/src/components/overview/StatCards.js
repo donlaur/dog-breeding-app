@@ -16,6 +16,8 @@ import {
  * @param {number} props.littersCount - Number of litters
  */
 const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0 }) => {
+  // Debug log counts
+  console.log('StatCards received counts:', { adultDogsCount, puppiesCount, littersCount });
   // Count for upcoming heats and messages (placeholder for now)
   const upcomingHeats = 0;
   const newMessages = 0;

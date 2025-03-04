@@ -5,6 +5,7 @@ Simple entrypoint that creates the Flask app using the factory in __init__.py
 """
 
 from flask import Flask, jsonify
+from flask_cors import CORS  # Import CORS
 from server.database.supabase_db import SupabaseDatabase
 from server.config import debug_log
 
@@ -15,9 +16,13 @@ from server.breeds import breeds_bp
 from server.heats import create_heats_bp
 from server.auth import create_auth_bp
 from server.program import create_program_bp
+from server.puppies import create_puppies_bp
 
 def create_app():
     app = Flask(__name__)
+    
+    # Setup CORS for all routes
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     
     # Create database interface
     db = SupabaseDatabase()
@@ -29,6 +34,7 @@ def create_app():
     app.register_blueprint(create_heats_bp(db), url_prefix='/api/heats')
     app.register_blueprint(create_auth_bp(db), url_prefix='/api/auth')
     app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
+    app.register_blueprint(create_puppies_bp(db), url_prefix='/api/puppies')
     
     # Basic error handler just for 404 errors
     @app.errorhandler(404)

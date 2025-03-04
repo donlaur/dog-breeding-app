@@ -11,8 +11,14 @@ export const DogProvider = ({ children }) => {
   const auth = useAuth();
   const [dogs, setDogs] = useState([]);
   const [litters, setLitters] = useState([]);
-  const [puppies, setPuppies] = useState([]);
+  const [puppies, setPuppies] = useState([]); // Initialize with empty array
   const [loading, setLoading] = useState(false);  // Start with false to prevent immediate loading state
+  
+  // Debug effect to log whenever puppies state changes
+  useEffect(() => {
+    console.log('Puppies state changed:', puppies);
+    console.log('Puppies count in state:', puppies.length);
+  }, [puppies]);
   const [error, setError] = useState(null);
   const [dataTimestamp, setDataTimestamp] = useState(null);
   
@@ -82,10 +88,10 @@ export const DogProvider = ({ children }) => {
     
     // Fetch data with more robust error handling
     try {
-      // Create promises but don't await them yet
+      // Create promises but don't await them yet - specify exact endpoints without trailing slashes
       pendingRequests.current.dogs = apiGet('dogs');
       pendingRequests.current.litters = apiGet('litters');
-      pendingRequests.current.puppies = apiGet('puppies');
+      pendingRequests.current.puppies = apiGet('puppies'); // No trailing slash
       
       // Handle dogs
       let dogsData = [];
@@ -118,11 +124,26 @@ export const DogProvider = ({ children }) => {
       
       // Handle puppies - continue even if previous requests failed
       try {
+        console.log('FETCHING PUPPIES FROM API...');
         const puppiesResponse = await pendingRequests.current.puppies;
+        
         if (puppiesResponse && puppiesResponse.ok) {
-          setPuppies(puppiesResponse.data || []);
+          const puppiesData = puppiesResponse.data || [];
+          console.log('SUCCESS: Puppies API response with', puppiesData.length, 'puppies');
+          
+          // Directly create a new array from the response data
+          const puppiesArray = [...puppiesData];
+          console.log('Created new puppies array with', puppiesArray.length, 'items');
+          
+          // Update state with the new array
+          setPuppies(puppiesArray);
+          
+          // For debugging, manually dispatch an event 
+          window.dispatchEvent(new CustomEvent('puppies_loaded', { 
+            detail: { count: puppiesArray.length, data: puppiesArray }
+          }));
         } else {
-          console.error('Failed to load puppies:', puppiesResponse?.error || 'Unknown error');
+          console.error('Failed to load puppies:', puppiesResponse?.error || 'Unknown error', puppiesResponse);
           // If puppies fail, just set empty array and continue
           setPuppies([]);
         }
@@ -155,14 +176,14 @@ export const DogProvider = ({ children }) => {
     }
   }, []);
   
-  // Load data on initial mount - only once
+  // Load data on initial mount - only once, but always force a refresh
   useEffect(() => {
     const loadInitialData = async () => {
-      if (!initialLoadComplete.current) {
-        // Slight delay to prevent UI flash
-        await new Promise(resolve => setTimeout(resolve, 100));
-        refreshData();
-      }
+      // Slight delay to prevent UI flash
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Force refresh data always, bypassing cache
+      refreshData(true);
+      console.log("Forced data refresh on component mount");
     };
     
     loadInitialData();
