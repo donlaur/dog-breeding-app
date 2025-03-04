@@ -14,6 +14,7 @@ from server.litters import create_litters_bp
 from server.breeds import breeds_bp
 from server.heats import create_heats_bp
 from server.auth import create_auth_bp
+from server.program import create_program_bp
 
 def create_app():
     app = Flask(__name__)
@@ -27,6 +28,7 @@ def create_app():
     app.register_blueprint(breeds_bp, url_prefix='/api/breeds')
     app.register_blueprint(create_heats_bp(db), url_prefix='/api/heats')
     app.register_blueprint(create_auth_bp(db), url_prefix='/api/auth')
+    app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
     
     # Basic error handler just for 404 errors
     @app.errorhandler(404)
@@ -43,4 +45,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

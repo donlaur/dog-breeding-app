@@ -76,7 +76,8 @@ const BreederProfile = () => {
     setError(null);
     
     try {
-      const response = await apiPut('breeder/profile', program);
+      // Use the correct program endpoint to match our API
+      const response = await apiPut('program', program);
       
       if (response.ok) {
         setSaveSuccess(true);
