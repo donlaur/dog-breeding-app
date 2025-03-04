@@ -20,7 +20,7 @@ services:
       - app-network
 
   # Flask Backend
-  server:
+  api:
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -38,6 +38,12 @@ services:
     networks:
       - app-network
     command: python -m server.app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # React Frontend
   client:
@@ -47,7 +53,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
     volumes:

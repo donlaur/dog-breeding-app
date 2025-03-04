@@ -64,6 +64,31 @@ When developing with Docker:
    ./docker-start.sh restart
    ```
 
+## Database Initialization and Migrations
+
+If you're using a local PostgreSQL database (as configured in docker-compose.yml):
+
+1. **Initial Database Setup**:
+   After starting the containers for the first time, you need to initialize the database:
+
+   ```bash
+   # Run migrations
+   docker-compose exec api flask db upgrade
+   
+   # Optionally, seed the database with initial data
+   docker-compose exec api flask seed
+   ```
+
+2. **Creating New Migrations**:
+   When you modify your database models, create new migrations:
+
+   ```bash
+   docker-compose exec api flask db migrate -m "Description of changes"
+   docker-compose exec api flask db upgrade
+   ```
+
+Note: If you're using Supabase exclusively, you can ignore these migration steps.
+
 ## Troubleshooting
 
 If you encounter any issues:
@@ -72,6 +97,10 @@ If you encounter any issues:
 2. Make sure your `.env` file contains the correct credentials
 3. Try rebuilding the containers: `./docker-start.sh build`
 4. Ensure ports 3000 and 5000 are not in use by other applications
+5. For database-related issues, you can check the database logs:
+   ```bash
+   docker-compose logs db
+   ```
 
 ## Production Deployment
 
