@@ -11,6 +11,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './utils/errorBoundary';
 import { installInterceptors } from './utils/interceptors';
+import DebugRouteInfo from './components/DebugRouteInfo';
 
 // Pages
 import Overview from './pages/Overview';
@@ -60,6 +61,7 @@ function App() {
       <AuthProvider>
         <HeatProvider>
           <ErrorBoundary>
+            <DebugRouteInfo />
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />

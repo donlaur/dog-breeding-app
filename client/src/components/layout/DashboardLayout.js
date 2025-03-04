@@ -120,7 +120,7 @@ const DashboardLayout = () => {
     { path: '/dashboard/dogs', label: 'Dogs', icon: <PetsIcon /> },
     { path: '/dashboard/litters', label: 'Litters', icon: <PuppyIcon /> },
     { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> },
-    { path: '/dashboard/heat-calendar', label: 'Calendar', icon: <CalendarIcon /> },
+    { path: '/dashboard/calendar', label: 'Events', icon: <CalendarIcon /> },
     { path: '/dashboard/profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
   

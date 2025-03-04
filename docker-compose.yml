@@ -1,5 +1,6 @@
 version: "3.8"
 services:
+  # PostgreSQL Database
   db:
     image: postgres:14
     environment:
@@ -10,5 +11,54 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d dog_breeding_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Flask Backend
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/dog_breeding_app
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+    networks:
+      - app-network
+    command: python -m server.app
+
+  # React Frontend
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - app-network
+
+# Define a network for the services
+networks:
+  app-network:
+    driver: bridge
+
+# Define volumes
 volumes:
   postgres_data:

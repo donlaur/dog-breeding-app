@@ -50,6 +50,13 @@ function Sidebar() {
             <Link
               to="/dashboard/calendar"
               className={`block p-2 rounded ${isActive('/dashboard/calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+              onClick={(e) => {
+                // Prevent default behavior and handle navigation manually
+                e.preventDefault();
+                console.log('Calendar link clicked, navigating to /dashboard/calendar');
+                // Use navigate from useNavigate hook
+                navigate('/dashboard/calendar');
+              }}
             >
               Events
             </Link>
