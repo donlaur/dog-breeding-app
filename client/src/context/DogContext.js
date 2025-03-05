@@ -13,6 +13,7 @@ export const DogProvider = ({ children }) => {
   const [litters, setLitters] = useState([]);
   const [puppies, setPuppies] = useState([]); // Initialize with empty array
   const [loading, setLoading] = useState(false);  // Start with false to prevent immediate loading state
+  const [breeds, setBreeds] = useState([]);
   
   // Debug effect to log whenever puppies state changes
   useEffect(() => {
@@ -508,6 +509,33 @@ export const DogProvider = ({ children }) => {
     };
   }, []);
 
+  // Inside the DogProvider component
+  useEffect(() => {
+    // Add debug logging to see if breeds are being loaded
+    console.log("DogContext: Loading breeds...");
+    
+    const fetchBreeds = async () => {
+      try {
+        console.log("DogContext: Fetching breeds from API");
+        const response = await fetch(`${API_URL}/breeds`);
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching breeds: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("DogContext: Breeds loaded successfully:", data);
+        setBreeds(data);
+      } catch (error) {
+        console.error("Error fetching breeds:", error);
+        // Initialize with empty array to prevent undefined
+        setBreeds([]);
+      }
+    };
+    
+    fetchBreeds();
+  }, []);
+
   // Update the context value to include the new loading states
   const contextValue = {
     dogs,
@@ -533,7 +561,8 @@ export const DogProvider = ({ children }) => {
     refreshDogs,
     refreshLitters,
     fetchLitter,
-    fetchLitterPuppies
+    fetchLitterPuppies,
+    breeds
   };
 
   return <DogContext.Provider value={contextValue}>{children}</DogContext.Provider>;

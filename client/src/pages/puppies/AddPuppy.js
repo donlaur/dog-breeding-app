@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useDog } from '../../context/DogContext';
 import {
   Container,
   Typography,
@@ -15,7 +14,8 @@ import {
   Grid,
   Paper,
   Divider,
-  InputAdornment
+  InputAdornment,
+  CircularProgress
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -24,15 +24,15 @@ import {
   Female as FemaleIcon,
   Male as MaleIcon
 } from '@mui/icons-material';
-import { apiPost } from '../../utils/apiUtils';
+import { apiGet, apiPost, addPuppyToLitter } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 
 function AddPuppy() {
   const { litterId } = useParams();
   const navigate = useNavigate();
-  const { litters, refreshData } = useDog();
   const [currentLitter, setCurrentLitter] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   
   // Form state
@@ -41,27 +41,68 @@ function AddPuppy() {
     gender: '',
     color: '',
     markings: '',
-    birthdate: '',
-    weight_birth: '',
+    birth_date: '',  // Changed from birthdate to match backend
+    weight_at_birth: '',  // Corrected field name per database schema
     description: '',
     litter_id: litterId
   });
 
   useEffect(() => {
-    // Find the current litter
-    if (litters && litters.length > 0) {
-      const litter = litters.find(l => String(l.id) === String(litterId));
-      if (litter) {
-        setCurrentLitter(litter);
-        // Pre-fill birthdate from litter if available
-        if (litter.birth_date) {
-          // Format the date as YYYY-MM-DD for the date input
-          const formattedDate = new Date(litter.birth_date).toISOString().split('T')[0];
-          setPuppy(prev => ({ ...prev, birthdate: formattedDate }));
-        }
+    const fetchLitterData = async () => {
+      if (!litterId) {
+        setError('Missing litter ID');
+        setLoading(false);
+        return;
       }
-    }
-  }, [litterId, litters]);
+      
+      try {
+        console.log('Fetching litter data for puppy form, litter ID:', litterId);
+        const response = await apiGet(`litters/${litterId}`);
+        
+        if (!response.ok) {
+          throw new Error(response.error || 'Failed to fetch litter details');
+        }
+        
+        const litter = response.data;
+        setCurrentLitter(litter);
+        
+        // Pre-fill birth date from litter's whelp_date if available
+        if (litter.whelp_date) {
+          console.log('Pre-filling birth date from litter whelp_date:', litter.whelp_date);
+          
+          // Format the date as YYYY-MM-DD for the date input
+          try {
+            // Create a proper date object
+            const whelpDate = new Date(litter.whelp_date);
+            
+            // Check if date is valid
+            if (!isNaN(whelpDate.getTime())) {
+              const formattedDate = whelpDate.toISOString().split('T')[0];
+              console.log('Formatted whelp date for puppy birth_date:', formattedDate);
+              
+              setPuppy(prev => ({ 
+                ...prev, 
+                birth_date: formattedDate 
+              }));
+            } else {
+              console.error("Invalid whelp_date format:", litter.whelp_date);
+            }
+          } catch (e) {
+            console.error("Error formatting whelp_date:", e, litter.whelp_date);
+          }
+        } else {
+          console.log('No whelp_date available in litter data');
+        }
+      } catch (err) {
+        console.error('Error fetching litter data:', err);
+        setError(`Failed to load litter: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchLitterData();
+  }, [litterId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -72,27 +113,25 @@ function AddPuppy() {
     e.preventDefault();
     
     try {
-      setLoading(true);
+      setSaving(true);
       
       // Validate required fields
       if (!puppy.name || !puppy.gender) {
         setError("Name and gender are required");
         showError("Name and gender are required");
-        setLoading(false);
+        setSaving(false);
         return;
       }
       
-      const response = await apiPost(`litters/${litterId}/puppies`, puppy);
+      // Use the addPuppyToLitter utility function
+      const response = await addPuppyToLitter(litterId, puppy);
       
       if (response.ok) {
         showSuccess("Puppy added successfully!");
         
-        // Refresh data
-        await refreshData();
-        
         // Navigate after a short delay to allow viewing the success message
         setTimeout(() => {
-          navigate(`/dashboard/litters/${litterId}/puppies`);
+          navigate(`/dashboard/litters/${litterId}`);
         }, 1500);
       } else {
         throw new Error(response.error || "Failed to add puppy");
@@ -101,15 +140,34 @@ function AddPuppy() {
       setError(error.message);
       showError(`Error adding puppy: ${error.message}`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  if (!currentLitter) {
+  if (loading) {
     return (
       <Container>
         <Box sx={{ textAlign: 'center', py: 4 }}>
-          <Typography>Loading litter information...</Typography>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Loading litter information...</Typography>
+        </Box>
+      </Container>
+    );
+  }
+  
+  if (!currentLitter && !error) {
+    return (
+      <Container>
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography>Could not find litter with ID: {litterId}</Typography>
+          <Button 
+            component={Link}
+            to="/dashboard/litters"
+            variant="contained"
+            sx={{ mt: 2 }}
+          >
+            Back to Litters
+          </Button>
         </Box>
       </Container>
     );
@@ -164,7 +222,7 @@ function AddPuppy() {
                     row
                   >
                     <FormControlLabel
-                      value="male"
+                      value="Male"
                       control={<Radio />}
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -174,7 +232,7 @@ function AddPuppy() {
                       }
                     />
                     <FormControlLabel
-                      value="female"
+                      value="Female"
                       control={<Radio />}
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -212,9 +270,9 @@ function AddPuppy() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Birth Date"
-                  name="birthdate"
+                  name="birth_date"
                   type="date"
-                  value={puppy.birthdate}
+                  value={puppy.birth_date || ''}
                   onChange={handleChange}
                   fullWidth
                   InputLabelProps={{
@@ -226,9 +284,9 @@ function AddPuppy() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Birth Weight"
-                  name="weight_birth"
+                  name="weight_at_birth"
                   type="number"
-                  value={puppy.weight_birth}
+                  value={puppy.weight_at_birth}
                   onChange={handleChange}
                   fullWidth
                   InputProps={{
@@ -267,9 +325,9 @@ function AddPuppy() {
                     type="submit"
                     variant="contained"
                     startIcon={<SaveIcon />}
-                    disabled={loading}
+                    disabled={saving}
                   >
-                    {loading ? 'Saving...' : 'Save Puppy'}
+                    {saving ? 'Saving...' : 'Save Puppy'}
                   </Button>
                 </Box>
               </Grid>

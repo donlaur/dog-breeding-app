@@ -59,28 +59,56 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
-  // Update initial data with default breed if not set
+  // Display existing values when component mounts
   useEffect(() => {
-    debugLog("breedOptions:", breedOptions);
+    console.log("LitterForm initialData:", initialData);
     
     if (initialData) {
-      const data = { ...initialData };
-      // If editing a litter without a breed_id and we have breed options
-      if (!data.breed_id && breedOptions.length > 0) {
-        data.breed_id = breedOptions[0].id;
-        debugLog("Setting breed_id for existing litter to:", breedOptions[0].id);
+      // Create a fresh copy to avoid reference issues
+      const formattedData = { ...initialData };
+      
+      // Log the specific values we're interested in
+      console.log("LitterForm initialData breed_id:", formattedData.breed_id, "type:", typeof formattedData.breed_id);
+      console.log("LitterForm initialData dam_id:", formattedData.dam_id, "type:", typeof formattedData.dam_id);
+      console.log("LitterForm initialData sire_id:", formattedData.sire_id, "type:", typeof formattedData.sire_id);
+      console.log("LitterForm initialData num_puppies:", formattedData.num_puppies);
+      
+      // Map num_puppies to puppy_count if it exists
+      if (formattedData.num_puppies !== undefined) {
+        formattedData.puppy_count = formattedData.num_puppies;
       }
-      setLitter(data);
-    } 
-    // For new litters, set default breed_id if we have breed options
-    else if (breedOptions.length > 0) {
-      debugLog("Setting default breed_id for new litter to:", breedOptions[0].id);
-      setLitter(prev => ({ 
-        ...prev, 
-        breed_id: breedOptions[0].id 
-      }));
+      
+      // Safely format ID fields
+      ['breed_id', 'dam_id', 'sire_id'].forEach(field => {
+        // If value exists, convert to number
+        if (formattedData[field] !== undefined && formattedData[field] !== null) {
+          try {
+            formattedData[field] = Number(formattedData[field]);
+          } catch (e) {
+            console.error(`Failed to convert ${field} to number:`, e);
+            formattedData[field] = '';
+          }
+        } else {
+          // Set to empty string for form select controls
+          formattedData[field] = '';
+        }
+      });
+      
+      // Format dates for form inputs if they exist
+      ['whelp_date', 'expected_date', 'planned_date', 'available_date'].forEach(dateField => {
+        if (formattedData[dateField]) {
+          try {
+            formattedData[dateField] = new Date(formattedData[dateField]).toISOString().split('T')[0];
+          } catch (e) {
+            console.error(`Failed to format ${dateField}:`, e);
+          }
+        }
+      });
+      
+      console.log("Form data after processing:", formattedData);
+      setLitter(formattedData);
     }
-  }, [initialData, breedOptions]);
+  }, [initialData]);
 
   // Validate form fields
   const validateField = (name, value) => {
@@ -172,6 +200,54 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
     }
   };
 
+  // Handle breed selection
+  const handleBreedChange = (e) => {
+    const value = e.target.value;
+    console.log("Selected breed value:", value, "Type:", typeof value);
+    
+    let breedId = null;
+    if (value && value !== '') {
+      breedId = Number(value);
+    }
+    
+    setLitter(prev => ({
+      ...prev,
+      breed_id: breedId
+    }));
+  };
+
+  // Handle sire selection
+  const handleSireChange = (e) => {
+    const value = e.target.value;
+    console.log("Selected sire value:", value, "Type:", typeof value);
+    
+    let sireId = null;
+    if (value && value !== '') {
+      sireId = Number(value);
+    }
+    
+    setLitter(prev => ({
+      ...prev,
+      sire_id: sireId
+    }));
+  };
+  
+  // Handle dam selection
+  const handleDamChange = (e) => {
+    const value = e.target.value;
+    console.log("Selected dam value:", value, "Type:", typeof value);
+    
+    let damId = null;
+    if (value && value !== '') {
+      damId = Number(value);
+    }
+    
+    setLitter(prev => ({
+      ...prev,
+      dam_id: damId
+    }));
+  };
+
   // Form submission handler
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -213,34 +289,43 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
     
     // If validation passes, submit the form
     if (isValid) {
-      // Create FormData object for file uploads
-      const formData = new FormData();
+      console.log("Preparing form data for submission:", litter);
       
-      // Add all litter data as individual form fields
-      Object.keys(litter).forEach(key => {
-        // Skip the preview URL as we don't need to send it to the server
-        if (key === 'cover_photo_preview') return;
-        
-        // Add the actual file for cover_photo_file
-        if (key === 'cover_photo_file' && litter[key]) {
-          formData.append('cover_photo', litter[key]);
-        } 
-        // Handle bigint fields - don't send empty strings
-        else if (['breed_id', 'sire_id', 'dam_id'].includes(key)) {
-          // Only append if the value is not an empty string
-          if (litter[key] !== '') {
-            formData.append(key, litter[key]);
-          }
+      // Create a clean data object instead of FormData for a regular JSON API call
+      const cleanData = { ...litter };
+      
+      // Handle ID fields properly
+      ['breed_id', 'sire_id', 'dam_id'].forEach(field => {
+        // Convert empty strings to null
+        if (cleanData[field] === '') {
+          cleanData[field] = null;
         }
-        // Handle other fields
-        else if (litter[key] !== null) {
-          // Add all other fields, converting null to empty string
-          formData.append(key, litter[key]);
+        // Ensure the value is a number if it exists
+        else if (cleanData[field] !== null) {
+          cleanData[field] = Number(cleanData[field]);
         }
       });
       
-      // Pass the FormData to the onSave callback
-      onSave(formData);
+      // Number fields
+      ['price', 'deposit'].forEach(field => {
+        if (cleanData[field] !== '' && cleanData[field] !== null) {
+          cleanData[field] = Number(cleanData[field]);
+        }
+      });
+
+      // Map puppy_count to num_puppies for the database
+      if (cleanData.puppy_count !== undefined) {
+        cleanData.num_puppies = cleanData.puppy_count !== '' && cleanData.puppy_count !== null 
+          ? Number(cleanData.puppy_count) 
+          : null;
+        // Remove puppy_count as it's not in the database schema
+        delete cleanData.puppy_count;
+      }
+      
+      console.log("Cleaned form data for submission:", cleanData);
+      
+      // Pass the clean data to the onSave callback
+      onSave(cleanData);
     } else {
       debugLog("Form validation failed:", newErrors);
     }
@@ -293,19 +378,28 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             <Select
               labelId="breed-select-label"
               name="breed_id"
-              value={litter.breed_id}
-              onChange={handleChange}
+              value={litter.breed_id === null ? '' : litter.breed_id}
+              onChange={e => {
+                console.log("Breed selection changed:", e.target.value);
+                setLitter({
+                  ...litter,
+                  breed_id: e.target.value === '' ? null : Number(e.target.value)
+                });
+              }}
               onBlur={handleBlur}
               label="Breed"
             >
-              {breedOptions.length > 0 ? (
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {breedOptions && breedOptions.length > 0 ? (
                 breedOptions.map(breed => (
                   <MenuItem key={breed.id} value={breed.id}>
                     {breed.name}
                   </MenuItem>
                 ))
               ) : (
-                <MenuItem value="">
+                <MenuItem disabled value="">
                   <em>No breeds available</em>
                 </MenuItem>
               )}
@@ -313,7 +407,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             <FormHelperText>
               {touched.breed_id && errors.breed_id ? 
                 errors.breed_id : 
-                breedOptions.length === 0 ? "Loading breeds..." : ""}
+                !breedOptions || breedOptions.length === 0 ? "No breeds available" : ""}
             </FormHelperText>
           </FormControl>
         </Grid>
@@ -337,8 +431,8 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             <Select
               labelId="sire-select-label"
               name="sire_id"
-              value={litter.sire_id}
-              onChange={handleChange}
+              value={litter.sire_id === null ? '' : litter.sire_id}
+              onChange={handleSireChange}
               label="Sire (Father)"
             >
               <MenuItem value="">
@@ -346,7 +440,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               </MenuItem>
               {sireOptions.map(sire => (
                 <MenuItem key={sire.id} value={sire.id}>
-                  {sire.name}
+                  {sire.call_name || sire.name || `Dog #${sire.id}`}
                 </MenuItem>
               ))}
             </Select>
@@ -360,8 +454,8 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             <Select
               labelId="dam-select-label"
               name="dam_id"
-              value={litter.dam_id}
-              onChange={handleChange}
+              value={litter.dam_id === null ? '' : litter.dam_id}
+              onChange={handleDamChange}
               label="Dam (Mother)"
             >
               <MenuItem value="">
@@ -369,7 +463,7 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               </MenuItem>
               {damOptions.map(dam => (
                 <MenuItem key={dam.id} value={dam.id}>
-                  {dam.name}
+                  {dam.call_name || dam.name || `Dog #${dam.id}`}
                 </MenuItem>
               ))}
             </Select>

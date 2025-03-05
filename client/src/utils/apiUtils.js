@@ -59,64 +59,26 @@ export const apiRequest = async (endpoint, options = {}) => {
  * @param {Object} options - Additional fetch options
  * @return {Promise<Object>} - Response data or error
  */
-export const apiGet = async (endpoint, options = {}) => {
-  // Detect if the endpoint contains an undefined ID
-  if (endpoint.includes('undefined') || endpoint.includes('null')) {
-    const error = `Invalid API call: Endpoint contains undefined or null ID: ${endpoint}`;
-    debugError(error);
-    showError(`API Error: Invalid ID in request`);
-    return { ok: false, error, data: null };
-  }
-  
+export const apiGet = async (endpoint) => {
   try {
-    const url = formatApiUrl(endpoint);
-    debugLog(`GET ${url}`);
-    const response = await fetch(url, {
-      method: 'GET',
-      ...options,
-    });
+    const url = `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
+    console.log(`Making API GET request to: ${url}`);
     
-    // Try to parse JSON, but handle non-JSON responses
-    let data;
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        data = await response.json();
-      } catch (error) {
-        debugError('Error parsing JSON response:', error);
-        return { 
-          ok: false, 
-          status: response.status,
-          error: 'Invalid JSON response', 
-          data: null 
-        };
-      }
-    } else {
-      // Handle non-JSON response
-      const text = await response.text();
-      debugError('Non-JSON response:', text);
-      return { 
-        ok: false, 
-        status: response.status,
-        error: 'Unexpected response format', 
-        data: text 
-      };
-    }
+    const response = await fetch(url);
     
     if (!response.ok) {
-      return { 
-        ok: false, 
-        status: response.status,
-        error: data.error || `HTTP error ${response.status}`, 
-        data 
-      };
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    return { ok: true, status: response.status, data };
+    const data = await response.json();
+    return { ok: true, data: data };
   } catch (error) {
-    debugError(`API Error (${endpoint}):`, error);
-    return { ok: false, error: error.message, data: null };
+    console.error(`API Error (${endpoint}):`, error);
+    return { 
+      ok: false, 
+      error: error.message || 'Network request failed', 
+      data: null 
+    };
   }
 };
 
@@ -212,51 +174,63 @@ export const apiPost = async (endpoint, data, options = {}) => {
  * @param {Object} options - Additional fetch options
  * @return {Promise<Object>} - Response data or error
  */
-export const apiPut = async (endpoint, data, options = {}) => {
-  // Similar validation as in apiPost
-  if (endpoint.includes('undefined') || endpoint.includes('null')) {
-    const error = `Invalid API call: Endpoint contains undefined or null ID: ${endpoint}`;
-    debugError(error);
-    showError(`API Error: Invalid ID in request`);
-    return { ok: false, error, data: null };
-  }
+export const apiPut = async (endpoint, data) => {
+  const url = `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
+  console.log(`[API] PUT ${url}`, data);
   
   try {
-    const url = formatApiUrl(endpoint);
-    debugLog(`PUT ${url}`);
+    const token = localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(url, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-      ...options,
+      headers: headers,
+      body: JSON.stringify(data)
     });
     
     let responseData;
-    try {
-      responseData = await response.json();
-    } catch (error) {
-      debugError('Error parsing JSON response:', error);
-      return { 
-        ok: false, 
-        error: 'Invalid JSON response', 
-        data: null 
-      };
+    const contentType = response.headers.get('content-type');
+    
+    // Try to parse response as JSON if it has JSON content type
+    if (contentType && contentType.indexOf('application/json') !== -1) {
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        console.error('Error parsing JSON response:', e);
+        responseData = { error: 'Invalid JSON response' };
+      }
+    } else {
+      // For non-JSON responses, get the text
+      try {
+        responseData = { message: await response.text() };
+      } catch (e) {
+        responseData = { message: 'No response body' };
+      }
     }
     
-    if (!response.ok) {
-      return { 
-        ok: false, 
-        error: responseData.error || `HTTP error ${response.status}`, 
-        data: responseData 
-      };
-    }
-    
-    return { ok: true, data: responseData };
+    // Create a standard response object
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      data: responseData,
+      error: !response.ok ? (responseData.error || responseData.message || response.statusText) : null
+    };
   } catch (error) {
-    debugError(`API Error (${endpoint}):`, error);
-    return { ok: false, error: error.message, data: null };
+    console.error(`Network error in apiPut to ${url}:`, error);
+    return {
+      ok: false,
+      status: 0,
+      statusText: 'Network Error',
+      data: null,
+      error: error.message || 'Network request failed'
+    };
   }
 };
 
@@ -311,5 +285,21 @@ export const apiDelete = async (endpoint, options = {}) => {
 };
 
 export const addPuppyToLitter = async (litterId, puppyData) => {
-  return apiPost(`litters/${litterId}/puppies`, puppyData);
+  if (!litterId) {
+    console.error('Invalid litter ID provided to addPuppyToLitter');
+    return { 
+      ok: false, 
+      error: 'Missing or invalid litter ID', 
+      data: null 
+    };
+  }
+
+  // Ensure litter_id is properly formatted and included in the data
+  const dataWithLitterId = {
+    ...puppyData,
+    litter_id: parseInt(litterId)
+  };
+
+  console.log(`Adding puppy to litter ${litterId}:`, dataWithLitterId);
+  return apiPost(`litters/${litterId}/puppies`, dataWithLitterId);
 };

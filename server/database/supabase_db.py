@@ -1,8 +1,12 @@
-from typing import List, Dict, Any, Optional
+"""
+Supabase database implementation for the database interface.
+"""
+
+import os
+from supabase import create_client, Client
+from typing import Dict, List, Any, Optional
 from .db_interface import DatabaseInterface
 from ..config import debug_log
-from supabase import create_client
-import os
 import time
 from functools import wraps
 
@@ -25,34 +29,26 @@ def retry_on_disconnect(max_retries=3, delay=1):
         return wrapper
     return decorator
 
+class DatabaseError(Exception):
+    """Custom exception for database errors"""
+    pass
+
 class SupabaseDatabase(DatabaseInterface):
-    _instance = None
-    _client = None
-    _url = None
-    _key = None
-
-    def __new__(cls, url=None, key=None):
-        if cls._instance is None:
-            cls._instance = super(SupabaseDatabase, cls).__new__(cls)
-            cls._url = url or os.getenv("SUPABASE_URL")
-            cls._key = key or os.getenv("SUPABASE_KEY")
-        return cls._instance
-
-    def __init__(self, url=None, key=None):
-        if not self._client:
-            self._initialize_client()
-
-    def _initialize_client(self):
-        if not self._url or not self._key:
-            raise ValueError("Missing Supabase credentials")
-        self._client = create_client(self._url, self._key)
-
-    @property
-    def supabase(self):
-        if not self._client:
-            self._initialize_client()
-        return self._client
-
+    """Database implementation for Supabase"""
+    
+    def __init__(self, supabase_url=None, supabase_key=None):
+        """Initialize Supabase connection with URL and key from parameters or environment variables"""
+        if not supabase_url:
+            supabase_url = os.environ.get("SUPABASE_URL")
+        if not supabase_key:
+            supabase_key = os.environ.get("SUPABASE_KEY")
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("SUPABASE_URL and SUPABASE_KEY must be provided or set as environment variables")
+            
+        self.supabase: Client = create_client(supabase_url, supabase_key)
+    
+    # Standard DatabaseInterface methods
     @retry_on_disconnect()
     def get_all(self, table: str) -> List[Dict[str, Any]]:
         debug_log(f"Supabase: Fetching all records from {table}")
@@ -90,90 +86,80 @@ class SupabaseDatabase(DatabaseInterface):
         except Exception as e:
             debug_log(f"Supabase error in get_filtered: {str(e)}")
             raise DatabaseError(str(e))
-
+    
+    # Implementation for the newer interface methods
+    def find(self, table: str) -> List[Dict[str, Any]]:
+        """Find all records in a table"""
+        try:
+            response = self.supabase.table(table).select("*").execute()
+            return response.data
+        except Exception as e:
+            print(f"Error in find operation for table {table}: {str(e)}")
+            return []
+    
+    def find_by_field(self, table: str, field: str, value: Any) -> List[Dict[str, Any]]:
+        """Find records in a table by field value"""
+        try:
+            response = self.supabase.table(table).select("*").eq(field, value).execute()
+            return response.data
+        except Exception as e:
+            print(f"Error in find_by_field operation for table {table}, field {field}: {str(e)}")
+            return []
+    
+    def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
+        """Get a single record by ID"""
+        try:
+            response = self.supabase.table(table).select("*").eq("id", id).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error in get operation for table {table}, id {id}: {str(e)}")
+            return None
+    
     def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        debug_log(f"Supabase: Creating record in {table} with data {data}")
+        """Create a new record"""
         try:
-            response = self.supabase.table(table).insert(data).execute()
-            debug_log(f"Supabase: Created record: {response.data[0]}")
-            return response.data[0]
+            # Clean data by removing None values if necessary
+            clean_data = {k: v for k, v in data.items() if v is not None}
+            
+            response = self.supabase.table(table).insert(clean_data).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            raise DatabaseError("Failed to create record, empty response")
         except Exception as e:
-            debug_log(f"Supabase error in create: {str(e)}")
-            raise DatabaseError(str(e))
-
+            print(f"Error in create operation for table {table}: {str(e)}")
+            raise DatabaseError(f"Failed to create record: {str(e)}")
+    
     def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-        debug_log(f"Supabase: Updating record in {table} with id {id} with data {data}")
+        """Update a record by ID"""
         try:
-            response = self.supabase.table(table).update(data).eq("id", id).execute()
-            debug_log(f"Supabase: Updated record: {response.data[0]}")
-            return response.data[0]
+            print(f"Updating {table} with ID {id}: {data}")
+            
+            # Clean data for update
+            clean_data = {k: v for k, v in data.items()}
+            
+            response = self.supabase.table(table).update(clean_data).eq("id", id).execute()
+            
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            
+            # If no data returned but no error, get the updated record
+            check_response = self.supabase.table(table).select("*").eq("id", id).execute()
+            if check_response.data and len(check_response.data) > 0:
+                return check_response.data[0]
+                
+            raise DatabaseError(f"Failed to update record in table {table} with ID {id}, empty response")
         except Exception as e:
-            debug_log(f"Supabase error in update: {str(e)}")
-            raise DatabaseError(str(e))
-
-    def delete(self, table: str, id: int) -> None:
-        debug_log(f"Supabase: Deleting record from {table} with id {id}")
+            print(f"Error in update operation for table {table}, id {id}: {str(e)}")
+            raise DatabaseError(f"Failed to update record: {str(e)}")
+    
+    def delete(self, table: str, id: int) -> bool:
+        """Delete a record by ID"""
         try:
-            self.supabase.table(table).delete().eq("id", id).execute()
-            debug_log(f"Supabase: Successfully deleted record with id {id}")
+            response = self.supabase.table(table).delete().eq("id", id).execute()
+            return len(response.data) > 0
         except Exception as e:
-            debug_log(f"Supabase error in delete: {str(e)}")
-            raise DatabaseError(str(e))
-
-    def find(self, table_name):
-        try:
-            response = self.supabase.table(table_name).select('*').execute()
-            if not response.data:
-                raise DatabaseError('No data found')
-            return response.data
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-    def get(self, table_name, item_id):
-        try:
-            response = self.supabase.table(table_name).select('*').eq('id', item_id).execute()
-            if not response.data:
-                raise DatabaseError('Item not found')
-            return response.data[0]
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-    def create(self, table_name, data):
-        try:
-            response = self.supabase.table(table_name).insert(data).execute()
-            if not response.data:
-                raise DatabaseError('Failed to create item')
-            return response.data[0]
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-    def update(self, table_name, item_id, data):
-        try:
-            response = self.supabase.table(table_name).update(data).eq('id', item_id).execute()
-            if not response.data:
-                raise DatabaseError('Failed to update item')
-            return response.data[0]
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-    def delete(self, table_name, item_id):
-        try:
-            response = self.supabase.table(table_name).delete().eq('id', item_id).execute()
-            if not response.data:
-                raise DatabaseError('Failed to delete item')
-            return response.data
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-    def find_by_field(self, table_name, field_name, field_value):
-        """Find records in a table where field_name equals field_value."""
-        try:
-            response = self.supabase.table(table_name).select('*').eq(field_name, field_value).execute()
-            if not response.data:
-                return []
-            return response.data
-        except Exception as e:
-            raise DatabaseError(str(e))
-
-class DatabaseError(Exception):
-    pass 
+            print(f"Error in delete operation for table {table}, id {id}: {str(e)}")
+            return False
+    

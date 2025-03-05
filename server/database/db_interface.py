@@ -1,8 +1,15 @@
+"""
+Database interface for abstracting database operations.
+This should be implemented by all database providers.
+"""
+
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from ..config import debug_log
 
 class DatabaseInterface(ABC):
+    """Abstract base class for database operations"""
+    
     @abstractmethod
     def get_all(self, table: str) -> List[Dict[str, Any]]:
         """Retrieve all records from a table"""
@@ -39,26 +46,32 @@ class DatabaseInterface(ABC):
         debug_log(f"DatabaseInterface: Deleting record from {table} with id {id}")
         raise NotImplementedError
 
-    def find(self, table_name):
-        """Find all records in a table."""
+    @abstractmethod
+    def find(self, table: str) -> List[Dict[str, Any]]:
+        """Find all records in a table"""
         pass
-
-    def find_by_field(self, table_name, field_name, field_value):
-        """Find records in a table where field_name equals field_value."""
+        
+    @abstractmethod
+    def find_by_field(self, table: str, field: str, value: Any) -> List[Dict[str, Any]]:
+        """Find records in a table by field value"""
         pass
-
-    def get(self, table_name, item_id):
-        """Get a single record by ID."""
+        
+    @abstractmethod
+    def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
+        """Get a single record by ID"""
         pass
-
-    def create(self, table_name, data):
-        """Create a new record."""
+        
+    @abstractmethod
+    def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new record"""
         pass
-
-    def update(self, table_name, item_id, data):
-        """Update an existing record."""
+        
+    @abstractmethod
+    def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a record by ID"""
         pass
-
-    def delete(self, table_name, item_id):
-        """Delete a record."""
+        
+    @abstractmethod
+    def delete(self, table: str, id: int) -> bool:
+        """Delete a record by ID"""
         pass

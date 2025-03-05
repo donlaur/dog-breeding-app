@@ -548,12 +548,12 @@ function LitterDetail() {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Button 
                   variant="contained" 
-                  fullWidth
+                  color="primary"
+                  onClick={() => navigate(`/dashboard/litters/edit/${id}`)}
                   startIcon={<EditIcon />}
-                  component={Link}
-                  to={`/dashboard/litters/${litter.id}/edit`}
+                  sx={{ mr: 1 }}
                 >
-                  EDIT LITTER
+                  Edit Litter
                 </Button>
                 
                 <Button 

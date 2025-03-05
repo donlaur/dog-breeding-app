@@ -1,3 +1,4 @@
+# server package initialization
 from flask import Flask
 from flask_cors import CORS
 from .config import debug_log, SUPABASE_URL, SUPABASE_KEY

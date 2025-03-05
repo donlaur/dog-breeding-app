@@ -95,67 +95,42 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
     @litters_bp.route("/<int:litter_id>", methods=["GET"])
     def get_litter(litter_id):
         try:
-            debug_log(f"Fetching litter with ID: {litter_id}")
+            print(f"Fetching litter with ID: {litter_id}")
             
-            # Get the litter
+            # Use the database abstraction layer 
             litter = db.get("litters", litter_id)
             
             if not litter:
-                debug_log(f"Litter not found with ID: {litter_id}")
-                response = jsonify({"error": f"Litter with ID {litter_id} not found"})
-                response.status_code = 404
-                response.headers.add('Access-Control-Allow-Origin', '*')
-                response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-                response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-                return response
+                return jsonify({"error": f"Litter with ID {litter_id} not found"}), 404
             
-            # If we have breed_id, get the breed details
-            if litter.get('breed_id'):
-                try:
-                    breed = db.get("breeds", litter['breed_id'])
-                    if breed:
-                        litter['breed'] = breed
-                except Exception as e:
-                    debug_log(f"Error fetching breed for litter: {str(e)}")
-            
-            # If we have dam_id, get the dam details
+            # If dam_id exists, get dam data
             if litter.get('dam_id'):
                 try:
                     dam = db.get("dogs", litter['dam_id'])
                     if dam:
                         litter['dam'] = dam
                 except Exception as e:
-                    debug_log(f"Error fetching dam for litter: {str(e)}")
+                    print(f"Error fetching dam data: {str(e)}")
             
-            # If we have sire_id, get the sire details
+            # If sire_id exists, get sire data
             if litter.get('sire_id'):
                 try:
                     sire = db.get("dogs", litter['sire_id'])
                     if sire:
                         litter['sire'] = sire
                 except Exception as e:
-                    debug_log(f"Error fetching sire for litter: {str(e)}")
-            
-            debug_log(f"Found litter: {litter}")
+                    print(f"Error fetching sire data: {str(e)}")
             
             # Add CORS headers
             response = jsonify(litter)
             response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
-            
+        
         except Exception as e:
-            debug_log(f"Error fetching litter: {str(e)}")
-            debug_log(traceback.format_exc())
-            
-            # Add CORS headers to error response
-            response = jsonify({"error": str(e)})
-            response.status_code = 500
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            return response
+            print(f"Error getting litter: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": str(e)}), 500
 
     @litters_bp.route("/", methods=["POST"])
     def create_litter():
@@ -220,27 +195,93 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
     @litters_bp.route("/<int:litter_id>", methods=["PUT"])
     def update_litter(litter_id):
         try:
-            # Use the abstracted db interface to check if litter exists
-            existing_litter = db.get("litters", litter_id)
+            # Log the incoming request for debugging
+            print(f"Updating litter {litter_id} with data: {request.json}")
             
-            if not existing_litter:
+            # First check if litter exists
+            litter = db.get("litters", litter_id)
+            
+            if not litter:
                 return jsonify({"error": f"Litter with ID {litter_id} not found"}), 404
             
-            data = request.get_json()
+            # Extract and validate data from request
+            data = request.json
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
             
-            # Use the abstracted db interface to update
-            updated_litter = db.update("litters", litter_id, data)
+            # Define allowed fields and their data types
+            allowed_fields = {
+                'litter_name': str,
+                'breed_id': (int, type(None)),
+                'sire_id': (int, type(None)),
+                'dam_id': (int, type(None)),
+                'whelp_date': (str, type(None)),
+                'expected_date': (str, type(None)),
+                'planned_date': (str, type(None)),
+                'available_date': (str, type(None)),
+                'status': str,
+                'price': (float, int, type(None)),
+                'deposit': (float, int, type(None)),
+                'extras': (str, type(None)),
+                'socialization': (str, type(None)),
+                'puppy_count': (int, type(None))
+            }
             
-            # Add CORS headers to response
-            response = jsonify(updated_litter)
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            return response
+            # Clean data before updating
+            clean_data = {}
             
+            # Filter and validate incoming data
+            for field, value in data.items():
+                if field in allowed_fields:
+                    # For empty strings or "null" values, set to None
+                    if value == "" or value == "null":
+                        clean_data[field] = None
+                    else:
+                        # Validate field types for non-null values
+                        if value is not None:
+                            expected_type = allowed_fields[field]
+                            # Convert number fields if needed
+                            if expected_type in [(int, type(None)), int] and isinstance(value, str):
+                                try:
+                                    clean_data[field] = int(value)
+                                except ValueError:
+                                    return jsonify({
+                                        "error": f"Invalid value for field '{field}'. Could not convert '{value}' to integer."
+                                    }), 400
+                            elif expected_type in [(float, int, type(None)), float] and isinstance(value, str):
+                                try:
+                                    clean_data[field] = float(value)
+                                except ValueError:
+                                    return jsonify({
+                                        "error": f"Invalid value for field '{field}'. Could not convert '{value}' to number."
+                                    }), 400
+                            else:
+                                clean_data[field] = value
+                        else:
+                            clean_data[field] = None
+            
+            print(f"Updating litter {litter_id} with clean data: {clean_data}")
+            
+            # If we have data to update, perform the update
+            if clean_data:
+                # Use the database abstraction layer to update
+                db.update("litters", litter_id, clean_data)
+                
+                # Get the updated litter
+                updated_litter = db.get("litters", litter_id)
+                
+                # Return the updated litter
+                return jsonify(updated_litter), 200
+            else:
+                return jsonify({"error": "No valid fields to update"}), 400
+                
         except Exception as e:
-            debug_log(f"Error updating litter: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+            # Log the full exception for debugging
+            print(f"Error updating litter {litter_id}: {str(e)}")
+            print(traceback.format_exc())
+            
+            # Return a helpful error message
+            return jsonify({"error": f"Failed to update litter: {str(e)}"}), 500
 
     @litters_bp.route("/<int:litter_id>", methods=["DELETE"])
     def delete_litter(litter_id):
