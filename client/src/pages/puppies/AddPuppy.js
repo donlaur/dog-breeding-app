@@ -123,8 +123,25 @@ function AddPuppy() {
         return;
       }
       
+      // Clean data for submission
+      const cleanData = { ...puppy };
+      
+      // Process numeric fields
+      ['weight_at_birth', 'weight_birth'].forEach(field => {
+        if (field in cleanData) {
+          if (cleanData[field] === '') {
+            cleanData[field] = null;
+          } else if (cleanData[field] !== null && cleanData[field] !== undefined) {
+            const parsed = parseFloat(cleanData[field]);
+            cleanData[field] = isNaN(parsed) ? null : parsed;
+          }
+        }
+      });
+      
+      console.log('Submitting puppy data with cleaned values:', cleanData);
+      
       // Use the addPuppyToLitter utility function
-      const response = await addPuppyToLitter(litterId, puppy);
+      const response = await addPuppyToLitter(litterId, cleanData);
       
       if (response.ok) {
         showSuccess("Puppy added successfully!");

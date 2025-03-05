@@ -294,12 +294,29 @@ export const addPuppyToLitter = async (litterId, puppyData) => {
     };
   }
 
-  // Ensure litter_id is properly formatted and included in the data
-  const dataWithLitterId = {
-    ...puppyData,
-    litter_id: parseInt(litterId)
-  };
+  // Create a clean copy of the data
+  const cleanData = { ...puppyData };
+  
+  // Ensure litter_id is properly formatted and included
+  cleanData.litter_id = parseInt(litterId);
+  
+  // Handle numeric fields properly - convert empty strings to null
+  const numericFields = ['weight_at_birth', 'price', 'deposit'];
+  for (const field of numericFields) {
+    if (field in cleanData) {
+      if (cleanData[field] === '' || cleanData[field] === undefined) {
+        cleanData[field] = null;
+      } else if (typeof cleanData[field] === 'string') {
+        const num = parseFloat(cleanData[field]);
+        if (!isNaN(num)) {
+          cleanData[field] = num;
+        } else {
+          cleanData[field] = null;
+        }
+      }
+    }
+  }
 
-  console.log(`Adding puppy to litter ${litterId}:`, dataWithLitterId);
-  return apiPost(`litters/${litterId}/puppies`, dataWithLitterId);
+  console.log(`Adding puppy to litter ${litterId} with clean data:`, cleanData);
+  return apiPost(`litters/${litterId}/puppies`, cleanData);
 };

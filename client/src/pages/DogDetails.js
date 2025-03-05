@@ -265,11 +265,11 @@ function DogDetails() {
     
     setLoadingLitters(true);
     try {
-      const endpoint = gender === 'male' 
+      const endpoint = gender === 'Male' 
         ? `${API_URL}/litters/sire/${dogId}` 
         : `${API_URL}/litters/dam/${dogId}`;
       
-      console.log(`Fetching ${gender === 'male' ? 'sired' : 'dam'} litters from: ${endpoint}`);
+      console.log(`Fetching ${gender === 'Male' ? 'sired' : 'dam'} litters from: ${endpoint}`);
       
       const response = await fetch(endpoint);
       
@@ -278,13 +278,35 @@ function DogDetails() {
         return;
       }
       
-      const data = await response.json();
-      console.log(`Found ${data.length} ${gender === 'male' ? 'sired' : 'dam'} litters`, data);
+      const littersData = await response.json();
+      console.log(`Found ${littersData.length} ${gender === 'Male' ? 'sired' : 'dam'} litters`, littersData);
       
-      if (gender === 'male') {
-        setSiredLitters(data);
+      // For each litter, fetch its puppies
+      const littersWithPuppies = await Promise.all(
+        littersData.map(async (litter) => {
+          try {
+            // Only fetch puppies for litters that have puppies
+            if (litter.num_puppies > 0) {
+              const puppiesResponse = await fetch(`${API_URL}/litters/${litter.id}/puppies`);
+              
+              if (puppiesResponse.ok) {
+                const puppiesData = await puppiesResponse.json();
+                return { ...litter, puppies: puppiesData || [] };
+              }
+            }
+            // Return litter with empty puppies array if fetch failed or no puppies
+            return { ...litter, puppies: [] };
+          } catch (error) {
+            console.error(`Error fetching puppies for litter ${litter.id}:`, error);
+            return { ...litter, puppies: [] };
+          }
+        })
+      );
+      
+      if (gender === 'Male') {
+        setSiredLitters(littersWithPuppies);
       } else {
-        setDamLitters(data);
+        setDamLitters(littersWithPuppies);
       }
     } catch (error) {
       console.error(`Error fetching litters:`, error);
@@ -515,134 +537,238 @@ function DogDetails() {
                   <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
                     <PetsIcon sx={{ mr: 1 }} />
                     <Typography variant="subtitle1">
-                      {dog.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
+                      {dog.gender === 'Male' ? 'Sired Litters' : 'Dam Litters'}
                     </Typography>
                     <Button 
                       variant="outlined" 
                       size="small" 
                       sx={{ ml: 'auto' }}
                       component={Link}
-                      to="/dashboard/litters/new"
-                      startIcon={<AddIcon />}
+                      to="/dashboard/litters"
                     >
-                      New Litter
+                      View All Litters
                     </Button>
                   </Box>
                   
-                  <Box sx={{ mt: 4 }}>
-                    <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <PetsIcon sx={{ mr: 1 }} />
-                      {dog?.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
-                    </Typography>
-
-                    {loadingLitters ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress size={24} />
+                  {loadingLitters ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                    ) : dog?.gender === 'Male' && siredLitters.length > 0 ? (
+                      <Box>
+                        {siredLitters.map((litter) => (
+                          <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }} key={litter.id}>
+                            <Box sx={{ 
+                              p: 2, 
+                              backgroundColor: '#f5f5f5',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 2 }}>
+                                  {litter.litter_name || `Litter #${litter.id}`}
+                                </Typography>
+                                <Chip 
+                                  label={litter.status || 'Unknown'} 
+                                  color={
+                                    litter.status === 'Born' ? 'success' :
+                                    litter.status === 'Expected' ? 'warning' :
+                                    litter.status === 'Planned' ? 'info' : 'default'
+                                  } 
+                                  size="small" 
+                                  sx={{ mr: 2 }}
+                                />
+                                <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                                  Dam: {litter.dam?.call_name || litter.dam?.name || `#${litter.dam_id || 'Unknown'}`}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {litter.whelp_date ? 
+                                    `Born: ${new Date(litter.whelp_date).toLocaleDateString()}` : 
+                                    litter.expected_date ? 
+                                    `Expected: ${new Date(litter.expected_date).toLocaleDateString()}` : 
+                                    'Date not set'}
+                                </Typography>
+                              </Box>
+                              <Button 
+                                variant="outlined" 
+                                size="small" 
+                                component={Link} 
+                                to={`/dashboard/litters/${litter.id}`}
+                              >
+                                Litter Details
+                              </Button>
+                            </Box>
+                            
+                            {/* Puppies Section */}
+                            <Box sx={{ p: 2 }}>
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Puppies ({litter.puppies?.length || litter.num_puppies || 0})
+                              </Typography>
+                              
+                              {(!litter.puppies || litter.puppies.length === 0) ? (
+                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  {litter.num_puppies > 0 ? 
+                                    `This litter has ${litter.num_puppies} puppies, but they haven't been added individually yet.` : 
+                                    'No puppies have been added to this litter yet.'}
+                                </Typography>
+                              ) : (
+                                <Grid container spacing={1}>
+                                  {litter.puppies.map(puppy => (
+                                    <Grid item xs={12} sm={6} md={4} lg={3} key={puppy.id}>
+                                      <Paper 
+                                        variant="outlined" 
+                                        sx={{ 
+                                          p: 1.5, 
+                                          display: 'flex', 
+                                          alignItems: 'center',
+                                          '&:hover': { 
+                                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                            cursor: 'pointer'
+                                          }
+                                        }}
+                                        onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
+                                      >
+                                        {puppy.gender === 'Male' ? (
+                                          <MaleIcon color="primary" sx={{ mr: 1 }} />
+                                        ) : puppy.gender === 'Female' ? (
+                                          <FemaleIcon color="error" sx={{ mr: 1 }} />
+                                        ) : (
+                                          <PetsIcon sx={{ mr: 1 }} />
+                                        )}
+                                        <Box>
+                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                            {puppy.name || `Puppy #${puppy.id}`}
+                                          </Typography>
+                                          <Typography variant="caption" color="text.secondary">
+                                            {puppy.color || 'Unknown color'}
+                                          </Typography>
+                                        </Box>
+                                      </Paper>
+                                    </Grid>
+                                  ))}
+                                </Grid>
+                              )}
+                            </Box>
+                          </Paper>
+                        ))}
                       </Box>
-                    ) : dog?.gender === 'male' && siredLitters.length > 0 ? (
-                      <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                              <TableCell>Dam</TableCell>
-                              <TableCell>Whelp Date</TableCell>
-                              <TableCell>Status</TableCell>
-                              <TableCell>Puppies</TableCell>
-                              <TableCell>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {siredLitters.map((litter) => (
-                              <TableRow key={litter.id}>
-                                <TableCell>
-                                  {litter.dam?.call_name || `Dam #${litter.dam_id || 'Unknown'}`}
-                                </TableCell>
-                                <TableCell>
-                                  {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip 
-                                    label={litter.status || 'Unknown'} 
-                                    color={litter.status === 'Born' ? 'success' : 'primary'} 
-                                    size="small" 
-                                  />
-                                </TableCell>
-                                <TableCell>{litter.num_puppies || 0}</TableCell>
-                                <TableCell>
-                                  <Button 
-                                    size="small" 
-                                    component={Link} 
-                                    to={`/dashboard/litters/${litter.id}`}
-                                  >
-                                    View
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    ) : dog?.gender === 'female' && damLitters.length > 0 ? (
-                      <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                              <TableCell>Sire</TableCell>
-                              <TableCell>Whelp Date</TableCell>
-                              <TableCell>Status</TableCell>
-                              <TableCell>Puppies</TableCell>
-                              <TableCell>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {damLitters.map((litter) => (
-                              <TableRow key={litter.id}>
-                                <TableCell>
-                                  {litter.sire?.call_name || `Sire #${litter.sire_id || 'Unknown'}`}
-                                </TableCell>
-                                <TableCell>
-                                  {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip 
-                                    label={litter.status || 'Unknown'} 
-                                    color={litter.status === 'Born' ? 'success' : 'primary'} 
-                                    size="small" 
-                                  />
-                                </TableCell>
-                                <TableCell>{litter.num_puppies || 0}</TableCell>
-                                <TableCell>
-                                  <Button 
-                                    size="small" 
-                                    component={Link} 
-                                    to={`/dashboard/litters/${litter.id}`}
-                                  >
-                                    View
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
+                    ) : dog?.gender === 'Female' && damLitters.length > 0 ? (
+                      <Box>
+                        {damLitters.map((litter) => (
+                          <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }} key={litter.id}>
+                            <Box sx={{ 
+                              p: 2, 
+                              backgroundColor: '#f5f5f5',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 2 }}>
+                                  {litter.litter_name || `Litter #${litter.id}`}
+                                </Typography>
+                                <Chip 
+                                  label={litter.status || 'Unknown'} 
+                                  color={
+                                    litter.status === 'Born' ? 'success' :
+                                    litter.status === 'Expected' ? 'warning' :
+                                    litter.status === 'Planned' ? 'info' : 'default'
+                                  } 
+                                  size="small" 
+                                  sx={{ mr: 2 }}
+                                />
+                                <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                                  Sire: {litter.sire?.call_name || litter.sire?.name || `#${litter.sire_id || 'Unknown'}`}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {litter.whelp_date ? 
+                                    `Born: ${new Date(litter.whelp_date).toLocaleDateString()}` : 
+                                    litter.expected_date ? 
+                                    `Expected: ${new Date(litter.expected_date).toLocaleDateString()}` : 
+                                    'Date not set'}
+                                </Typography>
+                              </Box>
+                              <Button 
+                                variant="outlined" 
+                                size="small" 
+                                component={Link} 
+                                to={`/dashboard/litters/${litter.id}`}
+                              >
+                                Litter Details
+                              </Button>
+                            </Box>
+                            
+                            {/* Puppies Section */}
+                            <Box sx={{ p: 2 }}>
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Puppies ({litter.puppies?.length || litter.num_puppies || 0})
+                              </Typography>
+                              
+                              {(!litter.puppies || litter.puppies.length === 0) ? (
+                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  {litter.num_puppies > 0 ? 
+                                    `This litter has ${litter.num_puppies} puppies, but they haven't been added individually yet.` : 
+                                    'No puppies have been added to this litter yet.'}
+                                </Typography>
+                              ) : (
+                                <Grid container spacing={1}>
+                                  {litter.puppies.map(puppy => (
+                                    <Grid item xs={12} sm={6} md={4} lg={3} key={puppy.id}>
+                                      <Paper 
+                                        variant="outlined" 
+                                        sx={{ 
+                                          p: 1.5, 
+                                          display: 'flex', 
+                                          alignItems: 'center',
+                                          '&:hover': { 
+                                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                            cursor: 'pointer'
+                                          }
+                                        }}
+                                        onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
+                                      >
+                                        {puppy.gender === 'Male' ? (
+                                          <MaleIcon color="primary" sx={{ mr: 1 }} />
+                                        ) : puppy.gender === 'Female' ? (
+                                          <FemaleIcon color="error" sx={{ mr: 1 }} />
+                                        ) : (
+                                          <PetsIcon sx={{ mr: 1 }} />
+                                        )}
+                                        <Box>
+                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                            {puppy.name || `Puppy #${puppy.id}`}
+                                          </Typography>
+                                          <Typography variant="caption" color="text.secondary">
+                                            {puppy.color || 'Unknown color'}
+                                          </Typography>
+                                        </Box>
+                                      </Paper>
+                                    </Grid>
+                                  ))}
+                                </Grid>
+                              )}
+                            </Box>
+                          </Paper>
+                        ))}
+                      </Box>
                     ) : (
                       <Box sx={{ textAlign: 'center', py: 3, px: 2, backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                          No litters {dog?.gender === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
+                          No litters {dog?.gender === 'Male' ? 'sired by this dog' : 'recorded for this dam'} yet.
                         </Typography>
                         <Button 
                           variant="outlined" 
                           component={Link} 
-                          to="/dashboard/litters/new" 
+                          to="/dashboard/litters" 
                           sx={{ mt: 1 }}
                           size="small"
                         >
-                          Create Litter
+                          View All Litters
                         </Button>
                       </Box>
                     )}
                   </Box>
-                </Box>
               )}
               
               {activeTab === 3 && (

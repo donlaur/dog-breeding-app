@@ -13,7 +13,7 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
     weight: '',
     birth_date: null,
     notes: '',
-    status: 'Available',
+    status: initialData.status || 'Available', // Ensure status is preserved from initialData
     ...initialData
   });
 
@@ -96,7 +96,12 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
     if (!puppy.name) newErrors.name = 'Name is required';
     if (!puppy.gender) newErrors.gender = 'Gender is required';
     if (!puppy.color) newErrors.color = 'Color is required';
-    if (!puppy.status) newErrors.status = 'Status is required';
+    
+    // Make sure status is set to a valid value
+    if (!puppy.status) {
+      // Default to Available if not set
+      puppy.status = 'Available';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -109,11 +114,26 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
       // Format data for submission
       const formattedData = { ...puppy };
       
-      // Convert weight to number if present
-      if (formattedData.weight) {
-        formattedData.weight = Number(formattedData.weight);
+      // Convert numeric fields to proper numbers or null
+      const numericFields = ['weight', 'weight_at_birth'];
+      
+      numericFields.forEach(field => {
+        if (field in formattedData) {
+          if (formattedData[field] === '' || formattedData[field] === undefined) {
+            formattedData[field] = null;
+          } else {
+            const num = Number(formattedData[field]);
+            formattedData[field] = isNaN(num) ? null : num;
+          }
+        }
+      });
+      
+      // If we have weight but no weight_at_birth, copy it over
+      if (formattedData.weight !== undefined && formattedData.weight_at_birth === undefined) {
+        formattedData.weight_at_birth = formattedData.weight;
       }
       
+      console.log('PuppyForm submitting data:', formattedData);
       onSave(formattedData);
     }
   };

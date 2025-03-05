@@ -409,15 +409,20 @@ function LitterDetail() {
                       {litter.dam ? (
                         <>
                           <Typography variant="body1">
-                            {litter.dam.call_name || 'Unnamed'}
+                            {litter.dam.call_name || litter.dam.name || 'Unnamed'}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             ID: {litter.dam_id}
                           </Typography>
                           {litter.dam.birth_date && (
-                            <Typography variant="body2" color="text.secondary">
-                              Born: {new Date(litter.dam.birth_date).toLocaleDateString()}
-                            </Typography>
+                            <>
+                              <Typography variant="body2" color="text.secondary">
+                                Born: {new Date(litter.dam.birth_date).toLocaleDateString()}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Age: {formatAge(litter.dam.birth_date)}
+                              </Typography>
+                            </>
                           )}
                         </>
                       ) : (
@@ -438,15 +443,20 @@ function LitterDetail() {
                       {litter.sire ? (
                         <>
                           <Typography variant="body1">
-                            {litter.sire.call_name || 'Unnamed'}
+                            {litter.sire.call_name || litter.sire.name || 'Unnamed'}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             ID: {litter.sire_id}
                           </Typography>
                           {litter.sire.birth_date && (
-                            <Typography variant="body2" color="text.secondary">
-                              Born: {new Date(litter.sire.birth_date).toLocaleDateString()}
-                            </Typography>
+                            <>
+                              <Typography variant="body2" color="text.secondary">
+                                Born: {new Date(litter.sire.birth_date).toLocaleDateString()}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Age: {formatAge(litter.sire.birth_date)}
+                              </Typography>
+                            </>
                           )}
                         </>
                       ) : (
@@ -510,7 +520,7 @@ function LitterDetail() {
                             variant="outlined" 
                             sx={{ mt: 1 }}
                             component={Link}
-                            to={`/dashboard/dogs/${puppy.id}`}
+                            to={`/dashboard/puppies/${puppy.id}`}
                           >
                             View Details
                           </Button>
