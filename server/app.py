@@ -47,14 +47,25 @@ def create_app():
     app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
     app.register_blueprint(create_puppies_bp(db), url_prefix='/api/puppies')
     
-    # Debug pages blueprint
+    # Debug pages blueprint - add more detailed debugging
     try:
+        print("Attempting to create pages blueprint...")
         pages_bp = create_pages_blueprint(db)
-        print("Pages blueprint created successfully")
+        print(f"Pages blueprint created successfully: {pages_bp}")
+        
+        print("Attempting to register pages blueprint...")
         app.register_blueprint(pages_bp, url_prefix='/api/pages')
         print("Pages blueprint registered successfully")
+        
+        # Print all routes after registration
+        print("\nRoutes after registering pages blueprint:")
+        for rule in app.url_map.iter_rules():
+            if 'pages' in rule.rule:
+                print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
     except Exception as e:
+        import traceback
         print(f"Error registering pages blueprint: {e}")
+        print(traceback.format_exc())
     
     # Basic error handler just for 404 errors
     @app.errorhandler(404)

@@ -1,13 +1,20 @@
+"""
+This is a standalone test app that can be used to test the CMS API without the main app.
+Run it with: python test_pages_api.py
+"""
+
 from flask import Flask, jsonify, Blueprint
+import os
 
 # Simple mock database
 class MockDB:
     def __init__(self):
         self.pages = []
 
-# Create a pages blueprint
+# Create a CMS pages blueprint
 def create_pages_blueprint(db):
-    pages_bp = Blueprint('pages', __name__)
+    # Use a unique name for the blueprint
+    pages_bp = Blueprint('cms_pages', __name__)
     
     @pages_bp.route('/test', methods=['GET'])
     def test_route():
@@ -42,22 +49,32 @@ def create_pages_blueprint(db):
     
     return pages_bp
 
-# Create a simple Flask app
+# Create a new standalone Flask app
 app = Flask(__name__)
 
 # Create a mock database
 db = MockDB()
 
-# Register the pages blueprint
+# Create the blueprint
 pages_bp = create_pages_blueprint(db)
+
+print(f"Blueprint created: {pages_bp}")
+print(f"Blueprint name: {pages_bp.name}")
+print(f"Blueprint import_name: {pages_bp.import_name}")
+
+# Register the blueprint with the app
 app.register_blueprint(pages_bp, url_prefix='/api/pages')
 
 # Add a simple route to the main app
 @app.route('/')
 def hello():
-    return "Hello World! Try /api/pages or /api/pages/test"
+    return "CMS API Test! Try /api/pages or /api/pages/test"
 
 if __name__ == '__main__':
+    print("\n=== Environment ===")
+    print(f"PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
+    print(f"Working directory: {os.getcwd()}")
+    
     # Print all registered routes
     print("\n=== Registered routes: ===")
     for rule in app.url_map.iter_rules():

@@ -12,7 +12,8 @@ export const PageProvider = ({ children }) => {
   const { get, post, put, remove } = useApi();
 
   // Mock data storage
-  const mockData = [
+  // This needs to be maintained in component state, but we'll initialize it with mock data
+  const initialPages = [
     {
       id: 1,
       title: "About Us",
@@ -36,20 +37,15 @@ export const PageProvider = ({ children }) => {
       updated_at: "2025-03-05T00:00:00"
     }
   ];
+  
+  // Initialize the mockData with initialPages if pages array is empty
+  const mockData = pages.length === 0 ? [...initialPages] : [...pages];
 
-  // Fetch all pages
-  const fetchPages = async () => {
-    setLoading(true);
-    try {
-      console.log('Using mock pages data');
-      setPages([...mockData]);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch pages');
-      console.error('Error fetching pages:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Fetch all pages - simplified to avoid any async issues
+  const fetchPages = () => {
+    console.log('Using mock pages data');
+    setPages(initialPages);
+    setLoading(false);
   };
 
   // Fetch a page by ID
@@ -74,11 +70,16 @@ export const PageProvider = ({ children }) => {
     }
   };
 
-  // Create a new page
+  // Create a new page - simplified
   const createPage = async (pageData) => {
     try {
-      // Mock API response
-      const newId = mockData.length > 0 ? Math.max(...mockData.map(p => p.id)) + 1 : 1;
+      // Create a copy of current pages
+      const currentPages = [...pages];
+      
+      // Generate a new ID
+      const newId = currentPages.length > 0 ? Math.max(...currentPages.map(p => p.id)) + 1 : 1;
+      
+      // Create the new page
       const newPage = {
         id: newId,
         ...pageData,
@@ -86,9 +87,8 @@ export const PageProvider = ({ children }) => {
         updated_at: new Date().toISOString()
       };
       
-      // Update both mockData and state
-      mockData.push(newPage);
-      setPages([...mockData]);
+      // Add to array and update state
+      setPages([...currentPages, newPage]);
       return newPage;
     } catch (err) {
       console.error('Error creating page:', err);
@@ -96,27 +96,28 @@ export const PageProvider = ({ children }) => {
     }
   };
 
-  // Update a page
+  // Update a page - simplified
   const updatePage = async (id, pageData) => {
     try {
-      // Find the page in mockData
-      const pageIndex = mockData.findIndex(p => p.id === parseInt(id));
+      // Find the page in current pages
+      const currentPages = [...pages];
+      const pageIndex = currentPages.findIndex(p => p.id === parseInt(id));
       if (pageIndex === -1) {
         throw new Error('Page not found');
       }
       
-      // Update the page in mockData
+      // Create updated page
       const updatedPage = {
-        ...mockData[pageIndex],
+        ...currentPages[pageIndex],
         ...pageData,
         updated_at: new Date().toISOString()
       };
       
-      // Replace the old page with the updated one
-      mockData[pageIndex] = updatedPage;
+      // Replace the page
+      currentPages[pageIndex] = updatedPage;
       
-      // Update state
-      setPages([...mockData]);
+      // Update state with new array
+      setPages(currentPages);
       return updatedPage;
     } catch (err) {
       console.error('Error updating page:', err);
@@ -124,17 +125,14 @@ export const PageProvider = ({ children }) => {
     }
   };
 
-  // Delete a page
+  // Delete a page - simplified
   const deletePage = async (id) => {
     try {
-      // Remove from mockData
-      const index = mockData.findIndex(page => page.id === parseInt(id));
-      if (index !== -1) {
-        mockData.splice(index, 1);
-      }
+      // Filter out the page
+      const filteredPages = pages.filter(page => page.id !== parseInt(id));
       
       // Update state
-      setPages([...mockData]);
+      setPages(filteredPages);
       return true;
     } catch (err) {
       console.error('Error deleting page:', err);
