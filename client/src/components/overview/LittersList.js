@@ -107,7 +107,7 @@ const LittersList = ({
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <FemaleIcon sx={{ mr: 1, color: 'error.light', fontSize: '1rem' }} />
                         <Typography variant="body2">
-                          {litter.dam_name || 'Unknown Dam'}
+                          {litter.dam?.call_name || litter.dam?.name || (litter.dam_id ? `Dam #${litter.dam_id}` : 'Unknown Dam')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -115,7 +115,7 @@ const LittersList = ({
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <MaleIcon sx={{ mr: 1, color: 'primary.light', fontSize: '1rem' }} />
                         <Typography variant="body2">
-                          {litter.sire_name || 'Unknown Sire'}
+                          {litter.sire?.call_name || litter.sire?.name || (litter.sire_id ? `Sire #${litter.sire_id}` : 'Unknown Sire')}
                         </Typography>
                       </Box>
                     </Grid>
@@ -125,22 +125,13 @@ const LittersList = ({
                     <Typography variant="body2" color="text.secondary">
                       {litter.whelp_date ? `Born ${formatDate(litter.whelp_date)}` : 'Due date not set'}
                     </Typography>
-                    {litter.expected_size && (
+                    {litter.num_puppies > 0 && (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {litter.puppy_count < litter.expected_size ? (
-                          <Chip
-                            icon={<WarningIcon sx={{ fontSize: '1rem' }} />}
-                            label={`${litter.puppy_count || 0}/${litter.expected_size} puppies`}
-                            color="warning"
-                            size="small"
-                          />
-                        ) : (
-                          <Chip
-                            label={`${litter.puppy_count} puppies`}
-                            color="success"
-                            size="small"
-                          />
-                        )}
+                        <Chip
+                          label={`${litter.num_puppies} puppies`}
+                          color="success"
+                          size="small"
+                        />
                       </Box>
                     )}
                   </Box>

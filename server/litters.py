@@ -73,6 +73,28 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
             
             debug_log(f"Found {len(litters)} litters")
             
+            # For each litter, add dam and sire data
+            for litter in litters:
+                # If dam_id exists, get dam data
+                if litter.get('dam_id'):
+                    try:
+                        dam = db.get("dogs", litter['dam_id'])
+                        if dam:
+                            litter['dam'] = dam
+                    except Exception as e:
+                        print(f"Error fetching dam data for litter {litter.get('id')}: {str(e)}")
+                
+                # If sire_id exists, get sire data
+                if litter.get('sire_id'):
+                    try:
+                        sire = db.get("dogs", litter['sire_id'])
+                        if sire:
+                            litter['sire'] = sire
+                    except Exception as e:
+                        print(f"Error fetching sire data for litter {litter.get('id')}: {str(e)}")
+            
+            debug_log(f"Processed all litters with dam/sire data")
+            
             # Add CORS headers to response
             response = jsonify(litters)
             response.headers.add('Access-Control-Allow-Origin', '*')
