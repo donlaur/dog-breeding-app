@@ -7,6 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme';
 import { AuthProvider } from './context/AuthContext';
 import { HeatProvider } from './context/HeatContext';
+import { PageProvider } from './context/PageContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './utils/errorBoundary';
@@ -34,6 +35,12 @@ import DogDetails from './pages/DogDetails';
 import Litters from './pages/litters';
 import ManagePuppies from './pages/litters/ManagePuppies';
 
+// CMS Pages
+import ManagePages from './pages/pages/ManagePages';
+import PageForm from './pages/pages/PageForm';
+import PagePreview from './pages/pages/PagePreview';
+import PublicPage from './pages/PublicPage';
+
 function App() {
   // Use a ref to track if interceptors are installed
   const interceptorsInstalledRef = useRef(false);
@@ -60,9 +67,10 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <HeatProvider>
-          <ErrorBoundary>
-            <DebugRouteInfo />
-            <Routes>
+          <PageProvider>
+            <ErrorBoundary>
+              <DebugRouteInfo />
+              <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
@@ -93,11 +101,21 @@ function App() {
                 <Route path="heats/add" element={<AddHeat />} />
                 <Route path="heats/edit/:id" element={<EditHeat />} />
                 <Route path="calendar" element={<CalendarPage />} />
+                
+                {/* CMS Pages Management */}
+                <Route path="pages" element={<ManagePages />} />
+                <Route path="pages/add" element={<PageForm />} />
+                <Route path="pages/edit/:id" element={<PageForm />} />
+                <Route path="pages/preview/:id" element={<PagePreview />} />
               </Route>
+              
+              {/* Public page routes */}
+              <Route path="page/:slug" element={<PublicPage />} />
               
               <Route path="*" element={<Overview />} />
             </Routes>
           </ErrorBoundary>
+          </PageProvider>
         </HeatProvider>
       </AuthProvider>
     </ThemeProvider>

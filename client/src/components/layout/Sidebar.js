@@ -64,6 +64,16 @@ function Sidebar() {
         </div>
         
         <div className="pt-4">
+          <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Website</h3>
+          <Link
+            to="/dashboard/pages"
+            className={`block p-2 rounded ${isActive('/dashboard/pages') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+          >
+            Manage Pages
+          </Link>
+        </div>
+        
+        <div className="pt-4">
           <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Settings</h3>
           <Link
             to="/dashboard/profile"

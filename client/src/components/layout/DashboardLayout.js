@@ -42,6 +42,7 @@ import {
   SettingsOutlined as SettingsIcon,
   Search as SearchIcon,
   AccountCircle,
+  Article as PageIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -121,6 +122,7 @@ const DashboardLayout = () => {
     { path: '/dashboard/litters', label: 'Litters', icon: <PuppyIcon /> },
     { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> },
     { path: '/dashboard/calendar', label: 'Events', icon: <CalendarIcon /> },
+    { path: '/dashboard/pages', label: 'Pages', icon: <PageIcon /> },
     { path: '/dashboard/profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
   
