@@ -342,19 +342,22 @@ function LitterDetail() {
               <Chip label="Born" color="success" size="small" sx={{ ml: 2 }} />
             )}
           </Box>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleAddPuppy}
-          >
-            ADD PUPPY
-          </Button>
+          {/* Only show ADD PUPPY button if we haven't reached the puppy limit or if no limit is set */}
+          {(!litter.num_puppies || puppies.length < litter.num_puppies) && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAddPuppy}
+            >
+              ADD PUPPY
+            </Button>
+          )}
         </Box>
         
         {litter.num_puppies > 0 && puppies.length < litter.num_puppies && (
           <Alert severity="warning" sx={{ mb: 4 }}>
-            This litter has {litter.num_puppies} puppies recorded, but {puppies.length > 0 ? 'only ' + puppies.length + ' have' : 'none have'} been added yet. You need to add {litter.num_puppies - puppies.length} more puppies.
+            This litter has {litter.num_puppies} puppies recorded, but {puppies.length > 0 ? 'only ' + puppies.length + ' have' : 'none have'} been added yet. You need to add {litter.num_puppies - puppies.length} more {litter.num_puppies - puppies.length === 1 ? 'puppy' : 'puppies'}.
           </Alert>
         )}
         
@@ -575,15 +578,18 @@ function LitterDetail() {
                   MANAGE PUPPIES
                 </Button>
                 
-                <Button 
-                  variant="outlined" 
-                  color="warning"
-                  fullWidth
-                  startIcon={<AddIcon />}
-                  onClick={handleAddPuppy}
-                >
-                  ADD MISSING PUPPIES
-                </Button>
+                {/* Only show ADD MISSING PUPPIES button if there are puppies missing */}
+                {(puppies.length < litter.num_puppies) && (
+                  <Button 
+                    variant="outlined" 
+                    color="warning"
+                    fullWidth
+                    startIcon={<AddIcon />}
+                    onClick={handleAddPuppy}
+                  >
+                    ADD MISSING PUPPIES
+                  </Button>
+                )}
                 
                 <Button 
                   variant="outlined" 
