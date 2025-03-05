@@ -198,20 +198,106 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
                         debug_log(f"Could not convert {field} value '{data[field]}' to int")
                         data[field] = None
             
+            # Ensure numeric fields are properly handled
+            for field in ['price', 'deposit', 'num_puppies', 'puppy_count']:
+                if field in data:
+                    if data[field] == '' or data[field] is None:
+                        data[field] = None
+                    else:
+                        # Try to convert to number if it's a string
+                        try:
+                            if field in ['price', 'deposit']:
+                                data[field] = float(data[field])
+                            else:
+                                data[field] = int(data[field])
+                            debug_log(f"Converted {field} to number: {data[field]}")
+                        except (ValueError, TypeError):
+                            debug_log(f"Could not convert {field} value '{data[field]}' to number")
+                            data[field] = None
+            
+            # Ensure date fields are properly handled
+            for field in ['whelp_date', 'expected_date', 'planned_date', 'available_date']:
+                if field in data:
+                    if data[field] == '' or data[field] is None:
+                        data[field] = None
+                    debug_log(f"Date field {field}: {data[field]}")
+            
             debug_log(f"Processed data for litter creation: {data}")
             
-            # Create the litter
-            litter = db.create("litters", data)
+            # More detailed logging about the database connection
+            debug_log(f"Database object type: {type(db)}")
+            debug_log(f"Database methods: {dir(db)}")
             
-            # Add CORS headers
-            response = make_response(jsonify(litter))
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            return response
+            try:
+                import os
+                # Create a debug file with absolute path
+                log_path = os.path.join(os.getcwd(), "litter_debug_final.log")
+                print(f"Writing debug log to: {log_path}")
+                with open(log_path, "w") as f:
+                    f.write(f"Attempting to create litter with data: {data}\n")
+                    f.write(f"Current working directory: {os.getcwd()}\n")
+                    f.write(f"Database object type: {type(db)}\n")
+                    f.write(f"Database methods: {dir(db)}\n")
+                
+                # Create a completely clean data object - special handling for Supabase
+                clean_data = {}
+                for key, value in data.items():
+                    # Skip empty strings and None values
+                    if value == "" or value is None:
+                        continue
+                    
+                    # Include only non-empty values
+                    clean_data[key] = value
+                
+                # Special handling for date fields with empty strings in original data
+                for field in ['expected_date', 'planned_date', 'available_date']:
+                    if field in data and field not in clean_data:
+                        # Explicitly remove these fields from data to avoid them getting through
+                        if field in data:
+                            del data[field]
+                
+                # Record the cleaned data
+                with open(log_path, "a") as f:
+                    f.write(f"Cleaned data for database: {clean_data}\n")
+                    f.write(f"Data after date field cleaning: {data}\n")
+                
+                # Create the litter
+                debug_log("Attempting to create litter in database...")
+                debug_log(f"Using cleaned data: {clean_data}")
+                litter = db.create("litters", clean_data)
+                debug_log(f"Successfully created litter: {litter}")
+                
+                # Record success in debug file
+                with open(log_path, "a") as f:
+                    f.write(f"Successfully created litter: {litter}\n")
+                
+                # Add CORS headers
+                response = make_response(jsonify(litter))
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+                response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+                return response
+            except Exception as inner_e:
+                # Record error in debug file
+                with open(log_path, "a") as f:
+                    f.write(f"Database error creating litter: {str(inner_e)}\n")
+                    f.write(f"Database error traceback: {traceback.format_exc()}\n")
+                
+                debug_log(f"Database error creating litter: {str(inner_e)}")
+                debug_log(f"Database error traceback: {traceback.format_exc()}")
+                return jsonify({"error": f"Database error: {str(inner_e)}"}), 500
             
         except Exception as e:
+            # Record general error in debug file
+            import os
+            # If log_path is not defined yet (if outer try-except failed)
+            log_path = os.path.join(os.getcwd(), "litter_debug_final.log")
+            with open(log_path, "a") as f:
+                f.write(f"General error creating litter: {str(e)}\n")
+                f.write(f"Error traceback: {traceback.format_exc()}\n")
+            
             debug_log(f"Error creating litter: {str(e)}")
+            debug_log(f"Error traceback: {traceback.format_exc()}")
             return jsonify({"error": f"Failed to create litter: {str(e)}"}), 500
 
     @litters_bp.route("/<int:litter_id>", methods=["PUT"])

@@ -11,132 +11,120 @@ export const PageProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { get, post, put, remove } = useApi();
 
-  // Mock data storage
-  // This needs to be maintained in component state, but we'll initialize it with mock data
-  const initialPages = [
-    {
-      id: 1,
-      title: "About Us",
-      slug: "about-us",
-      content: "<p>This is a test page about us.</p>",
-      template: "about",
-      status: "published",
-      meta_description: "Learn more about our breeding program",
-      created_at: "2025-03-05T00:00:00",
-      updated_at: "2025-03-05T00:00:00"
-    },
-    {
-      id: 2,
-      title: "Contact Us",
-      slug: "contact",
-      content: "<p>Contact information here.</p>",
-      template: "contact",
-      status: "published",
-      meta_description: "Get in touch with us",
-      created_at: "2025-03-05T00:00:00",
-      updated_at: "2025-03-05T00:00:00"
+  // Fetch all pages
+  const fetchPages = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get('/pages');
+      if (response && Array.isArray(response)) {
+        console.log('Fetched pages from API:', response.length);
+        setPages(response);
+      } else {
+        console.log('No pages found or invalid response format:', response);
+        setPages([]);
+      }
+    } catch (err) {
+      console.error('Error fetching pages:', err);
+      setError('Failed to load pages. Please try again later.');
+      setPages([]);
+    } finally {
+      setLoading(false);
     }
-  ];
-  
-  // Initialize the mockData with initialPages if pages array is empty
-  const mockData = pages.length === 0 ? [...initialPages] : [...pages];
-
-  // Fetch all pages - simplified to avoid any async issues
-  const fetchPages = () => {
-    console.log('Using mock pages data');
-    setPages(initialPages);
-    setLoading(false);
   };
 
   // Fetch a page by ID
   const fetchPageById = async (id) => {
     try {
-      const page = mockData.find(p => p.id === parseInt(id));
-      return page || null;
+      setLoading(true);
+      const response = await get(`/pages/${id}`);
+      if (response && response.id) {
+        return response;
+      }
+      return null;
     } catch (err) {
       console.error('Error fetching page by ID:', err);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
   // Fetch a page by slug
   const fetchPageBySlug = async (slug) => {
     try {
-      const page = mockData.find(p => p.slug === slug);
-      return page || null;
+      setLoading(true);
+      const response = await get(`/pages/slug/${slug}`);
+      if (response && response.id) {
+        return response;
+      }
+      return null;
     } catch (err) {
       console.error('Error fetching page by slug:', err);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Create a new page - simplified
+  // Create a new page
   const createPage = async (pageData) => {
     try {
-      // Create a copy of current pages
-      const currentPages = [...pages];
-      
-      // Generate a new ID
-      const newId = currentPages.length > 0 ? Math.max(...currentPages.map(p => p.id)) + 1 : 1;
-      
-      // Create the new page
-      const newPage = {
-        id: newId,
-        ...pageData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      // Add to array and update state
-      setPages([...currentPages, newPage]);
-      return newPage;
+      setLoading(true);
+      const response = await post('/pages', pageData);
+      if (response && response.id) {
+        // Update local cache
+        setPages([...pages, response]);
+        return response;
+      } else {
+        throw new Error('Failed to create page');
+      }
     } catch (err) {
       console.error('Error creating page:', err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Update a page - simplified
+  // Update a page
   const updatePage = async (id, pageData) => {
     try {
-      // Find the page in current pages
-      const currentPages = [...pages];
-      const pageIndex = currentPages.findIndex(p => p.id === parseInt(id));
-      if (pageIndex === -1) {
-        throw new Error('Page not found');
+      setLoading(true);
+      const response = await put(`/pages/${id}`, pageData);
+      if (response && response.id) {
+        // Update local cache
+        const updatedPages = pages.map(page => 
+          page.id === parseInt(id) ? response : page
+        );
+        setPages(updatedPages);
+        return response;
+      } else {
+        throw new Error('Failed to update page');
       }
-      
-      // Create updated page
-      const updatedPage = {
-        ...currentPages[pageIndex],
-        ...pageData,
-        updated_at: new Date().toISOString()
-      };
-      
-      // Replace the page
-      currentPages[pageIndex] = updatedPage;
-      
-      // Update state with new array
-      setPages(currentPages);
-      return updatedPage;
     } catch (err) {
       console.error('Error updating page:', err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Delete a page - simplified
+  // Delete a page
   const deletePage = async (id) => {
     try {
-      // Filter out the page
-      const filteredPages = pages.filter(page => page.id !== parseInt(id));
+      setLoading(true);
+      await remove(`/pages/${id}`);
       
-      // Update state
+      // Update local cache
+      const filteredPages = pages.filter(page => page.id !== parseInt(id));
       setPages(filteredPages);
       return true;
     } catch (err) {
       console.error('Error deleting page:', err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 

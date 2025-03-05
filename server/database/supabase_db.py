@@ -106,6 +106,21 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"Error in find_by_field operation for table {table}, field {field}: {str(e)}")
             return []
     
+    def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Find records in a table by multiple field values (AND condition)"""
+        try:
+            query = self.supabase.table(table).select("*")
+            
+            # Apply each filter as an AND condition
+            for field, value in filters.items():
+                query = query.eq(field, value)
+            
+            response = query.execute()
+            return response.data
+        except Exception as e:
+            print(f"Error in find_by_field_values operation for table {table}, filters {filters}: {str(e)}")
+            return []
+    
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
         """Get a single record by ID"""
         try:
@@ -120,15 +135,23 @@ class SupabaseDatabase(DatabaseInterface):
     def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new record"""
         try:
-            # Clean data by removing None values if necessary
-            clean_data = {k: v for k, v in data.items() if v is not None}
+            # Write debug directly to server.log
+            print(f"SUPABASE DEBUG - Creating record in table {table} with data: {data}")
+            
+            # Clean data by removing None values and empty strings
+            clean_data = {k: v for k, v in data.items() if v is not None and v != ""}
+            
+            print(f"SUPABASE DEBUG - Clean data for insert: {clean_data}")
             
             response = self.supabase.table(table).insert(clean_data).execute()
             if response.data and len(response.data) > 0:
+                print(f"SUPABASE DEBUG - Successfully created record: {response.data[0]}")
                 return response.data[0]
             raise DatabaseError("Failed to create record, empty response")
         except Exception as e:
-            print(f"Error in create operation for table {table}: {str(e)}")
+            print(f"SUPABASE ERROR - Error in create operation for table {table}: {str(e)}")
+            import traceback
+            print(f"SUPABASE ERROR - Traceback: {traceback.format_exc()}")
             raise DatabaseError(f"Failed to create record: {str(e)}")
     
     def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:

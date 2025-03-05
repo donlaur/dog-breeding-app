@@ -41,6 +41,17 @@ const ManageLitters = () => {
   const [dams, setDams] = useState([]);
   const [errorBreeds, setErrorBreeds] = useState(null);
   
+  // Debug litters data
+  useEffect(() => {
+    if (litters && litters.length > 0) {
+      console.log("Litters data received:", litters);
+      // Check each litter's sire_id and dam_id
+      litters.forEach(litter => {
+        console.log(`Litter ${litter.id} - sire_id: ${litter.sire_id}, dam_id: ${litter.dam_id}, num_puppies: ${litter.num_puppies || litter.puppy_count}`);
+      });
+    }
+  }, [litters]);
+  
   // State for confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [litterToDelete, setLitterToDelete] = useState(null);
@@ -83,12 +94,21 @@ const ManageLitters = () => {
         }
         const data = await response.json();
         
-        // Filter for male and female dogs
+        console.log("All dogs fetched for litter page:", data);
+        
+        // Filter for male and female dogs and debug
         const males = data.filter(dog => dog.gender === 'Male');
         const females = data.filter(dog => dog.gender === 'Female');
         
+        console.log("Filtered males:", males);
+        console.log("Filtered females:", females);
+        
         setSires(males);
         setDams(females);
+        
+        // Log the dog IDs as numbers for easier comparison with litter data
+        console.log("Male dog IDs:", males.map(dog => dog.id));
+        console.log("Female dog IDs:", females.map(dog => dog.id));
       } catch (error) {
         debugError("Error fetching dogs:", error);
       }
@@ -168,9 +188,21 @@ const ManageLitters = () => {
 
   // Render sire/dam info
   const getDogName = (dogId, isSire = true) => {
+    if (!dogId) return 'Unknown';
+    
+    // Log details for debugging
+    console.log(`Getting ${isSire ? 'sire' : 'dam'} name for dog ID: ${dogId}`);
+    console.log(`Available ${isSire ? 'sires' : 'dams'}: `, isSire ? sires : dams);
+    
     const dogList = isSire ? sires : dams;
     const dog = dogList.find(d => d.id === dogId);
-    return dog ? dog.name : 'Unknown';
+    
+    if (dog) {
+      // Use call_name as primary, fallback to name
+      return dog.call_name || dog.name || `Dog #${dogId}`;
+    }
+    
+    return `Dog #${dogId}`;
   };
   
   // Content for empty state
@@ -292,24 +324,30 @@ const ManageLitters = () => {
                       Breed: {getBreedName(litter.breed_id)}
                     </Typography>
                     
-                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                      {litter.sire_id && (
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <MaleIcon sx={{ color: 'primary.main', mr: 0.5, fontSize: 16 }} />
-                          <Typography variant="body2">
-                            Sire: {getDogName(litter.sire_id, true)}
-                          </Typography>
-                        </Box>
-                      )}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
+                      {/* Always show Sire field, even if empty */}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <MaleIcon sx={{ color: 'primary.main', mr: 0.5, fontSize: 16 }} />
+                        <Typography variant="body2">
+                          Sire: {
+                            litter.sire && (litter.sire.call_name || litter.sire.name) ? 
+                              (litter.sire.call_name || litter.sire.name) : 
+                              (litter.sire_id ? getDogName(litter.sire_id, true) : 'Not specified')
+                          }
+                        </Typography>
+                      </Box>
                       
-                      {litter.dam_id && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-                          <FemaleIcon sx={{ color: 'secondary.main', mr: 0.5, fontSize: 16 }} />
-                          <Typography variant="body2">
-                            Dam: {getDogName(litter.dam_id, false)}
-                          </Typography>
-                        </Box>
-                      )}
+                      {/* Always show Dam field, even if empty */}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <FemaleIcon sx={{ color: 'secondary.main', mr: 0.5, fontSize: 16 }} />
+                        <Typography variant="body2">
+                          Dam: {
+                            litter.dam && (litter.dam.call_name || litter.dam.name) ? 
+                              (litter.dam.call_name || litter.dam.name) : 
+                              (litter.dam_id ? getDogName(litter.dam_id, false) : 'Not specified')
+                          }
+                        </Typography>
+                      </Box>
                     </Box>
                     
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
@@ -325,9 +363,10 @@ const ManageLitters = () => {
                         </Typography>
                       )}
                       
-                      {litter.puppy_count && (
+                      {/* Show number of puppies using either puppy_count or num_puppies field */}
+                      {(litter.puppy_count || litter.num_puppies) && (
                         <Typography variant="body2" color="text.secondary">
-                          Puppies: {litter.puppy_count}
+                          Puppies: {litter.puppy_count || litter.num_puppies || 0}
                         </Typography>
                       )}
                     </Box>

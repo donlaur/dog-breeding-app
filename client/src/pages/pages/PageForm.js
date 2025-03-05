@@ -56,7 +56,9 @@ const PageForm = () => {
     content: '',
     template: 'default',
     status: 'published',
-    meta_description: ''
+    meta_description: '',
+    show_in_menu: false,
+    menu_order: 0
   });
 
   useEffect(() => {
@@ -77,7 +79,9 @@ const PageForm = () => {
               content: pageData.content || '',
               template: pageData.template || 'default',
               status: pageData.status || 'published',
-              meta_description: pageData.meta_description || ''
+              meta_description: pageData.meta_description || '',
+              show_in_menu: pageData.show_in_menu || false,
+              menu_order: pageData.menu_order || 0
             });
           } else {
             console.error("Page not found");
@@ -276,13 +280,31 @@ const PageForm = () => {
                   </Grid>
                   
                   <Grid item xs={12}>
-                    <RichTextEditor
-                      label="Page Content"
-                      value={formData.content}
-                      onChange={handleContentChange}
-                      placeholder="Enter your page content here..."
-                      error={formErrors.content}
-                    />
+                    <Box>
+                      <RichTextEditor
+                        label="Page Content"
+                        value={formData.content}
+                        onChange={handleContentChange}
+                        placeholder="Enter your page content here..."
+                        error={formErrors.content}
+                      />
+                      <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Shortcode Tips:
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          You can use shortcodes to display dynamic content. For example:
+                        </Typography>
+                        <Box component="ul" sx={{ pl: 2, fontSize: '0.875rem' }}>
+                          <li>[DisplayDogs gender=Male] - Show male dogs</li>
+                          <li>[DisplayDog id=1] - Show a specific dog</li>
+                          <li>[ContactForm subject="Website Inquiry"] - Display a contact form</li>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          See the "Shortcodes Help" tab in the page preview for more options.
+                        </Typography>
+                      </Box>
+                    </Box>
                   </Grid>
                 </Grid>
               </Box>
@@ -341,6 +363,54 @@ const PageForm = () => {
                       rows={2}
                       helperText="Brief description for search engines (recommended: 150-160 characters)"
                     />
+                  </Grid>
+                  
+                  {/* Navigation Menu Settings */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Navigation Menu Settings
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={6}>
+                          <FormControl component="fieldset">
+                            <Typography variant="body2" gutterBottom>
+                              Show in Menu
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <input
+                                type="checkbox"
+                                name="show_in_menu"
+                                checked={formData.show_in_menu}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  show_in_menu: e.target.checked
+                                })}
+                                style={{ marginRight: '8px' }}
+                              />
+                              <Typography variant="body2">
+                                Display this page in the navigation menu
+                              </Typography>
+                            </Box>
+                          </FormControl>
+                        </Grid>
+                        
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Menu Order"
+                            name="menu_order"
+                            type="number"
+                            value={formData.menu_order}
+                            onChange={handleInputChange}
+                            disabled={!formData.show_in_menu}
+                            InputProps={{ inputProps: { min: 0 } }}
+                            helperText="Lower numbers appear first (0, 1, 2, etc.)"
+                            size="small"
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
                   </Grid>
                 </Grid>
               </Box>

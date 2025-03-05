@@ -14,9 +14,11 @@ import {
   Button,
   Grid,
   Typography,
-  FormHelperText
+  FormHelperText,
+  Divider
 } from "@mui/material";
 import { API_URL, debugLog, debugError } from "../../config";
+import PhotoGallery from "../../components/PhotoGallery";
 
 /**
  * LitterForm component
@@ -614,6 +616,26 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
             Save Litter
           </Button>
         </Grid>
+
+        {/* Add Photo Gallery section if we have a litter ID (for editing) */}
+        {litter.id && (
+          <Grid item xs={12}>
+            <Divider sx={{ my: 4 }} />
+            <PhotoGallery 
+              entityType="litter"
+              entityId={litter.id}
+              onPhotoChange={(photo) => {
+                // If a cover photo was set, update the litter's cover_photo field
+                if (photo && photo.is_cover) {
+                  setLitter(prev => ({
+                    ...prev,
+                    cover_photo: photo.url
+                  }));
+                }
+              }}
+            />
+          </Grid>
+        )}
       </Grid>
     </Box>
   );

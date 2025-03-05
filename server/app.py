@@ -17,6 +17,7 @@ from server.heats import create_heats_bp
 from server.auth import create_auth_bp
 from server.program import create_program_bp
 from server.puppies import create_puppies_bp
+from server.photos import create_photos_bp
 
 # Try importing pages blueprint with exception handling
 try:
@@ -46,6 +47,7 @@ def create_app():
     app.register_blueprint(create_auth_bp(db), url_prefix='/api/auth')
     app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
     app.register_blueprint(create_puppies_bp(db), url_prefix='/api/puppies')
+    app.register_blueprint(create_photos_bp(db), url_prefix='/api/photos')
     
     # Debug pages blueprint - add more detailed debugging
     try:
@@ -81,5 +83,12 @@ def create_app():
     return app
 
 if __name__ == "__main__":
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Start the Flask server')
+    parser.add_argument('--port', type=int, default=5000, help='Port to run the server on')
+    args = parser.parse_args()
+    
     app = create_app()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=args.port)

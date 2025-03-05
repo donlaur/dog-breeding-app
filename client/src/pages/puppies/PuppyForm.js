@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Button, Grid, TextField, MenuItem, 
-  FormControl, InputLabel, Select, FormHelperText 
+  FormControl, InputLabel, Select, FormHelperText,
+  Typography, Divider
 } from '@mui/material';
+import PhotoGallery from '../../components/PhotoGallery';
 
 function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = [] }) {
   const [puppy, setPuppy] = useState({
@@ -263,6 +265,29 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
             </Button>
           </Box>
         </Grid>
+        
+        {/* Photo Gallery - only show when editing an existing puppy */}
+        {puppy.id && (
+          <Grid item xs={12}>
+            <Divider sx={{ my: 4 }} />
+            <Typography variant="h6" gutterBottom>
+              Puppy Photos
+            </Typography>
+            <PhotoGallery
+              entityType="puppy"
+              entityId={puppy.id}
+              onPhotoChange={(photo) => {
+                // If a cover photo was set, update the puppy's cover_photo field
+                if (photo && photo.is_cover) {
+                  setPuppy(prev => ({
+                    ...prev,
+                    cover_photo: photo.url
+                  }));
+                }
+              }}
+            />
+          </Grid>
+        )}
       </Grid>
     </form>
   );

@@ -57,6 +57,11 @@ class DatabaseInterface(ABC):
         pass
         
     @abstractmethod
+    def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Find records in a table by multiple field values (AND condition)"""
+        pass
+        
+    @abstractmethod
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
         """Get a single record by ID"""
         pass
