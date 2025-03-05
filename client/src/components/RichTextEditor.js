@@ -1,58 +1,35 @@
-import React, { useEffect } from 'react';
-import { Box, Typography } from '@mui/material';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import React from 'react';
+import { Box, Typography, TextField } from '@mui/material';
+
+// Note: We're replacing ReactQuill with a simpler TextField due to compatibility issues
+// import ReactQuill from 'react-quill';
+// import 'react-quill/dist/quill.snow.css';
 
 const RichTextEditor = ({ value, onChange, placeholder, label, error }) => {
-  // Set up Quill modules/formats
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
-      [{ 'align': [] }],
-      ['link', 'image'],
-      ['clean']
-    ],
-  };
-
-  const formats = [
-    'header',
-    'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet', 'indent',
-    'link', 'image', 'align'
-  ];
-
-  // Fix for react-quill issue with SSR
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      // This runs only in browser environment
-      require('react-quill');
-    }
-  }, []);
-
+  // Simplified textarea-based rich text editor
   return (
     <Box sx={{ mb: 2 }}>
       {label && <Typography variant="subtitle1" sx={{ mb: 1 }}>{label}</Typography>}
       
-      <ReactQuill
-        value={value}
-        onChange={onChange}
-        modules={modules}
-        formats={formats}
+      <TextField
+        fullWidth
+        multiline
+        rows={10}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{
-          height: '300px',
-          marginBottom: '50px'
+        error={Boolean(error)}
+        helperText={error}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            fontFamily: 'inherit'
+          }
         }}
       />
       
-      {error && (
-        <Typography color="error" variant="caption" sx={{ mt: 0.5 }}>
-          {error}
-        </Typography>
-      )}
+      <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+        HTML formatting is supported. Use tags like &lt;h1&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, etc.
+      </Typography>
     </Box>
   );
 };

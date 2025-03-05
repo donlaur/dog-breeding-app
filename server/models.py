@@ -105,3 +105,51 @@ class ContactMessage:
     def get_all():
         response = supabase.table("contact_messages").select("*").execute()
         return response.data
+
+# CMS Page Model
+class Page:
+    @staticmethod
+    def get_all():
+        response = supabase.table("pages").select("*").execute()
+        return response.data
+    
+    @staticmethod
+    def get_by_id(page_id):
+        response = supabase.table("pages").select("*").eq("id", page_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def get_by_slug(slug):
+        response = supabase.table("pages").select("*").eq("slug", slug).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def create_page(title, content, slug=None, template="default", status="published", meta_description=None):
+        if not slug:
+            # Generate slug from title
+            slug = title.lower().replace(' ', '-')
+        
+        data = {
+            "title": title,
+            "content": content,
+            "slug": slug,
+            "template": template,
+            "status": status,
+            "meta_description": meta_description,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        response = supabase.table("pages").insert(data).execute()
+        return response.data
+    
+    @staticmethod
+    def update_page(page_id, data):
+        # Add updated_at timestamp
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("pages").update(data).eq("id", page_id).execute()
+        return response.data
+    
+    @staticmethod
+    def delete_page(page_id):
+        response = supabase.table("pages").delete().eq("id", page_id).execute()
+        return response.data

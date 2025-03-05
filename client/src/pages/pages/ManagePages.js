@@ -32,9 +32,11 @@ const ManagePages = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pageToDelete, setPageToDelete] = useState(null);
 
+  // Only fetch pages on mount, remove fetchPages from dependency array to avoid infinite loop
   useEffect(() => {
     fetchPages();
-  }, [fetchPages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteClick = (page) => {
     setPageToDelete(page);

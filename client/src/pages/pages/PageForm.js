@@ -63,8 +63,14 @@ const PageForm = () => {
     const loadPage = async () => {
       if (isEditMode) {
         try {
+          setLoading(true);
+          console.log("Fetching page with ID:", id);
+          
+          // Use the fetchPageById function from context
           const pageData = await fetchPageById(id);
+          
           if (pageData) {
+            console.log("Found page data:", pageData);
             setFormData({
               title: pageData.title || '',
               slug: pageData.slug || '',
@@ -74,11 +80,12 @@ const PageForm = () => {
               meta_description: pageData.meta_description || ''
             });
           } else {
+            console.error("Page not found");
             setError('Page not found');
           }
         } catch (err) {
+          console.error('Error loading page:', err);
           setError('Failed to load page');
-          console.error(err);
         } finally {
           setLoading(false);
         }

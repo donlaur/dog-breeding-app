@@ -18,6 +18,17 @@ from server.auth import create_auth_bp
 from server.program import create_program_bp
 from server.puppies import create_puppies_bp
 
+# Try importing pages blueprint with exception handling
+try:
+    from server.pages import create_pages_blueprint
+    print("Successfully imported create_pages_blueprint")
+except Exception as e:
+    print(f"Error importing create_pages_blueprint: {e}")
+    # Define a placeholder function
+    def create_pages_blueprint(db):
+        from flask import Blueprint
+        return Blueprint('pages', __name__)
+
 def create_app():
     app = Flask(__name__)
     
@@ -35,6 +46,15 @@ def create_app():
     app.register_blueprint(create_auth_bp(db), url_prefix='/api/auth')
     app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
     app.register_blueprint(create_puppies_bp(db), url_prefix='/api/puppies')
+    
+    # Debug pages blueprint
+    try:
+        pages_bp = create_pages_blueprint(db)
+        print("Pages blueprint created successfully")
+        app.register_blueprint(pages_bp, url_prefix='/api/pages')
+        print("Pages blueprint registered successfully")
+    except Exception as e:
+        print(f"Error registering pages blueprint: {e}")
     
     # Basic error handler just for 404 errors
     @app.errorhandler(404)

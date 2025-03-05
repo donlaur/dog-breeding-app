@@ -11,16 +11,42 @@ export const PageProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { get, post, put, remove } = useApi();
 
+  // Mock data storage
+  const mockData = [
+    {
+      id: 1,
+      title: "About Us",
+      slug: "about-us",
+      content: "<p>This is a test page about us.</p>",
+      template: "about",
+      status: "published",
+      meta_description: "Learn more about our breeding program",
+      created_at: "2025-03-05T00:00:00",
+      updated_at: "2025-03-05T00:00:00"
+    },
+    {
+      id: 2,
+      title: "Contact Us",
+      slug: "contact",
+      content: "<p>Contact information here.</p>",
+      template: "contact",
+      status: "published",
+      meta_description: "Get in touch with us",
+      created_at: "2025-03-05T00:00:00",
+      updated_at: "2025-03-05T00:00:00"
+    }
+  ];
+
   // Fetch all pages
   const fetchPages = async () => {
     setLoading(true);
     try {
-      const response = await get('/api/pages');
-      setPages(response);
+      console.log('Using mock pages data');
+      setPages([...mockData]);
       setError(null);
     } catch (err) {
       setError('Failed to fetch pages');
-      console.error(err);
+      console.error('Error fetching pages:', err);
     } finally {
       setLoading(false);
     }
@@ -29,10 +55,10 @@ export const PageProvider = ({ children }) => {
   // Fetch a page by ID
   const fetchPageById = async (id) => {
     try {
-      const response = await get(`/api/pages/${id}`);
-      return response;
+      const page = mockData.find(p => p.id === parseInt(id));
+      return page || null;
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching page by ID:', err);
       return null;
     }
   };
@@ -40,10 +66,10 @@ export const PageProvider = ({ children }) => {
   // Fetch a page by slug
   const fetchPageBySlug = async (slug) => {
     try {
-      const response = await get(`/api/pages/slug/${slug}`);
-      return response;
+      const page = mockData.find(p => p.slug === slug);
+      return page || null;
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching page by slug:', err);
       return null;
     }
   };
@@ -51,11 +77,21 @@ export const PageProvider = ({ children }) => {
   // Create a new page
   const createPage = async (pageData) => {
     try {
-      const response = await post('/api/pages', pageData);
-      setPages([...pages, response]);
-      return response;
+      // Mock API response
+      const newId = mockData.length > 0 ? Math.max(...mockData.map(p => p.id)) + 1 : 1;
+      const newPage = {
+        id: newId,
+        ...pageData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update both mockData and state
+      mockData.push(newPage);
+      setPages([...mockData]);
+      return newPage;
     } catch (err) {
-      console.error(err);
+      console.error('Error creating page:', err);
       throw err;
     }
   };
@@ -63,11 +99,27 @@ export const PageProvider = ({ children }) => {
   // Update a page
   const updatePage = async (id, pageData) => {
     try {
-      const response = await put(`/api/pages/${id}`, pageData);
-      setPages(pages.map(page => page.id === id ? response : page));
-      return response;
+      // Find the page in mockData
+      const pageIndex = mockData.findIndex(p => p.id === parseInt(id));
+      if (pageIndex === -1) {
+        throw new Error('Page not found');
+      }
+      
+      // Update the page in mockData
+      const updatedPage = {
+        ...mockData[pageIndex],
+        ...pageData,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Replace the old page with the updated one
+      mockData[pageIndex] = updatedPage;
+      
+      // Update state
+      setPages([...mockData]);
+      return updatedPage;
     } catch (err) {
-      console.error(err);
+      console.error('Error updating page:', err);
       throw err;
     }
   };
@@ -75,11 +127,17 @@ export const PageProvider = ({ children }) => {
   // Delete a page
   const deletePage = async (id) => {
     try {
-      await remove(`/api/pages/${id}`);
-      setPages(pages.filter(page => page.id !== id));
+      // Remove from mockData
+      const index = mockData.findIndex(page => page.id === parseInt(id));
+      if (index !== -1) {
+        mockData.splice(index, 1);
+      }
+      
+      // Update state
+      setPages([...mockData]);
       return true;
     } catch (err) {
-      console.error(err);
+      console.error('Error deleting page:', err);
       throw err;
     }
   };
