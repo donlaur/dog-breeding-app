@@ -43,10 +43,10 @@ The "Our Dogs" page was experiencing several issues:
 - **Intelligent Loading**: Prevented loading states when using cached data
 
 ### 5. Added SEO Improvements
-- **SEO-Friendly URLs**: Created slug-based URLs (e.g., `/dog/aspen/42`)
+- **SEO-Friendly URLs**: Created gender-prefixed slug-based URLs (e.g., `/dog/male/aspen/42`)
 - **Proper Semantic HTML**: Improved heading structure and accessibility
 - **Metadata Optimization**: Added appropriate title and description tags
-- **Optimized Images**: Ensured images have useful alt text
+- **Optimized Images**: Ensured images have useful alt text and used the correct photos
 
 ## Technical Implementation Details
 
@@ -74,8 +74,12 @@ const createDogSlug = (dog) => {
   if (!dog) return '';
   // Use call_name if available, otherwise registered_name, or fallback to name
   const nameToUse = dog.call_name || dog.registered_name || dog.name || '';
+  // Prepend gender for SEO benefits
+  const gender = dog.gender?.toLowerCase() || '';
+  const genderPrefix = gender ? `${gender}-` : '';
   // Convert to lowercase, replace spaces with hyphens, remove special characters
-  return nameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  const namePart = nameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  return `${genderPrefix}${namePart}`;
 };
 ```
 
@@ -112,7 +116,17 @@ const createDogSlug = (dog) => {
 
 ## Related Files
 - `/client/src/context/DogContext.js` - Context for managing dog data
-- `/client/src/utils/shortcodeProcessor.js` - Shortcodes for displaying dogs
+- `/client/src/utils/shortcodeProcessor.js` - Shortcodes for displaying dogs with proper photos
 - `/client/src/pages/PublicPage.js` - Dogs template implementation
-- `/client/src/pages/dogs/DogDetailPage.js` - Individual dog detail page
+- `/client/src/pages/dogs/DogDetailPage.js` - Individual dog detail page with cover_photo support
 - `/client/src/utils/ageUtils.js` - Age calculation utilities
+- `/client/src/utils/photoUtils.js` - Photo URL handling utilities
+- `/client/src/App.js` - Updated routes for SEO-friendly dog pages
+- `/client/src/components/PageNavigation.js` - Fixed duplicate "Available Puppies" menu entry
+
+## Latest Changes (March 6, 2025)
+- Fixed duplicate "Available Puppies" entry in the navigation menu
+- Updated photo display to properly show dog's cover_photo instead of stock images
+- Improved SEO with gender-prefixed URLs (e.g., `/dog/male/piggy/17`)
+- Added backward compatibility for existing URL patterns
+- Updated documentation to reflect the latest changes

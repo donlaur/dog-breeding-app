@@ -93,7 +93,6 @@ const PageNavigation = (props) => {
   // Custom default pages to always show even if not in CMS
   const defaultPages = [
     { id: 'dogs', title: 'Our Dogs', slug: 'dogs' },
-    { id: 'puppies', title: 'Available Puppies', slug: 'puppies' },
     { id: 'about', title: 'About Us', slug: 'about' },
     { id: 'contact', title: 'Contact', slug: 'contact' },
   ];
