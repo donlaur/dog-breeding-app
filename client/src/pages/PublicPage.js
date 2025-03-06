@@ -23,6 +23,7 @@ import {
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePages } from '../context/PageContext';
 import { useApi } from '../hooks/useApi';
+import { useDog } from '../context/DogContext';
 import ShortcodeRenderer from '../utils/shortcodeProcessor';
 import PageNavigation from '../components/PageNavigation';
 import Footer from '../components/layout/Footer';
@@ -547,6 +548,54 @@ const ContactTemplate = ({ content, page }) => {
 // Dogs Template
 const DogsTemplate = ({ content, page }) => {
   const theme = useTheme();
+  const dogContext = useDog(); // Use DogContext instead of direct API calls
+  const [loading, setLoading] = useState(true);
+  const [maleDogs, setMaleDogs] = useState([]);
+  const [femaleDogs, setFemaleDogs] = useState([]);
+  const [error, setError] = useState(null);
+  
+  // Use dogs from context instead of making redundant API calls
+  useEffect(() => {
+    const processDogs = () => {
+      try {
+        // Filter the already loaded dogs from context
+        if (dogContext.dogs && dogContext.dogs.length > 0) {
+          // Filter adult dogs only
+          const adultDogs = dogContext.dogs.filter(dog => 
+            dog.is_adult === true || 
+            dog.is_adult === 'true' || 
+            dog.status === 'Adult'
+          );
+          
+          // Then filter by gender
+          const males = adultDogs.filter(dog => dog.gender === 'Male');
+          const females = adultDogs.filter(dog => dog.gender === 'Female');
+          
+          console.log(`Found ${males.length} male dogs and ${females.length} female dogs in context`);
+          
+          setMaleDogs(males);
+          setFemaleDogs(females);
+          setLoading(false);
+        } 
+        // If context has no dogs but is still loading, stay in loading state
+        else if (dogContext.loading) {
+          setLoading(true);
+        } 
+        // Context has finished loading but has no dogs - refresh
+        else {
+          console.log('No dogs in context, refreshing data');
+          dogContext.refreshData(true); // Force refresh
+          setLoading(true);
+        }
+      } catch (err) {
+        console.error('Error processing dogs from context:', err);
+        setError('Failed to load our dogs. Please try again later.');
+        setLoading(false);
+      }
+    };
+    
+    processDogs();
+  }, [dogContext.dogs, dogContext.loading, dogContext.refreshData]);
   
   return (
     <Box>
@@ -649,60 +698,101 @@ const DogsTemplate = ({ content, page }) => {
         </Box>
       )}
       
-      {/* Default dogs display if no content */}
+      {/* Dogs display (built-in or fallback) */}
       {(!content || content.length < 50) && (
         <>
-          <Box id="males" sx={{ mb: 6 }}>
-            <Typography 
-              variant="h4" 
-              component="h3" 
-              gutterBottom 
-              id="males"
-              sx={{ 
-                position: 'relative',
-                pb: 2,
-                '&:after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: 60,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: 'primary.main',
-                  bottom: 0,
-                  left: 0
-                }
-              }}
-            >
-              Our Boys
+          {/* Show loading indicator while fetching */}
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Typography color="error" sx={{ textAlign: 'center', py: 3 }}>
+              {error}
             </Typography>
-            <ShortcodeRenderer content="[DisplayDogs gender=Male]" />
-          </Box>
-          
-          <Box id="females">
-            <Typography 
-              variant="h4" 
-              component="h3" 
-              gutterBottom 
-              id="females"
-              sx={{ 
-                position: 'relative',
-                pb: 2,
-                '&:after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: 60,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: 'primary.main',
-                  bottom: 0,
-                  left: 0
-                }
-              }}
-            >
-              Our Girls
-            </Typography>
-            <ShortcodeRenderer content="[DisplayDogs gender=Female]" />
-          </Box>
+          ) : (
+            <>
+              {/* Male dogs section */}
+              <Box id="males" sx={{ mb: 6 }}>
+                <Typography 
+                  variant="h4" 
+                  component="h3" 
+                  gutterBottom 
+                  id="males"
+                  sx={{ 
+                    position: 'relative',
+                    pb: 2,
+                    '&:after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: 60,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: 'primary.main',
+                      bottom: 0,
+                      left: 0
+                    }
+                  }}
+                >
+                  Our Boys
+                </Typography>
+                
+                {maleDogs.length > 0 ? (
+                  <Grid container spacing={3}>
+                    {maleDogs.map(dog => (
+                      <Grid item xs={12} sm={6} md={4} key={dog.id}>
+                        <ShortcodeRenderer content={`[DisplayDog id=${dog.id}]`} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography sx={{ fontStyle: 'italic', my: 2 }}>
+                    No male dogs currently available.
+                  </Typography>
+                )}
+              </Box>
+              
+              {/* Female dogs section */}
+              <Box id="females" sx={{ mb: 6 }}>
+                <Typography 
+                  variant="h4" 
+                  component="h3" 
+                  gutterBottom 
+                  id="females"
+                  sx={{ 
+                    position: 'relative',
+                    pb: 2,
+                    '&:after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: 60,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: 'primary.main',
+                      bottom: 0,
+                      left: 0
+                    }
+                  }}
+                >
+                  Our Girls
+                </Typography>
+                
+                {femaleDogs.length > 0 ? (
+                  <Grid container spacing={3}>
+                    {femaleDogs.map(dog => (
+                      <Grid item xs={12} sm={6} md={4} key={dog.id}>
+                        <ShortcodeRenderer content={`[DisplayDog id=${dog.id}]`} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography sx={{ fontStyle: 'italic', my: 2 }}>
+                    No female dogs currently available.
+                  </Typography>
+                )}
+              </Box>
+            </>
+          )}
         </>
       )}
       
@@ -1521,61 +1611,88 @@ const PublicPage = () => {
         
         setPage(pageData);
       } else {
-        console.error(`Page with slug '${slug}' not found in database`);
+        console.log(`No page found with slug '${slug}', checking for special cases`);
         
-        // Special cases for common pages - create them on the fly if needed
-        if (slug === 'dogs' || slug === 'our-dogs') {
-          console.log('Creating dogs page on the fly');
+        const createFallbackPage = (title, template) => {
+          console.log(`Creating ${template} page on the fly`);
           setPage({
-            title: 'Our Dogs',
+            title: title,
             slug: slug,
             content: '',
-            template: 'dogs',
+            template: template,
             status: 'published'
           });
-        } else if (slug === 'puppies' || slug === 'available-puppies') {
-          console.log('Creating puppies page on the fly');
-          setPage({
-            title: 'Available Puppies',
-            slug: slug,
-            content: '',
-            template: 'puppies',
-            status: 'published'
-          });
-        } else if (slug === 'about' || slug === 'about-us') {
-          console.log('Creating about page on the fly');
-          setPage({
-            title: 'About Us',
-            slug: slug,
-            content: '',
-            template: 'about',
-            status: 'published'
-          });
-        } else if (slug === 'contact' || slug === 'contact-us') {
-          console.log('Creating contact page on the fly');
-          setPage({
-            title: 'Contact Us',
-            slug: slug,
-            content: '',
-            template: 'contact',
-            status: 'published'
-          });
-        } else if (slug === 'faq' || slug === 'faqs') {
-          console.log('Creating FAQ page on the fly');
-          setPage({
-            title: 'Frequently Asked Questions',
-            slug: slug,
-            content: '',
-            template: 'faq',
-            status: 'published'
-          });
-        } else {
+          return true;
+        };
+        
+        // Map of slug patterns to fallback templates
+        const fallbacks = {
+          'dogs': { title: 'Our Dogs', template: 'dogs' },
+          'our-dogs': { title: 'Our Dogs', template: 'dogs' },
+          'our_dogs': { title: 'Our Dogs', template: 'dogs' },
+          'puppies': { title: 'Available Puppies', template: 'puppies' },
+          'available-puppies': { title: 'Available Puppies', template: 'puppies' },
+          'available_puppies': { title: 'Available Puppies', template: 'puppies' },
+          'about': { title: 'About Us', template: 'about' },
+          'about-us': { title: 'About Us', template: 'about' },
+          'about_us': { title: 'About Us', template: 'about' },
+          'contact': { title: 'Contact Us', template: 'contact' },
+          'contact-us': { title: 'Contact Us', template: 'contact' },
+          'contact_us': { title: 'Contact Us', template: 'contact' },
+          'faq': { title: 'Frequently Asked Questions', template: 'faq' },
+          'faqs': { title: 'Frequently Asked Questions', template: 'faq' }
+        };
+        
+        // Look for exact slug match
+        if (fallbacks[slug]) {
+          createFallbackPage(fallbacks[slug].title, fallbacks[slug].template);
+        } 
+        // Look for slug that contains these keywords
+        else if (slug.includes('dog') && !slug.includes('puppy')) {
+          createFallbackPage('Our Dogs', 'dogs');
+        } 
+        else if (slug.includes('puppy') || slug.includes('puppies')) {
+          createFallbackPage('Available Puppies', 'puppies');
+        }
+        else if (slug.includes('about')) {
+          createFallbackPage('About Us', 'about');
+        }
+        else if (slug.includes('contact')) {
+          createFallbackPage('Contact Us', 'contact');
+        }
+        else if (slug.includes('faq') || slug.includes('question')) {
+          createFallbackPage('Frequently Asked Questions', 'faq');
+        }
+        else {
+          console.error(`Page with slug '${slug}' not found and no fallback is available`);
           setError('Page not found');
         }
       }
     } catch (err) {
       console.error(`Error loading page '${slug}':`, err);
-      setError('Failed to load page');
+      
+      // Even in case of error, try to create fallback pages for standard templates
+      if (slug === 'dogs' || slug.includes('dog')) {
+        console.log('Error occurred but creating dogs page on the fly');
+        setPage({
+          title: 'Our Dogs',
+          slug: slug,
+          content: '',
+          template: 'dogs',
+          status: 'published'
+        });
+      } else if (slug === 'puppies' || slug.includes('puppy')) {
+        console.log('Error occurred but creating puppies page on the fly');
+        setPage({
+          title: 'Available Puppies',
+          slug: slug,
+          content: '',
+          template: 'puppies',
+          status: 'published'
+        });
+      } else {
+        setError('Failed to load page');
+      }
     } finally {
       setLoading(false);
     }

@@ -31,12 +31,23 @@ const useApi = () => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'API request failed');
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `API request failed with status ${response.status}`);
+        } catch (jsonError) {
+          // If response.json() fails, use a generic error message with status code
+          throw new Error(`API request failed with status ${response.status}`);
+        }
       }
       
-      const data = await response.json();
-      return data;
+      // Use try/catch for response.json() to handle invalid JSON
+      try {
+        const data = await response.json();
+        return data;
+      } catch (jsonParseError) {
+        console.error('Failed to parse JSON response:', jsonParseError);
+        throw new Error('Invalid response format from API');
+      }
     } catch (err) {
       setError(err.message);
       throw err;

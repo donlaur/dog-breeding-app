@@ -32,6 +32,7 @@ import CalendarPage from './pages/CalendarPage';
 import Login from './pages/auth/Login';
 import SignUp from './pages/auth/SignUp';
 import DogDetails from './pages/DogDetails';
+import DogDetailPage from './pages/dogs/DogDetailPage';
 import Litters from './pages/litters';
 import ManagePuppies from './pages/litters/ManagePuppies';
 
@@ -77,6 +78,7 @@ function App() {
               {/* Public site routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/page/:slug" element={<PublicPage />} />
+              <Route path="/dog/:slug/:id" element={<DogDetailPage />} />
 
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />

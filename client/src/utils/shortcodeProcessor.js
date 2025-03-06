@@ -20,7 +20,9 @@ import {
   CircularProgress,
   Chip
 } from '@mui/material';
+import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
+import { useDog } from '../context/DogContext';
 
 // Regex for matching shortcodes
 // Matches: [ShortcodeName param1=value1 param2="value with spaces"]
@@ -49,6 +51,45 @@ const parseAttributes = (attributesStr) => {
   return attributes;
 };
 
+// Helper to create SEO-friendly URL slugs from dog names
+const createDogSlug = (dog) => {
+  if (!dog) return '';
+  // Use call_name if available, otherwise registered_name, or just fallback to regular name
+  const nameToUse = dog.call_name || dog.registered_name || dog.name || '';
+  // Convert to lowercase, replace spaces with hyphens, remove special characters
+  return nameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+};
+
+// Helper to calculate a dog's age from date of birth
+const getDogAge = (dateOfBirth) => {
+  if (!dateOfBirth) return null;
+  try {
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    
+    // Calculate difference in years
+    let age = today.getFullYear() - birthDate.getFullYear();
+    
+    // Adjust if birthday hasn't occurred yet this year
+    if (today.getMonth() < birthDate.getMonth() || 
+        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    // Return the age in the appropriate format (years and months for puppies)
+    if (age < 1) {
+      const months = today.getMonth() - birthDate.getMonth();
+      const adjustedMonths = months < 0 ? months + 12 : months;
+      return `${adjustedMonths} ${adjustedMonths === 1 ? 'month' : 'months'}`;
+    } else {
+      return `${age} ${age === 1 ? 'year' : 'years'}`;
+    }
+  } catch (err) {
+    console.error('Error calculating dog age:', err);
+    return null;
+  }
+};
+
 // Component to display a dog card
 const DogCard = ({ dog }) => {
   if (!dog) return null;
@@ -56,8 +97,21 @@ const DogCard = ({ dog }) => {
   // Default image for dogs without photos
   const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
   
+  // Create dog detail URL using slug for SEO
+  const dogSlug = createDogSlug(dog);
+  const dogDetailUrl = `/dog/${dogSlug}/${dog.id}`;
+  
+  // Get litter count for display
+  const litterCount = (dog.gender === 'Female' && dog.litter_count) ? dog.litter_count : 
+                      (dog.gender === 'Male' && dog.sired_litter_count) ? dog.sired_litter_count : 0;
+  
+  // Show age if available
+  const dogAge = dog.age || (dog.date_of_birth ? getDogAge(dog.date_of_birth) : null);
+  
   return (
     <Card 
+      component={Link}
+      to={dogDetailUrl}
       sx={{ 
         maxWidth: 345, 
         margin: '0 auto', 
@@ -69,15 +123,18 @@ const DogCard = ({ dog }) => {
         '&:hover': {
           transform: 'translateY(-8px)',
           boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
-        }
+        },
+        textDecoration: 'none',
+        color: 'inherit',
+        display: 'block'
       }}
     >
       <Box sx={{ position: 'relative' }}>
         <CardMedia
           component="img"
-          height="220"
+          height="250"
           image={dog.photo_url || defaultDogImage}
-          alt={dog.name}
+          alt={dog.call_name || dog.name}
           sx={{
             objectFit: 'cover',
             objectPosition: 'center',
@@ -100,6 +157,24 @@ const DogCard = ({ dog }) => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
           }}
         />
+        
+        {/* Age tag if available */}
+        {dogAge && (
+          <Chip 
+            label={dogAge}
+            color="default"
+            size="small"
+            sx={{ 
+              position: 'absolute', 
+              bottom: 12, 
+              left: 12,
+              fontWeight: 600,
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              color: 'text.primary',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+            }}
+          />
+        )}
       </Box>
       
       <CardContent sx={{ p: 2.5 }}>
@@ -112,33 +187,36 @@ const DogCard = ({ dog }) => {
             mb: 0.5
           }}
         >
-          {dog.name}
+          {dog.call_name || dog.name}
         </Typography>
         
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            {dog.breed || 'Pembroke Welsh Corgi'}
+        {/* Only show registered name if different from call name */}
+        {dog.registered_name && dog.registered_name !== dog.call_name && (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
+            {dog.registered_name}
           </Typography>
-          {dog.age && (
-            <>
-              <Box 
-                component="span" 
-                sx={{ 
-                  display: 'inline-block', 
-                  mx: 0.7, 
-                  width: 4, 
-                  height: 4, 
-                  borderRadius: '50%', 
-                  bgcolor: 'text.disabled' 
-                }}
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                {dog.age}
-              </Typography>
-            </>
-          )}
-        </Box>
+        )}
         
+        {/* Show personality traits or key attributes instead of breed */}
+        {dog.personality && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {dog.personality}
+          </Typography>
+        )}
+        
+        {/* Show litter count if available */}
+        {litterCount > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {dog.gender === 'Female' ? 'Dam of ' : 'Sire of '}
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                {litterCount} {litterCount === 1 ? 'litter' : 'litters'}
+              </Box>
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Brief description if available */}
         {dog.description && (
           <Typography 
             variant="body2" 
@@ -152,33 +230,39 @@ const DogCard = ({ dog }) => {
           </Typography>
         )}
         
-        {/* Badges for additional info */}
+        {/* Only show relevant badges */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
-          <Chip 
-            label="AKC Reg" 
-            size="small" 
-            color="primary" 
-            variant="outlined"
-            sx={{ 
-              height: 24, 
-              fontSize: '0.7rem', 
-              fontWeight: 600
-            }}
-          />
-          <Chip 
-            label="Health Tested" 
-            size="small" 
-            color="success" 
-            variant="outlined"
-            sx={{ 
-              height: 24, 
-              fontSize: '0.7rem', 
-              fontWeight: 600
-            }}
-          />
-          {dog.gender === 'Female' && (
+          {dog.akc_registered && (
             <Chip 
-              label="Breeding Program" 
+              label="AKC Reg" 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem', 
+                fontWeight: 600
+              }}
+            />
+          )}
+          
+          {dog.health_tested && (
+            <Chip 
+              label="Health Tested" 
+              size="small" 
+              color="success" 
+              variant="outlined"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem', 
+                fontWeight: 600
+              }}
+            />
+          )}
+          
+          {dog.champion && (
+            <Chip 
+              label="Champion" 
               size="small" 
               color="secondary" 
               variant="outlined"
@@ -613,43 +697,55 @@ const DEFAULT_PUPPY_IMAGE = "https://images.unsplash.com/photo-1543466835-00a790
 
 // DisplayDogs shortcode component
 const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
-  const { get } = useApi();
+  const context = useDog(); // Use the DogContext
   const [loading, setLoading] = useState(true);
   const [dogs, setDogs] = useState([]);
   const [error, setError] = useState(null);
   
   useEffect(() => {
-    const fetchDogs = async () => {
+    const displayDogs = async () => {
       try {
         setLoading(true);
         
-        // Call the real API with filters
-        const queryParams = new URLSearchParams();
-        if (gender) queryParams.append('gender', gender);
-        if (breed) queryParams.append('breed', breed);
-        if (age) queryParams.append('age', age);
-        if (status) queryParams.append('status', status);
+        // Normalize gender to proper capitalization
+        const normalizedGender = gender?.toLowerCase() === 'male' ? 'Male' : 
+                               gender?.toLowerCase() === 'female' ? 'Female' : 
+                               gender; // Keep as is if not recognized
         
-        const endpoint = `/dogs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        console.log(`Fetching dogs from API endpoint: ${endpoint}`);
-        const response = await get(endpoint);
+        console.log(`DisplayDogs: Filtering by gender "${normalizedGender}"`);
         
-        if (Array.isArray(response)) {
-          console.log(`Successfully fetched ${response.length} dogs from API`);
-          // Transform any dogs that don't have photos
-          const dogsWithPhotos = response.map(dog => ({
-            ...dog,
-            photo_url: dog.photo_url || DEFAULT_DOG_IMAGE,
-            breed: dog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
-          }));
-          setDogs(dogsWithPhotos);
-        } else {
-          console.error('API response was not an array:', response);
-          setError('Failed to load dogs - invalid data returned from server');
-          setDogs([]);
+        // Use the dogs from context instead of making a new API call
+        let filteredDogs = [...context.dogs];
+        
+        // Apply filters
+        if (normalizedGender) {
+          filteredDogs = filteredDogs.filter(dog => dog.gender === normalizedGender);
         }
+        
+        if (breed) {
+          filteredDogs = filteredDogs.filter(dog => dog.breed === breed);
+        }
+        
+        if (age) {
+          // Age filtering logic here if needed
+        }
+        
+        if (status) {
+          filteredDogs = filteredDogs.filter(dog => dog.status === status);
+        }
+        
+        console.log(`DisplayDogs: Found ${filteredDogs.length} dogs after filtering`);
+        
+        // Transform any dogs that don't have photos
+        const dogsWithPhotos = filteredDogs.map(dog => ({
+          ...dog,
+          photo_url: dog.photo_url || DEFAULT_DOG_IMAGE,
+          breed: dog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
+        }));
+        
+        setDogs(dogsWithPhotos);
       } catch (err) {
-        console.error('Error fetching dogs:', err);
+        console.error('Error filtering dogs:', err);
         setError('Failed to load dogs. Please try again later.');
         setDogs([]);
       } finally {
@@ -657,8 +753,23 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
       }
     };
     
-    fetchDogs();
-  }, [gender, breed, age, status, get]);
+    // Check if the context has already loaded dogs
+    if (context.dogs.length > 0) {
+      displayDogs();
+    } else if (context.loading) {
+      // Wait for context to finish loading
+      setLoading(true);
+    } else {
+      // The context isn't loading and doesn't have dogs, so fetch them
+      context.refreshDogs().then(() => {
+        displayDogs();
+      }).catch(err => {
+        console.error('Error refreshing dogs:', err);
+        setError('Failed to load dogs. Please try again later.');
+        setLoading(false);
+      });
+    }
+  }, [gender, breed, age, status, context.dogs, context.loading, context.refreshDogs]);
   
   if (loading) {
     return (
@@ -699,13 +810,13 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
 
 // DisplayDog shortcode component
 const DisplayDogShortcode = ({ id }) => {
-  const { get } = useApi();
+  const context = useDog(); // Use the DogContext
   const [loading, setLoading] = useState(true);
   const [dog, setDog] = useState(null);
   const [error, setError] = useState(null);
   
   useEffect(() => {
-    const fetchDog = async () => {
+    const displayDog = async () => {
       if (!id) {
         setError('Dog ID is required');
         setLoading(false);
@@ -714,18 +825,31 @@ const DisplayDogShortcode = ({ id }) => {
       
       try {
         setLoading(true);
-        console.log(`Fetching dog with ID: ${id}`);
+        console.log(`DisplayDog: Looking for dog with ID: ${id}`);
         
-        // Call the real API
-        const response = await get(`/dogs/${id}`);
+        // First check if the dog is already in context
+        const dogId = parseInt(id);
+        let foundDog = null;
         
-        if (response && response.id) {
-          console.log(`Successfully fetched dog: ${response.name}`);
+        // Try to find the dog in the context first
+        if (context.dogs && context.dogs.length > 0) {
+          foundDog = context.dogs.find(d => d.id === dogId);
+        }
+        
+        // If not found in context, use getDog from context
+        if (!foundDog) {
+          console.log(`Dog with ID ${id} not found in context, fetching from API...`);
+          foundDog = await context.getDog(dogId);
+        } else {
+          console.log(`Found dog ${foundDog.name || foundDog.call_name} in context`);
+        }
+        
+        if (foundDog) {
           // Ensure dog has photo and breed
           const dogWithPhoto = {
-            ...response,
-            photo_url: response.photo_url || DEFAULT_DOG_IMAGE,
-            breed: response.breed || 'Pembroke Welsh Corgi' // Default breed if missing
+            ...foundDog,
+            photo_url: foundDog.photo_url || DEFAULT_DOG_IMAGE,
+            breed: foundDog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
           };
           setDog(dogWithPhoto);
         } else {
@@ -733,15 +857,15 @@ const DisplayDogShortcode = ({ id }) => {
           setError(`Dog with ID ${id} not found`);
         }
       } catch (err) {
-        console.error('Error fetching dog:', err);
+        console.error('Error displaying dog:', err);
         setError('Failed to load dog information');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchDog();
-  }, [id, get]);
+    displayDog();
+  }, [id, context]);
   
   if (loading) {
     return (

@@ -15,6 +15,7 @@ export const PageProvider = ({ children }) => {
   const pageCache = useRef({
     byId: {}, // Cache by ID
     bySlug: {}, // Cache by slug
+    fallbacks: {}, // Cache for fallback pages
     timestamp: Date.now(), // When the cache was last reset
   });
 
@@ -157,7 +158,15 @@ export const PageProvider = ({ children }) => {
     try {
       setLoading(true);
       console.log(`Fetching page with slug: "${slug}"`);
-      const response = await get(`/pages/slug/${slug}`);
+      let response;
+      
+      try {
+        response = await get(`/pages/slug/${slug}`);
+      } catch (fetchError) {
+        console.error(`API error fetching page with slug "${slug}":`, fetchError);
+        console.log('Continuing with null response to handle fallback cases');
+        response = null;
+      }
       
       if (response && response.id) {
         console.log(`Found page "${response.title}" with ID ${response.id}`);
@@ -179,22 +188,66 @@ export const PageProvider = ({ children }) => {
       
       console.log(`No page found with slug "${slug}"`);
       
-      // Special case for puppies
-      if (slug === 'puppies' && pages && pages.length > 0) {
-        // Try to find any page with a puppies template
-        console.log('Looking for any page with puppies template as fallback');
-        const puppiesPage = pages.find(p => p.template === 'puppies' && p.status === 'published');
-        if (puppiesPage) {
-          console.log(`Found alternative puppies page with slug "${puppiesPage.slug}"`);
+      // Map of standard slugs to template types and titles
+      const templateMap = {
+        'dogs': { template: 'dogs', title: 'Our Dogs' },
+        'our-dogs': { template: 'dogs', title: 'Our Dogs' },
+        'our_dogs': { template: 'dogs', title: 'Our Dogs' },
+        'puppies': { template: 'puppies', title: 'Available Puppies' },
+        'available-puppies': { template: 'puppies', title: 'Available Puppies' },
+        'available_puppies': { template: 'puppies', title: 'Available Puppies' },
+        'about': { template: 'about', title: 'About Us' },
+        'about-us': { template: 'about', title: 'About Us' },
+        'about_us': { template: 'about', title: 'About Us' },
+        'contact': { template: 'contact', title: 'Contact Us' },
+        'contact-us': { template: 'contact', title: 'Contact Us' },
+        'contact_us': { template: 'contact', title: 'Contact Us' },
+        'faq': { template: 'faq', title: 'Frequently Asked Questions' },
+        'faqs': { template: 'faq', title: 'Frequently Asked Questions' }
+      };
+      
+      // If this is a standard template we support with fallback
+      if (templateMap[slug]) {
+        const templateInfo = templateMap[slug];
+        
+        // First try to find an existing page with this template
+        if (pages && pages.length > 0) {
+          console.log(`Looking for any page with ${templateInfo.template} template as fallback`);
+          const existingPage = pages.find(p => p.template === templateInfo.template && p.status === 'published');
           
-          // Cache this result too
-          pageCache.current.bySlug[slug] = {
-            data: puppiesPage,
-            timestamp: now
-          };
-          
-          return puppiesPage;
+          if (existingPage) {
+            console.log(`Found alternative ${templateInfo.template} page with slug "${existingPage.slug}"`);
+            
+            // Cache this result
+            pageCache.current.bySlug[slug] = {
+              data: existingPage,
+              timestamp: now
+            };
+            
+            return existingPage;
+          }
         }
+        
+        // Create and cache a fallback page
+        console.log(`Creating fallback page for ${templateInfo.template} template`);
+        return cacheFallbackPage(slug, templateInfo.template, templateInfo.title);
+      }
+      
+      // Check for keywords in the slug to support additional patterns
+      if (slug.includes('dog') && !slug.includes('puppy')) {
+        return cacheFallbackPage(slug, 'dogs', 'Our Dogs');
+      } 
+      else if (slug.includes('puppy') || slug.includes('puppies')) {
+        return cacheFallbackPage(slug, 'puppies', 'Available Puppies');
+      }
+      else if (slug.includes('about')) {
+        return cacheFallbackPage(slug, 'about', 'About Us');
+      }
+      else if (slug.includes('contact')) {
+        return cacheFallbackPage(slug, 'contact', 'Contact Us');
+      }
+      else if (slug.includes('faq') || slug.includes('question')) {
+        return cacheFallbackPage(slug, 'faq', 'Frequently Asked Questions');
       }
       
       // Cache negative result to prevent repeated requests for non-existent pages
@@ -205,8 +258,9 @@ export const PageProvider = ({ children }) => {
       
       return null;
     } catch (err) {
-      console.error('Error fetching page by slug:', err);
-      throw err; // Let the calling code handle the error
+      console.error('Error in fetchPageBySlug function:', err);
+      // Return null instead of throwing, to let PublicPage handle fallback
+      return null;
     } finally {
       setLoading(false);
     }
@@ -333,12 +387,42 @@ export const PageProvider = ({ children }) => {
     }
   };
   
+  // Store a fallback page in the cache
+  const cacheFallbackPage = (slug, templateType, title) => {
+    const now = Date.now();
+    const fallbackPage = {
+      id: `fallback-${templateType}-${now}`,
+      title: title || `${templateType.charAt(0).toUpperCase() + templateType.slice(1)} Page`,
+      slug: slug,
+      content: '',
+      template: templateType,
+      status: 'published',
+      isFallback: true
+    };
+    
+    // Store in the fallbacks cache
+    pageCache.current.fallbacks[slug] = {
+      data: fallbackPage,
+      timestamp: now
+    };
+    
+    // Also store in the slug cache
+    pageCache.current.bySlug[slug] = {
+      data: fallbackPage,
+      timestamp: now
+    };
+    
+    console.log(`Created and cached fallback page for slug "${slug}" with template "${templateType}"`);
+    return fallbackPage;
+  };
+  
   // Function to clear the entire cache (useful for debugging or forced refreshes)
   const clearCache = () => {
     console.log('Clearing page cache');
     pageCache.current = {
       byId: {},
       bySlug: {},
+      fallbacks: {},
       timestamp: Date.now()
     };
   };
@@ -360,6 +444,7 @@ export const PageProvider = ({ children }) => {
       updatePage,
       deletePage,
       clearCache, // Expose the cache clearing function
+      cacheFallbackPage, // Expose fallback page creation
       pageCache: pageCache.current // Expose the cache for debugging
     }}>
       {children}
