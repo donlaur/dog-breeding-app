@@ -29,7 +29,7 @@ import { useApi } from '../../hooks/useApi';
 import PageNavigation from '../../components/PageNavigation';
 import Footer from '../../components/layout/Footer';
 import { getDogAge } from '../../utils/ageUtils';
-import { getPhotoUrl } from '../../utils/photoUtils';
+import { getPhotoUrl, handleImageError, DEFAULT_DOG_IMAGE } from '../../utils/photoUtils';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FemaleIcon from '@mui/icons-material/Female';
 import MaleIcon from '@mui/icons-material/Male';
@@ -173,8 +173,7 @@ const DogDetailPage = () => {
     );
   }
   
-  // Default image
-  const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
+  // Default image imported from photoUtils
   
   // Format dates
   const formatDate = (dateString) => {
@@ -220,8 +219,10 @@ const DogDetailPage = () => {
                       height: { xs: 300, sm: 400 },
                       objectFit: 'cover'
                     }}
-                    image={dog.cover_photo ? getPhotoUrl(dog.cover_photo) : (dog.photo_url || defaultDogImage)}
+                    image={dog.cover_photo ? getPhotoUrl(dog.cover_photo, 'DOG') : 
+                          (dog.photo_url ? getPhotoUrl(dog.photo_url, 'DOG') : DEFAULT_DOG_IMAGE)}
                     alt={dog.call_name || dog.name}
+                    onError={handleImageError('DOG')}
                   />
                   
                   {/* Gender badge */}

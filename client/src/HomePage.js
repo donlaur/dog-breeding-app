@@ -23,6 +23,7 @@ import { usePages } from './context/PageContext';
 import { useApi } from './hooks/useApi';
 import PageNavigation from './components/PageNavigation';
 import ShortcodeRenderer from './utils/shortcodeProcessor';
+import { getPhotoUrl, handleImageError, DEFAULT_PUPPY_IMAGE } from './utils/photoUtils';
 
 function HomePage() {
   const { pages, loading: pagesLoading } = usePages();
@@ -116,8 +117,9 @@ function HomePage() {
               return {
                 id: puppy.id,
                 name: puppy.name || `Puppy #${puppy.identifier || puppy.id}`,
-                photo: puppy.photo_url || 'https://via.placeholder.com/300x200?text=No+Photo+Available',
-                description: puppy.description || 'Adorable puppy waiting for their forever home.',
+                photo: puppy.photo_url ? getPhotoUrl(puppy.photo_url, 'PUPPY') : DEFAULT_PUPPY_IMAGE,
+                photo_url: puppy.photo_url, // Keep original for reference
+                description: puppy.description || '',
                 gender: puppy.gender || 'Unknown',
                 color: puppy.color || '',
                 age,
@@ -298,6 +300,7 @@ function HomePage() {
                               height: '100%',
                               objectFit: 'cover'
                             }}
+                            onError={handleImageError('PUPPY')}
                           />
                           {puppy.status === 'Reserved' && (
                             <Box sx={{
@@ -337,11 +340,13 @@ function HomePage() {
                             </Typography>
                           )}
                           
-                          <Typography variant="body2" sx={{ mt: 1, mb: 2 }}>
-                            {puppy.description && puppy.description.length > 100 
-                              ? `${puppy.description.substring(0, 100)}...` 
-                              : puppy.description}
-                          </Typography>
+                          {puppy.description && (
+                            <Typography variant="body2" sx={{ mt: 1, mb: 2 }}>
+                              {puppy.description.length > 100 
+                                ? `${puppy.description.substring(0, 100)}...` 
+                                : puppy.description}
+                            </Typography>
+                          )}
                         </CardContent>
                         <CardActions sx={{ mt: 'auto', p: 2, pt: 0 }}>
                           <Button 

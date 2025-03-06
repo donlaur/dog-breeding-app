@@ -23,7 +23,13 @@ import {
 import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useDog } from '../context/DogContext';
-import { getPhotoUrl } from '../utils/photoUtils';
+import { 
+  getPhotoUrl, 
+  handleImageError,
+  DEFAULT_DOG_IMAGE,
+  DEFAULT_PUPPY_IMAGE,
+  DEFAULT_LITTER_IMAGE
+} from '../utils/photoUtils';
 
 // Regex for matching shortcodes
 // Matches: [ShortcodeName param1=value1 param2="value with spaces"]
@@ -99,8 +105,7 @@ const getDogAge = (dateOfBirth) => {
 const DogCard = ({ dog }) => {
   if (!dog) return null;
   
-  // Default image for dogs without photos
-  const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
+  // Use imported default dog image from photoUtils
   
   // Create dog detail URL using gender and slug for better SEO
   const namePart = createDogSlug(dog).replace(`${dog.gender?.toLowerCase()}-`, '');
@@ -114,8 +119,8 @@ const DogCard = ({ dog }) => {
   const dogAge = dog.age || (dog.date_of_birth ? getDogAge(dog.date_of_birth) : null);
   
   // Get dog photo URL using cover_photo first, then photo_url as fallback
-  const dogPhotoUrl = dog.cover_photo ? getPhotoUrl(dog.cover_photo) : 
-                     (dog.photo_url || defaultDogImage);
+  const dogPhotoUrl = dog.cover_photo ? getPhotoUrl(dog.cover_photo, 'DOG') : 
+                     (dog.photo_url ? getPhotoUrl(dog.photo_url, 'DOG') : DEFAULT_DOG_IMAGE);
   
   return (
     <Card 
@@ -152,6 +157,7 @@ const DogCard = ({ dog }) => {
               transform: 'scale(1.05)',
             }
           }}
+          onError={handleImageError('DOG')}
         />
         {/* Gender tag pill */}
         <Chip 
@@ -292,8 +298,7 @@ const DogCard = ({ dog }) => {
 const PuppyCard = ({ puppy }) => {
   if (!puppy) return null;
   
-  // Default image for puppies
-  const defaultPuppyImage = "https://images.unsplash.com/photo-1591160690555-5debfba289f0?q=80&w=2564";
+  // Use imported DEFAULT_PUPPY_IMAGE from photoUtils
   
   // Status colors and labels
   const getStatusProps = (status) => {
@@ -333,7 +338,7 @@ const PuppyCard = ({ puppy }) => {
         <CardMedia
           component="img"
           height="220"
-          image={puppy.photo_url || defaultPuppyImage}
+          image={puppy.photo_url ? getPhotoUrl(puppy.photo_url, 'PUPPY') : DEFAULT_PUPPY_IMAGE}
           alt={puppy.name || 'Puppy'}
           sx={{
             objectFit: 'cover',
@@ -343,6 +348,7 @@ const PuppyCard = ({ puppy }) => {
               transform: 'scale(1.05)',
             }
           }}
+          onError={handleImageError('PUPPY')}
         />
         {/* Status tag */}
         <Chip 
@@ -496,8 +502,7 @@ const PuppyCard = ({ puppy }) => {
 const LitterCard = ({ litter }) => {
   if (!litter) return null;
   
-  // Default litter image
-  const defaultLitterImage = "https://images.unsplash.com/photo-1591160690555-5debfba289f0?q=80&w=2564";
+  // Use imported DEFAULT_LITTER_IMAGE from photoUtils
   
   // Format birth date
   const formatDate = (dateString) => {
@@ -564,13 +569,14 @@ const LitterCard = ({ litter }) => {
           >
             <CardMedia
               component="img"
-              image={litter.photo_url || defaultLitterImage}
+              image={litter.photo_url ? getPhotoUrl(litter.photo_url, 'LITTER') : DEFAULT_LITTER_IMAGE}
               alt={`${litter.dam_name} x ${litter.sire_name} Litter`}
               sx={{
                 height: '100%',
                 objectFit: 'cover',
                 objectPosition: 'center',
               }}
+              onError={handleImageError('LITTER')}
             />
             {/* Status tag */}
             <Chip 
@@ -697,9 +703,7 @@ const LitterCard = ({ litter }) => {
   );
 };
 
-// Default image URLs for fallback purposes when photos are missing
-const DEFAULT_DOG_IMAGE = "https://images.unsplash.com/photo-1612536057832-2ff7ead58194?q=80&w=1887";
-const DEFAULT_PUPPY_IMAGE = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=1974";
+// Default images now imported from photoUtils.js
 
 // Properly defined React components for each shortcode
 // Each is a proper React component that can use hooks
@@ -746,10 +750,11 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
         console.log(`DisplayDogs: Found ${filteredDogs.length} dogs after filtering`);
         
         // Transform any dogs that don't have photos
-        // Prioritize cover_photo over photo_url
+        // Prioritize cover_photo over photo_url with better fallback handling
         const dogsWithPhotos = filteredDogs.map(dog => ({
           ...dog,
-          photo_url: dog.cover_photo ? getPhotoUrl(dog.cover_photo) : (dog.photo_url || DEFAULT_DOG_IMAGE),
+          photo_url: dog.cover_photo ? getPhotoUrl(dog.cover_photo, 'DOG') : 
+                    (dog.photo_url ? getPhotoUrl(dog.photo_url, 'DOG') : DEFAULT_DOG_IMAGE),
           breed: dog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
         }));
         
@@ -856,10 +861,11 @@ const DisplayDogShortcode = ({ id }) => {
         
         if (foundDog) {
           // Ensure dog has photo and breed
-          // Prioritize cover_photo over photo_url
+          // Prioritize cover_photo over photo_url with better fallback handling
           const dogWithPhoto = {
             ...foundDog,
-            photo_url: foundDog.cover_photo ? getPhotoUrl(foundDog.cover_photo) : (foundDog.photo_url || DEFAULT_DOG_IMAGE),
+            photo_url: foundDog.cover_photo ? getPhotoUrl(foundDog.cover_photo, 'DOG') : 
+                      (foundDog.photo_url ? getPhotoUrl(foundDog.photo_url, 'DOG') : DEFAULT_DOG_IMAGE),
             breed: foundDog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
           };
           setDog(dogWithPhoto);
@@ -1013,10 +1019,10 @@ const DisplayPuppiesShortcode = ({ status, gender, litter }) => {
         if (Array.isArray(response)) {
           console.log(`Successfully fetched ${response.length} puppies from API`);
           
-          // Ensure all puppies have photos
+          // Ensure all puppies have photos with better fallback handling
           const puppiesWithPhotos = response.map(puppy => ({
             ...puppy,
-            photo_url: puppy.photo_url || DEFAULT_PUPPY_IMAGE,
+            photo_url: puppy.photo_url ? getPhotoUrl(puppy.photo_url, 'PUPPY') : DEFAULT_PUPPY_IMAGE,
           }));
           
           setPuppies(puppiesWithPhotos);

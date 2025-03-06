@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { getPhotoUrl } from '../utils/photoUtils';
+import { getPhotoUrl, handleImageError, DEFAULT_DOG_IMAGE } from '../utils/photoUtils';
 import { Pets as PetsIcon } from '@mui/icons-material';
 import { Skeleton, Box, Card } from '@mui/material';
 
@@ -68,17 +68,12 @@ const DogCard = ({ dog, loading = false }) => {
   return (
     <div className="dog-card">
       <Link to={`/dashboard/dogs/${id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        {cover_photo ? (
-          <img 
-            src={getPhotoUrl(cover_photo)} 
-            alt={call_name} 
-            className="dog-image" 
-          />
-        ) : (
-          <div className="dog-icon">
-            <PetsIcon style={{ fontSize: '60px' }} />
-          </div>
-        )}
+        <img 
+          src={cover_photo ? getPhotoUrl(cover_photo, 'DOG') : DEFAULT_DOG_IMAGE} 
+          alt={call_name} 
+          className="dog-image"
+          onError={handleImageError('DOG')}
+        />
         
         <h3>{call_name}</h3>
         <p>{registered_name}</p>

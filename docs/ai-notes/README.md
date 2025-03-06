@@ -25,6 +25,7 @@ Each file follows a similar structure:
 - [Performance Optimizations](performance-optimizations.md) - Application-wide performance improvements, code splitting, and loading states (Added March 6, 2025)
 - [Hybrid Architecture](hybrid-architecture.md) - Recommendation for Next.js/React hybrid architecture with JSON caching (Added March 6, 2025)
 - [AI Feature Opportunities](ai-feature-opportunities.md) - Practical AI integrations for the breeding application (Added March 6, 2025)
+- [Image Handling Improvements](image-handling-improvements.md) - Robust image fallback system for missing or broken images (Added March 6, 2025)
 
 ## Performance Optimization Strategies (March 6, 2025)
 
