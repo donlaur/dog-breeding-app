@@ -29,21 +29,42 @@ COMMENT ON COLUMN events.recurring IS 'Recurrence pattern: none, daily, weekly, 
 -- Create RLS policies
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
--- Policy for user to see only their own events
-CREATE POLICY "Users can view their own events" ON events 
-    FOR SELECT USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Add a policy for the service_role (the API server typically uses this role)
+CREATE POLICY "Allow service_role full access to events" 
+  ON events 
+  FOR ALL 
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
 
--- Policy for user to insert their own events
-CREATE POLICY "Users can insert their own events" ON events 
-    FOR INSERT WITH CHECK (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to select events
+CREATE POLICY "Allow authenticated users to select events" 
+  ON events 
+  FOR SELECT 
+  TO authenticated
+  USING (true);
 
--- Policy for user to update their own events
-CREATE POLICY "Users can update their own events" ON events 
-    FOR UPDATE USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to insert events
+CREATE POLICY "Allow authenticated users to insert events" 
+  ON events 
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (true);
 
--- Policy for user to delete their own events
-CREATE POLICY "Users can delete their own events" ON events 
-    FOR DELETE USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to update events
+CREATE POLICY "Allow authenticated users to update events" 
+  ON events 
+  FOR UPDATE 
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Enable authenticated users to delete events
+CREATE POLICY "Allow authenticated users to delete events" 
+  ON events 
+  FOR DELETE 
+  TO authenticated
+  USING (true);
 
 -- Create the event_rules table for custom automation rules
 CREATE TABLE IF NOT EXISTS event_rules (
@@ -62,15 +83,39 @@ CREATE TABLE IF NOT EXISTS event_rules (
 -- Add RLS policies for event_rules
 ALTER TABLE event_rules ENABLE ROW LEVEL SECURITY;
 
--- RLS policies for event_rules
-CREATE POLICY "Users can view their own event rules" ON event_rules 
-    FOR SELECT USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Add a policy for the service_role (the API server typically uses this role)
+CREATE POLICY "Allow service_role full access to event_rules" 
+  ON event_rules 
+  FOR ALL 
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can insert their own event rules" ON event_rules 
-    FOR INSERT WITH CHECK (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to select event_rules
+CREATE POLICY "Allow authenticated users to select event_rules" 
+  ON event_rules 
+  FOR SELECT 
+  TO authenticated
+  USING (true);
 
-CREATE POLICY "Users can update their own event rules" ON event_rules 
-    FOR UPDATE USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to insert event_rules
+CREATE POLICY "Allow authenticated users to insert event_rules" 
+  ON event_rules 
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (true);
 
-CREATE POLICY "Users can delete their own event rules" ON event_rules 
-    FOR DELETE USING (auth.uid() IN (SELECT id FROM users WHERE id = auth.uid()));
+-- Enable authenticated users to update event_rules
+CREATE POLICY "Allow authenticated users to update event_rules" 
+  ON event_rules 
+  FOR UPDATE 
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Enable authenticated users to delete event_rules
+CREATE POLICY "Allow authenticated users to delete event_rules" 
+  ON event_rules 
+  FOR DELETE 
+  TO authenticated
+  USING (true);
