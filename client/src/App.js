@@ -41,6 +41,8 @@ import PageForm from './pages/pages/PageForm';
 import PagePreview from './pages/pages/PagePreview';
 import PublicPage from './pages/PublicPage';
 import MediaLibrary from './pages/MediaLibrary';
+import HomePage from './HomePage';
+import NotFoundPage from './pages/errors/NotFoundPage';
 
 function App() {
   // Use a ref to track if interceptors are installed
@@ -72,10 +74,15 @@ function App() {
             <ErrorBoundary>
               <DebugRouteInfo />
               <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              {/* Public site routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/page/:slug" element={<PublicPage />} />
+
+              {/* Authentication routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
               
+              {/* Admin Dashboard routes - protected */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <DashboardLayout />
@@ -113,10 +120,8 @@ function App() {
                 <Route path="pages/preview/:id" element={<PagePreview />} />
               </Route>
               
-              {/* Public page routes */}
-              <Route path="page/:slug" element={<PublicPage />} />
-              
-              <Route path="*" element={<Overview />} />
+              {/* 404 Not Found Page */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ErrorBoundary>
           </PageProvider>

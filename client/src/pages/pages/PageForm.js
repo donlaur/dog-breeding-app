@@ -62,6 +62,8 @@ const PageForm = () => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    
     const loadPage = async () => {
       if (isEditMode) {
         try {
@@ -70,6 +72,9 @@ const PageForm = () => {
           
           // Use the fetchPageById function from context
           const pageData = await fetchPageById(id);
+          
+          // Check if component is still mounted before updating state
+          if (!isMounted) return;
           
           if (pageData) {
             console.log("Found page data:", pageData);
@@ -80,7 +85,7 @@ const PageForm = () => {
               template: pageData.template || 'default',
               status: pageData.status || 'published',
               meta_description: pageData.meta_description || '',
-              show_in_menu: pageData.show_in_menu || false,
+              show_in_menu: Boolean(pageData.show_in_menu),
               menu_order: pageData.menu_order || 0
             });
           } else {
@@ -89,14 +94,23 @@ const PageForm = () => {
           }
         } catch (err) {
           console.error('Error loading page:', err);
-          setError('Failed to load page');
+          if (isMounted) {
+            setError('Failed to load page');
+          }
         } finally {
-          setLoading(false);
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       }
     };
 
     loadPage();
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
   }, [id, isEditMode, fetchPageById]);
 
   const handleInputChange = (e) => {
@@ -428,6 +442,148 @@ const PageForm = () => {
               {isEditMode ? 'Update Page' : 'Create Page'}
             </Button>
           </Box>
+          
+          {/* Shortcodes Reference */}
+          <Paper sx={{ mt: 5, p: 3, bgcolor: 'grey.50' }}>
+            <Typography variant="h6" gutterBottom>
+              Available Shortcodes
+            </Typography>
+            <Typography variant="body2" paragraph>
+              You can use these shortcodes in your page content to display dynamic data.
+            </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    [DisplayDogs]
+                  </Typography>
+                  <Typography variant="body2">
+                    Display a grid of dogs with optional filters:
+                  </Typography>
+                  <Box 
+                    component="pre" 
+                    sx={{ 
+                      bgcolor: 'grey.100', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      fontSize: '0.8rem',
+                      overflowX: 'auto'
+                    }}
+                  >
+                    [DisplayDogs gender=Male breed="Golden Retriever"]
+                  </Box>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Parameters: gender, breed, age, status
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    [DisplayDog]
+                  </Typography>
+                  <Typography variant="body2">
+                    Display a single dog by ID:
+                  </Typography>
+                  <Box 
+                    component="pre" 
+                    sx={{ 
+                      bgcolor: 'grey.100', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      fontSize: '0.8rem',
+                      overflowX: 'auto'
+                    }}
+                  >
+                    [DisplayDog id=1]
+                  </Box>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Parameters: id (required)
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    [DisplayPuppies]
+                  </Typography>
+                  <Typography variant="body2">
+                    Display puppies with optional filters:
+                  </Typography>
+                  <Box 
+                    component="pre" 
+                    sx={{ 
+                      bgcolor: 'grey.100', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      fontSize: '0.8rem',
+                      overflowX: 'auto'
+                    }}
+                  >
+                    [DisplayPuppies status=Available gender=Male]
+                  </Box>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Parameters: status, gender, litter
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    [DisplayLitters]
+                  </Typography>
+                  <Typography variant="body2">
+                    Display litters with optional filters:
+                  </Typography>
+                  <Box 
+                    component="pre" 
+                    sx={{ 
+                      bgcolor: 'grey.100', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      fontSize: '0.8rem',
+                      overflowX: 'auto'
+                    }}
+                  >
+                    [DisplayLitters status=Available]
+                  </Box>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Parameters: status, dam, sire
+                  </Typography>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    [ContactForm]
+                  </Typography>
+                  <Typography variant="body2">
+                    Display a contact form:
+                  </Typography>
+                  <Box 
+                    component="pre" 
+                    sx={{ 
+                      bgcolor: 'grey.100', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      fontSize: '0.8rem',
+                      overflowX: 'auto'
+                    }}
+                  >
+                    [ContactForm subject="Puppy Inquiry" recipient="your@email.com"]
+                  </Box>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Parameters: subject, recipient
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
         </Box>
       </Box>
     </Container>

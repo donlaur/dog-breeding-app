@@ -27,6 +27,7 @@ const EventCalendar = ({
   const [dogList, setDogList] = useState([]);
   const [events, setEvents] = useState(propEvents || []);
   const [loading, setLoading] = useState(!propEvents);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Fetch data if not provided as props
   useEffect(() => {
@@ -210,9 +211,6 @@ const EventCalendar = ({
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
   };
-  
-  // State for controlling calendar date
-  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Handler for the Today button
   const handleToday = () => {

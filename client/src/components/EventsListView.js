@@ -42,7 +42,8 @@ import {
   MedicalServices as VetIcon,
   Cake as CakeIcon,
   Search as SearchIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  FilterList as FilterIcon
 } from '@mui/icons-material';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
@@ -120,6 +121,13 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   
   // State for filter dialog
   const [showFilterDialog, setShowFilterDialog] = useState(false);
+  
+  // Initialize filter entities
+  const [filterEntities, setFilterEntities] = useState({
+    dogs: [],
+    litters: [],
+    puppies: []
+  });
   
   // Fetch events data including heats and litter events
   useEffect(() => {
@@ -245,11 +253,13 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         const littersData = littersResponse.ok ? await littersResponse.json() : [];
         const puppiesData = puppiesResponse.ok ? await puppiesResponse.json() : [];
         
-        setEntities({
+        const entitiesData = {
           dogs: dogsData,
           litters: littersData,
           puppies: puppiesData
-        });
+        };
+        setEntities(entitiesData);
+        setFilterEntities(entitiesData);
       } catch (err) {
         console.error('Error fetching related entities:', err);
       }
@@ -489,32 +499,32 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   const getRelatedEntityOptions = () => {
     if (filters.relatedType === 'all') return [{ value: 'all', label: 'All' }];
     
-    let entities = [];
+    let entityList = [];
     
     switch (filters.relatedType) {
       case 'dog':
-        entities = entities.dogs || [];
+        entityList = filterEntities.dogs || [];
         return [
           { value: 'all', label: 'All Dogs' },
-          ...entities.map(entity => ({
+          ...entityList.map(entity => ({
             value: entity.id.toString(),
             label: entity.call_name || entity.registered_name || `Dog #${entity.id}`
           }))
         ];
       case 'litter':
-        entities = entities.litters || [];
+        entityList = filterEntities.litters || [];
         return [
           { value: 'all', label: 'All Litters' },
-          ...entities.map(entity => ({
+          ...entityList.map(entity => ({
             value: entity.id.toString(),
             label: entity.litter_name || `Litter #${entity.id}`
           }))
         ];
       case 'puppy':
-        entities = entities.puppies || [];
+        entityList = filterEntities.puppies || [];
         return [
           { value: 'all', label: 'All Puppies' },
-          ...entities.map(entity => ({
+          ...entityList.map(entity => ({
             value: entity.id.toString(),
             label: entity.name || `Puppy #${entity.id}`
           }))

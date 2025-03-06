@@ -52,16 +52,38 @@ export const PageProvider = ({ children }) => {
 
   // Fetch a page by slug
   const fetchPageBySlug = async (slug) => {
+    if (!slug) {
+      console.error('Slug parameter is required');
+      return null;
+    }
+    
     try {
       setLoading(true);
+      console.log(`Fetching page with slug: "${slug}"`);
       const response = await get(`/pages/slug/${slug}`);
+      
       if (response && response.id) {
+        console.log(`Found page "${response.title}" with ID ${response.id}`);
         return response;
       }
+      
+      console.log(`No page found with slug "${slug}"`);
+      
+      // Special case for puppies
+      if (slug === 'puppies' && pages && pages.length > 0) {
+        // Try to find any page with a puppies template
+        console.log('Looking for any page with puppies template as fallback');
+        const puppiesPage = pages.find(p => p.template === 'puppies' && p.status === 'published');
+        if (puppiesPage) {
+          console.log(`Found alternative puppies page with slug "${puppiesPage.slug}"`);
+          return puppiesPage;
+        }
+      }
+      
       return null;
     } catch (err) {
       console.error('Error fetching page by slug:', err);
-      return null;
+      throw err; // Let the calling code handle the error
     } finally {
       setLoading(false);
     }

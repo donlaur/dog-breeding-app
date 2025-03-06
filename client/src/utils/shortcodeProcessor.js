@@ -41,13 +41,20 @@ const parseAttributes = (attributesStr) => {
 const DogCard = ({ dog }) => {
   if (!dog) return null;
   
+  // Default image for dogs without photos
+  const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
+  
   return (
     <Card sx={{ maxWidth: 345, margin: '0 auto', mb: 2 }}>
       <CardMedia
         component="img"
         height="180"
-        image={dog.photo_url || "https://via.placeholder.com/300x180?text=No+Photo"}
+        image={dog.photo_url || defaultDogImage}
         alt={dog.name}
+        sx={{
+          objectFit: 'cover',
+          objectPosition: 'center'
+        }}
       />
       <CardContent>
         <Typography gutterBottom variant="h6" component="div">
@@ -99,13 +106,20 @@ const LitterCard = ({ litter }) => {
 const PuppyCard = ({ puppy }) => {
   if (!puppy) return null;
   
+  // Default image for puppies
+  const defaultPuppyImage = "https://images.unsplash.com/photo-1591160690555-5debfba289f0?q=80&w=2564";
+  
   return (
     <Card sx={{ maxWidth: 345, margin: '0 auto', mb: 2 }}>
       <CardMedia
         component="img"
         height="180"
-        image={puppy.photo_url || "https://via.placeholder.com/300x180?text=No+Photo"}
+        image={puppy.photo_url || defaultPuppyImage}
         alt={puppy.name || 'Puppy'}
+        sx={{
+          objectFit: 'cover',
+          objectPosition: 'center'
+        }}
       />
       <CardContent>
         <Typography gutterBottom variant="h6" component="div">
@@ -167,11 +181,36 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
     const fetchDogs = async () => {
       try {
         setLoading(true);
-        // In a real implementation, we would call the API with filters
-        // const response = await get('/api/dogs', { params: { gender, breed, age, status } });
         
-        // For now, let's use mock data
-        // Filter based on attributes
+        // Call the real API with filters
+        const queryParams = new URLSearchParams();
+        if (gender) queryParams.append('gender', gender);
+        if (breed) queryParams.append('breed', breed);
+        if (age) queryParams.append('age', age);
+        if (status) queryParams.append('status', status);
+        
+        const endpoint = `/dogs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const response = await get(endpoint);
+        
+        if (Array.isArray(response)) {
+          setDogs(response);
+        } else {
+          // Fallback to mock data if API call doesn't return an array
+          console.warn('API response was not an array, using fallback data');
+          let filteredDogs = [...MOCK_DOGS];
+          if (gender) {
+            filteredDogs = filteredDogs.filter(dog => dog.gender.toLowerCase() === gender.toLowerCase());
+          }
+          if (breed) {
+            filteredDogs = filteredDogs.filter(dog => dog.breed.toLowerCase().includes(breed.toLowerCase()));
+          }
+          setDogs(filteredDogs);
+        }
+      } catch (err) {
+        console.error('Error fetching dogs:', err);
+        setError('Failed to load dogs');
+        
+        // Fallback to mock data on error
         let filteredDogs = [...MOCK_DOGS];
         if (gender) {
           filteredDogs = filteredDogs.filter(dog => dog.gender.toLowerCase() === gender.toLowerCase());
@@ -179,11 +218,7 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
         if (breed) {
           filteredDogs = filteredDogs.filter(dog => dog.breed.toLowerCase().includes(breed.toLowerCase()));
         }
-        
         setDogs(filteredDogs);
-      } catch (err) {
-        console.error('Error fetching dogs:', err);
-        setError('Failed to load dogs');
       } finally {
         setLoading(false);
       }
@@ -246,19 +281,29 @@ const DisplayDogShortcode = ({ id }) => {
       
       try {
         setLoading(true);
-        // In a real implementation, we would call the API
-        // const response = await get(`/api/dogs/${id}`);
+        // Call the real API
+        const response = await get(`/dogs/${id}`);
         
-        // Use mock data
-        const dogData = MOCK_DOG_BY_ID[id];
-        if (dogData) {
-          setDog(dogData);
+        if (response && response.id) {
+          setDog(response);
         } else {
-          setError(`Dog with ID ${id} not found`);
+          // Fallback to mock data if API call fails
+          const dogData = MOCK_DOG_BY_ID[id];
+          if (dogData) {
+            setDog(dogData);
+          } else {
+            setError(`Dog with ID ${id} not found`);
+          }
         }
       } catch (err) {
         console.error('Error fetching dog:', err);
         setError('Failed to load dog information');
+        
+        // Fallback to mock data on error
+        const dogData = MOCK_DOG_BY_ID[id];
+        if (dogData) {
+          setDog(dogData);
+        }
       } finally {
         setLoading(false);
       }
@@ -309,25 +354,68 @@ const DisplayLittersShortcode = ({ status, dam, sire }) => {
     const fetchLitters = async () => {
       try {
         setLoading(true);
-        // In a real implementation, we would call the API with filters
-        // const response = await get('/api/litters', { params: { status, dam_id: dam, sire_id: sire } });
         
-        // Filter mock data based on attributes
+        // Call real API with filters
+        const queryParams = new URLSearchParams();
+        if (status) queryParams.append('status', status);
+        if (dam) queryParams.append('dam_id', dam);
+        if (sire) queryParams.append('sire_id', sire);
+        
+        const endpoint = `/litters${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const response = await get(endpoint);
+        
+        if (Array.isArray(response)) {
+          setLitters(response);
+        } else {
+          // Fallback to mock data if API call doesn't return an array
+          console.warn('API response was not an array, using fallback data');
+          
+          let filteredLitters = [...MOCK_LITTERS];
+          if (status) {
+            filteredLitters = filteredLitters.filter(litter => litter.status.toLowerCase() === status.toLowerCase());
+          }
+          if (dam) {
+            filteredLitters = filteredLitters.filter(litter => {
+              // Try to match by ID or name depending on what was provided
+              if (!isNaN(parseInt(dam))) {
+                return litter.dam_id === parseInt(dam);
+              }
+              return litter.dam_name && litter.dam_name.toLowerCase().includes(dam.toLowerCase());
+            });
+          }
+          if (sire) {
+            filteredLitters = filteredLitters.filter(litter => {
+              // Try to match by ID or name depending on what was provided
+              if (!isNaN(parseInt(sire))) {
+                return litter.sire_id === parseInt(sire);
+              }
+              return litter.sire_name && litter.sire_name.toLowerCase().includes(sire.toLowerCase());
+            });
+          }
+          
+          setLitters(filteredLitters);
+        }
+      } catch (err) {
+        console.error('Error fetching litters:', err);
+        setError('Failed to load litters');
+        
+        // Fallback to mock data on error
         let filteredLitters = [...MOCK_LITTERS];
         if (status) {
           filteredLitters = filteredLitters.filter(litter => litter.status.toLowerCase() === status.toLowerCase());
         }
         if (dam) {
-          filteredLitters = filteredLitters.filter(litter => litter.dam_name.toLowerCase().includes(dam.toLowerCase()));
+          filteredLitters = filteredLitters.filter(litter => 
+            litter.dam_name && litter.dam_name.toLowerCase().includes(dam.toLowerCase())
+          );
         }
         if (sire) {
-          filteredLitters = filteredLitters.filter(litter => litter.sire_name.toLowerCase().includes(sire.toLowerCase()));
+          filteredLitters = filteredLitters.filter(litter => 
+            litter.sire_name && litter.sire_name.toLowerCase().includes(sire.toLowerCase())
+          );
         }
         
         setLitters(filteredLitters);
-      } catch (err) {
-        console.error('Error fetching litters:', err);
-        setError('Failed to load litters');
       } finally {
         setLoading(false);
       }
@@ -384,10 +472,41 @@ const DisplayPuppiesShortcode = ({ status, gender, litter }) => {
     const fetchPuppies = async () => {
       try {
         setLoading(true);
-        // In a real implementation, we would call the API with filters
-        // const response = await get('/api/puppies', { params: { status, gender, litter_id: litter } });
         
-        // Filter mock data based on attributes
+        // Call real API with filters
+        const queryParams = new URLSearchParams();
+        if (status) queryParams.append('status', status);
+        if (gender) queryParams.append('gender', gender);
+        if (litter) queryParams.append('litter_id', litter);
+        
+        const endpoint = `/puppies${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const response = await get(endpoint);
+        
+        if (Array.isArray(response)) {
+          setPuppies(response);
+        } else {
+          // Fallback to mock data if API call doesn't return an array
+          console.warn('API response was not an array, using fallback data');
+          
+          let filteredPuppies = [...MOCK_PUPPIES];
+          if (status) {
+            filteredPuppies = filteredPuppies.filter(puppy => puppy.status.toLowerCase() === status.toLowerCase());
+          }
+          if (gender) {
+            filteredPuppies = filteredPuppies.filter(puppy => puppy.gender.toLowerCase() === gender.toLowerCase());
+          }
+          if (litter) {
+            // In mock data we don't have litter_id, but in real data we would
+            console.log('Would filter by litter_id:', litter);
+          }
+          
+          setPuppies(filteredPuppies);
+        }
+      } catch (err) {
+        console.error('Error fetching puppies:', err);
+        setError('Failed to load puppies');
+        
+        // Fallback to mock data on error
         let filteredPuppies = [...MOCK_PUPPIES];
         if (status) {
           filteredPuppies = filteredPuppies.filter(puppy => puppy.status.toLowerCase() === status.toLowerCase());
@@ -395,12 +514,8 @@ const DisplayPuppiesShortcode = ({ status, gender, litter }) => {
         if (gender) {
           filteredPuppies = filteredPuppies.filter(puppy => puppy.gender.toLowerCase() === gender.toLowerCase());
         }
-        // We would filter by litter ID in a real implementation
         
         setPuppies(filteredPuppies);
-      } catch (err) {
-        console.error('Error fetching puppies:', err);
-        setError('Failed to load puppies');
       } finally {
         setLoading(false);
       }

@@ -9,9 +9,10 @@ import {
   Divider,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Button
 } from '@mui/material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePages } from '../context/PageContext';
 import ShortcodeRenderer from '../utils/shortcodeProcessor';
 import PageNavigation from '../components/PageNavigation';
@@ -134,21 +135,39 @@ const PublicPage = () => {
   useEffect(() => {
     const loadPage = async () => {
       try {
+        console.log(`Attempting to load page with slug: '${slug}'`);
         const pageData = await fetchPageBySlug(slug);
+        
         if (pageData) {
+          console.log(`Successfully found page: ${pageData.title} (${pageData.status})`);
+          
           // Check if page is published
           if (pageData.status === 'draft') {
+            console.log(`Page '${slug}' is a draft, redirecting to homepage`);
             // Navigate to 404 or homepage if page is draft
             navigate('/');
             return;
           }
           setPage(pageData);
         } else {
+          console.error(`Page with slug '${slug}' not found in database`);
           setError('Page not found');
+          
+          // Special case for puppies page - if not found, go back to home
+          if (slug === 'puppies' || slug === 'available-puppies') {
+            console.log('Puppies page not found, redirecting to homepage');
+            setTimeout(() => navigate('/'), 1500);
+          }
         }
       } catch (err) {
+        console.error(`Error loading page '${slug}':`, err);
         setError('Failed to load page');
-        console.error(err);
+        
+        // Special case for puppies page - if error, go back to home
+        if (slug === 'puppies' || slug === 'available-puppies') {
+          console.log('Error loading puppies page, redirecting to homepage');
+          setTimeout(() => navigate('/'), 1500);
+        }
       } finally {
         setLoading(false);
       }
@@ -200,12 +219,27 @@ const PublicPage = () => {
   }
 
   if (error) {
+    // Use the NotFoundPage component by navigating to a non-existent route
+    // This provides a consistent 404 experience
+    useEffect(() => {
+      // Use a short timeout to avoid immediate redirect during render
+      const timer = setTimeout(() => {
+        navigate('/page-not-found');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }, [navigate]);
+    
+    // Show a loading state briefly before redirecting
     return (
-      <Container maxWidth="lg">
-        <Box sx={{ mt: 4, mb: 4 }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
-      </Container>
+      <>
+        <PageNavigation />
+        <Container maxWidth="lg">
+          <Box sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        </Container>
+      </>
     );
   }
 
