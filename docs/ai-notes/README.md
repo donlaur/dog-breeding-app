@@ -24,6 +24,7 @@ Each file follows a similar structure:
 - [Dog Pages Optimization](dog-pages-optimization.md) - Improvements to the dog display pages, API call reduction, and SEO optimization (Updated March 6, 2025)
 - [Performance Optimizations](performance-optimizations.md) - Application-wide performance improvements, code splitting, and loading states (Added March 6, 2025)
 - [Hybrid Architecture](hybrid-architecture.md) - Recommendation for Next.js/React hybrid architecture with JSON caching (Added March 6, 2025)
+- [AI Feature Opportunities](ai-feature-opportunities.md) - Practical AI integrations for the breeding application (Added March 6, 2025)
 
 ## Performance Optimization Strategies (March 6, 2025)
 
