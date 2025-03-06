@@ -7,7 +7,19 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, TextField, Card, CardContent, CardMedia, Grid, Divider, CircularProgress } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  TextField, 
+  Card, 
+  CardContent, 
+  CardMedia, 
+  Grid, 
+  Divider, 
+  CircularProgress,
+  Chip
+} from '@mui/material';
 import { useApi } from '../hooks/useApi';
 
 // Regex for matching shortcodes
@@ -45,58 +57,139 @@ const DogCard = ({ dog }) => {
   const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
   
   return (
-    <Card sx={{ maxWidth: 345, margin: '0 auto', mb: 2 }}>
-      <CardMedia
-        component="img"
-        height="180"
-        image={dog.photo_url || defaultDogImage}
-        alt={dog.name}
-        sx={{
-          objectFit: 'cover',
-          objectPosition: 'center'
-        }}
-      />
-      <CardContent>
-        <Typography gutterBottom variant="h6" component="div">
+    <Card 
+      sx={{ 
+        maxWidth: 345, 
+        margin: '0 auto', 
+        mb: 3,
+        borderRadius: 3,
+        overflow: 'hidden',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.07)',
+        transition: 'all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1)',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+        }
+      }}
+    >
+      <Box sx={{ position: 'relative' }}>
+        <CardMedia
+          component="img"
+          height="220"
+          image={dog.photo_url || defaultDogImage}
+          alt={dog.name}
+          sx={{
+            objectFit: 'cover',
+            objectPosition: 'center',
+            transition: 'transform 0.5s ease',
+            '&:hover': {
+              transform: 'scale(1.05)',
+            }
+          }}
+        />
+        {/* Gender tag pill */}
+        <Chip 
+          label={dog.gender}
+          color={dog.gender === 'Male' ? 'primary' : 'secondary'}
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            top: 12, 
+            right: 12,
+            fontWeight: 600,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+          }}
+        />
+      </Box>
+      
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography 
+          gutterBottom 
+          variant="h6" 
+          component="div"
+          sx={{ 
+            fontWeight: 600,
+            mb: 0.5
+          }}
+        >
           {dog.name}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {dog.gender} • {dog.breed || 'Mixed Breed'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {dog.age && `Age: ${dog.age}`}
-        </Typography>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {dog.breed || 'Pembroke Welsh Corgi'}
+          </Typography>
+          {dog.age && (
+            <>
+              <Box 
+                component="span" 
+                sx={{ 
+                  display: 'inline-block', 
+                  mx: 0.7, 
+                  width: 4, 
+                  height: 4, 
+                  borderRadius: '50%', 
+                  bgcolor: 'text.disabled' 
+                }}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {dog.age}
+              </Typography>
+            </>
+          )}
+        </Box>
+        
         {dog.description && (
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {dog.description.length > 100 ? `${dog.description.substring(0, 100)}...` : dog.description}
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              mt: 1.5,
+              lineHeight: 1.6
+            }}
+          >
+            {dog.description.length > 120 ? `${dog.description.substring(0, 120)}...` : dog.description}
           </Typography>
         )}
-      </CardContent>
-    </Card>
-  );
-};
-
-// Component to display a litter card
-const LitterCard = ({ litter }) => {
-  if (!litter) return null;
-  
-  return (
-    <Card sx={{ margin: '0 auto', mb: 2 }}>
-      <CardContent>
-        <Typography gutterBottom variant="h6" component="div">
-          {litter.dam_name} × {litter.sire_name}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Born: {new Date(litter.birth_date).toLocaleDateString()}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {litter.num_puppies || 0} puppies • {litter.status}
-        </Typography>
-        {litter.description && (
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {litter.description}
-          </Typography>
-        )}
+        
+        {/* Badges for additional info */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+          <Chip 
+            label="AKC Reg" 
+            size="small" 
+            color="primary" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+          <Chip 
+            label="Health Tested" 
+            size="small" 
+            color="success" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+          {dog.gender === 'Female' && (
+            <Chip 
+              label="Breeding Program" 
+              size="small" 
+              color="secondary" 
+              variant="outlined"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem', 
+                fontWeight: 600
+              }}
+            />
+          )}
+        </Box>
       </CardContent>
     </Card>
   );
@@ -109,63 +202,601 @@ const PuppyCard = ({ puppy }) => {
   // Default image for puppies
   const defaultPuppyImage = "https://images.unsplash.com/photo-1591160690555-5debfba289f0?q=80&w=2564";
   
+  // Status colors and labels
+  const getStatusProps = (status) => {
+    if (!status) return { color: 'default', label: 'Unknown' };
+    
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'available') {
+      return { color: 'success', label: 'Available Now' };
+    } else if (statusLower === 'reserved') {
+      return { color: 'secondary', label: 'Reserved' };
+    } else if (statusLower === 'sold') {
+      return { color: 'primary', label: 'Adoption Pending' };
+    } else {
+      return { color: 'default', label: status };
+    }
+  };
+  
+  const statusProps = getStatusProps(puppy.status);
+  
   return (
-    <Card sx={{ maxWidth: 345, margin: '0 auto', mb: 2 }}>
-      <CardMedia
-        component="img"
-        height="180"
-        image={puppy.photo_url || defaultPuppyImage}
-        alt={puppy.name || 'Puppy'}
-        sx={{
-          objectFit: 'cover',
-          objectPosition: 'center'
-        }}
-      />
-      <CardContent>
-        <Typography gutterBottom variant="h6" component="div">
+    <Card 
+      sx={{ 
+        maxWidth: 345, 
+        margin: '0 auto', 
+        mb: 3,
+        borderRadius: 3,
+        overflow: 'hidden',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.07)',
+        transition: 'all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1)',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+        }
+      }}
+    >
+      <Box sx={{ position: 'relative' }}>
+        <CardMedia
+          component="img"
+          height="220"
+          image={puppy.photo_url || defaultPuppyImage}
+          alt={puppy.name || 'Puppy'}
+          sx={{
+            objectFit: 'cover',
+            objectPosition: 'center',
+            transition: 'transform 0.5s ease',
+            '&:hover': {
+              transform: 'scale(1.05)',
+            }
+          }}
+        />
+        {/* Status tag */}
+        <Chip 
+          label={statusProps.label}
+          color={statusProps.color}
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            top: 12, 
+            right: 12,
+            fontWeight: 600,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+          }}
+        />
+        
+        {/* Age tag - if available */}
+        {puppy.age && (
+          <Chip 
+            label={puppy.age}
+            color="primary"
+            size="small"
+            variant="outlined"
+            sx={{ 
+              position: 'absolute', 
+              bottom: 12, 
+              left: 12,
+              fontWeight: 600,
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+            }}
+          />
+        )}
+      </Box>
+      
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography 
+          gutterBottom 
+          variant="h6" 
+          component="div"
+          sx={{ 
+            fontWeight: 600,
+            mb: 0.5
+          }}
+        >
           {puppy.name || `Puppy #${puppy.identifier}`}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {puppy.gender} • {puppy.color}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Status: {puppy.status}
-        </Typography>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {puppy.gender}
+          </Typography>
+          
+          <Box 
+            component="span" 
+            sx={{ 
+              display: 'inline-block', 
+              mx: 0.7, 
+              width: 4, 
+              height: 4, 
+              borderRadius: '50%', 
+              bgcolor: 'text.disabled' 
+            }}
+          />
+          
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {puppy.color || 'Pembroke Welsh Corgi'}
+          </Typography>
+        </Box>
+        
         {puppy.description && (
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {puppy.description.length > 100 ? `${puppy.description.substring(0, 100)}...` : puppy.description}
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              mt: 1.5,
+              lineHeight: 1.6
+            }}
+          >
+            {puppy.description.length > 120 ? `${puppy.description.substring(0, 120)}...` : puppy.description}
           </Typography>
         )}
+        
+        {/* Litter information if available */}
+        {puppy.litter_name && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mt: 2,
+              p: 1.5,
+              backgroundColor: 'background.neutral',
+              borderRadius: 2
+            }}
+          >
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '0.85rem'
+              }}
+            >
+              Litter: {puppy.litter_name}
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Additional features */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+          <Chip 
+            label="AKC Reg" 
+            size="small" 
+            color="primary" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+          {(!puppy.status || puppy.status.toLowerCase() === 'available') && (
+            <Chip 
+              label="Ready to Go" 
+              size="small" 
+              color="success" 
+              variant="outlined"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem', 
+                fontWeight: 600
+              }}
+            />
+          )}
+          <Chip 
+            label="Vet Checked" 
+            size="small" 
+            color="info" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+        </Box>
       </CardContent>
     </Card>
   );
 };
 
-// Mock data for use in shortcode components
-const MOCK_DOGS = [
-  { id: 1, name: "Max", gender: "Male", breed: "Golden Retriever", age: "3 years", photo_url: "https://via.placeholder.com/300x180?text=Max", description: "Friendly and loyal Golden Retriever" },
-  { id: 2, name: "Bella", gender: "Female", breed: "German Shepherd", age: "2 years", photo_url: "https://via.placeholder.com/300x180?text=Bella", description: "Intelligent and protective German Shepherd" },
-  { id: 3, name: "Charlie", gender: "Male", breed: "Labrador", age: "4 years", photo_url: "https://via.placeholder.com/300x180?text=Charlie", description: "Energetic and loving Labrador" }
-];
-
-const MOCK_DOG_BY_ID = {
-  "1": { id: 1, name: "Max", gender: "Male", breed: "Golden Retriever", age: "3 years", photo_url: "https://via.placeholder.com/300x180?text=Max", description: "Friendly and loyal Golden Retriever" },
-  "2": { id: 2, name: "Bella", gender: "Female", breed: "German Shepherd", age: "2 years", photo_url: "https://via.placeholder.com/300x180?text=Bella", description: "Intelligent and protective German Shepherd" },
-  "3": { id: 3, name: "Charlie", gender: "Male", breed: "Labrador", age: "4 years", photo_url: "https://via.placeholder.com/300x180?text=Charlie", description: "Energetic and loving Labrador" }
+// Component to display a litter card
+const LitterCard = ({ litter }) => {
+  if (!litter) return null;
+  
+  // Default litter image
+  const defaultLitterImage = "https://images.unsplash.com/photo-1591160690555-5debfba289f0?q=80&w=2564";
+  
+  // Format birth date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'TBD';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric'
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+  
+  // Status colors and labels for litters
+  const getStatusProps = (status) => {
+    if (!status) return { color: 'default', label: 'Unknown' };
+    
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'planned' || statusLower === 'upcoming') {
+      return { color: 'secondary', label: 'Upcoming', variant: 'default' };
+    } else if (statusLower === 'born' || statusLower === 'current') {
+      return { color: 'primary', label: 'New Litter', variant: 'default' };
+    } else if (statusLower === 'available') {
+      return { color: 'success', label: 'Puppies Available', variant: 'default' };
+    } else if (statusLower === 'completed' || statusLower === 'past') {
+      return { color: 'default', label: 'Past Litter', variant: 'outlined' };
+    } else {
+      return { color: 'default', label: status, variant: 'outlined' };
+    }
+  };
+  
+  const statusProps = getStatusProps(litter.status);
+  const birthDate = formatDate(litter.birth_date);
+  const isPlanned = litter.status?.toLowerCase() === 'planned' || !litter.birth_date;
+  const expectedDate = isPlanned && litter.expected_date ? formatDate(litter.expected_date) : null;
+  
+  return (
+    <Card 
+      sx={{ 
+        margin: '0 auto', 
+        mb: 3,
+        borderRadius: 3,
+        overflow: 'hidden',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.07)',
+        transition: 'all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1)',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+        }
+      }}
+    >
+      <Grid container>
+        {/* Image Section */}
+        <Grid item xs={12} sm={4}>
+          <Box 
+            sx={{ 
+              position: 'relative',
+              height: '100%',
+              minHeight: { xs: 200, sm: '100%' }
+            }}
+          >
+            <CardMedia
+              component="img"
+              image={litter.photo_url || defaultLitterImage}
+              alt={`${litter.dam_name} x ${litter.sire_name} Litter`}
+              sx={{
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center',
+              }}
+            />
+            {/* Status tag */}
+            <Chip 
+              label={statusProps.label}
+              color={statusProps.color}
+              variant={statusProps.variant}
+              size="small"
+              sx={{ 
+                position: 'absolute', 
+                top: 12, 
+                left: 12,
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+              }}
+            />
+          </Box>
+        </Grid>
+        
+        {/* Content Section */}
+        <Grid item xs={12} sm={8}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography 
+              gutterBottom 
+              variant="h6" 
+              component="div"
+              sx={{ 
+                fontWeight: 600,
+                mb: 1
+              }}
+            >
+              {litter.dam_name} × {litter.sire_name}
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mr: 3, mb: 1 }}>
+                <Box 
+                  sx={{ 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    backgroundColor: isPlanned ? 'secondary.main' : 'primary.main',
+                    mr: 1
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {isPlanned ? 'Expected: ' : 'Born: '} 
+                  <Box component="span" sx={{ fontWeight: 600 }}>
+                    {isPlanned ? (expectedDate || 'TBD') : birthDate}
+                  </Box>
+                </Typography>
+              </Box>
+              
+              {litter.num_puppies > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Box 
+                    sx={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      backgroundColor: 'success.main',
+                      mr: 1
+                    }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    <Box component="span" sx={{ fontWeight: 600 }}>
+                      {litter.num_puppies}
+                    </Box> puppies
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+            
+            {litter.description && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{ mt: 1, mb: 2, lineHeight: 1.6 }}
+              >
+                {litter.description}
+              </Typography>
+            )}
+            
+            {/* Tags/features */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 'auto' }}>
+              <Chip 
+                label="AKC Registered" 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+                sx={{ 
+                  height: 24, 
+                  fontSize: '0.7rem', 
+                  fontWeight: 600
+                }}
+              />
+              <Chip 
+                label="Health Tested Parents" 
+                size="small" 
+                color="success" 
+                variant="outlined"
+                sx={{ 
+                  height: 24, 
+                  fontSize: '0.7rem', 
+                  fontWeight: 600
+                }}
+              />
+              {litter.status?.toLowerCase() === 'available' && (
+                <Chip 
+                  label="Accepting Applications" 
+                  size="small" 
+                  color="secondary" 
+                  sx={{ 
+                    height: 24, 
+                    fontSize: '0.7rem', 
+                    fontWeight: 600
+                  }}
+                />
+              )}
+            </Box>
+          </CardContent>
+        </Grid>
+      </Grid>
+    </Card>
+  );
+};
+      return { color: 'success', label: 'Available Now' };
+    } else if (statusLower === 'reserved') {
+      return { color: 'secondary', label: 'Reserved' };
+    } else if (statusLower === 'sold') {
+      return { color: 'primary', label: 'Adoption Pending' };
+    } else {
+      return { color: 'default', label: status };
+    }
+  };
+  
+  const statusProps = getStatusProps(puppy.status);
+  
+  return (
+    <Card 
+      sx={{ 
+        maxWidth: 345, 
+        margin: '0 auto', 
+        mb: 3,
+        borderRadius: 3,
+        overflow: 'hidden',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.07)',
+        transition: 'all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1)',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+        }
+      }}
+    >
+      <Box sx={{ position: 'relative' }}>
+        <CardMedia
+          component="img"
+          height="220"
+          image={puppy.photo_url || defaultPuppyImage}
+          alt={puppy.name || 'Puppy'}
+          sx={{
+            objectFit: 'cover',
+            objectPosition: 'center',
+            transition: 'transform 0.5s ease',
+            '&:hover': {
+              transform: 'scale(1.05)',
+            }
+          }}
+        />
+        {/* Status tag */}
+        <Chip 
+          label={statusProps.label}
+          color={statusProps.color}
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            top: 12, 
+            right: 12,
+            fontWeight: 600,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+          }}
+        />
+        
+        {/* Age tag - if available */}
+        {puppy.age && (
+          <Chip 
+            label={puppy.age}
+            color="primary"
+            size="small"
+            variant="outlined"
+            sx={{ 
+              position: 'absolute', 
+              bottom: 12, 
+              left: 12,
+              fontWeight: 600,
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+            }}
+          />
+        )}
+      </Box>
+      
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography 
+          gutterBottom 
+          variant="h6" 
+          component="div"
+          sx={{ 
+            fontWeight: 600,
+            mb: 0.5
+          }}
+        >
+          {puppy.name || `Puppy #${puppy.identifier}`}
+        </Typography>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {puppy.gender}
+          </Typography>
+          
+          <Box 
+            component="span" 
+            sx={{ 
+              display: 'inline-block', 
+              mx: 0.7, 
+              width: 4, 
+              height: 4, 
+              borderRadius: '50%', 
+              bgcolor: 'text.disabled' 
+            }}
+          />
+          
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {puppy.color || 'Pembroke Welsh Corgi'}
+          </Typography>
+        </Box>
+        
+        {puppy.description && (
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              mt: 1.5,
+              lineHeight: 1.6
+            }}
+          >
+            {puppy.description.length > 120 ? `${puppy.description.substring(0, 120)}...` : puppy.description}
+          </Typography>
+        )}
+        
+        {/* Litter information if available */}
+        {puppy.litter_name && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mt: 2,
+              p: 1.5,
+              backgroundColor: 'background.neutral',
+              borderRadius: 2
+            }}
+          >
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '0.85rem'
+              }}
+            >
+              Litter: {puppy.litter_name}
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Additional features */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+          <Chip 
+            label="AKC Reg" 
+            size="small" 
+            color="primary" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+          {(!puppy.status || puppy.status.toLowerCase() === 'available') && (
+            <Chip 
+              label="Ready to Go" 
+              size="small" 
+              color="success" 
+              variant="outlined"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem', 
+                fontWeight: 600
+              }}
+            />
+          )}
+          <Chip 
+            label="Vet Checked" 
+            size="small" 
+            color="info" 
+            variant="outlined"
+            sx={{ 
+              height: 24, 
+              fontSize: '0.7rem', 
+              fontWeight: 600
+            }}
+          />
+        </Box>
+      </CardContent>
+    </Card>
+  );
 };
 
-const MOCK_LITTERS = [
-  { id: 1, dam_name: "Bella", sire_name: "Max", birth_date: "2025-01-15", num_puppies: 6, status: "Available", description: "Healthy litter of Golden Retriever puppies" },
-  { id: 2, dam_name: "Luna", sire_name: "Charlie", birth_date: "2025-02-10", num_puppies: 4, status: "Reserved", description: "Beautiful Labrador puppies, all reserved" },
-  { id: 3, dam_name: "Sadie", sire_name: "Cooper", birth_date: "2025-04-01", num_puppies: 0, status: "Planned", description: "Upcoming litter expected in early April" }
-];
-
-const MOCK_PUPPIES = [
-  { id: 1, name: "Puppy 1", identifier: "A1", gender: "Male", color: "Golden", status: "Available", photo_url: "https://via.placeholder.com/300x180?text=Puppy+1", description: "Playful and curious male puppy" },
-  { id: 2, name: "Puppy 2", identifier: "A2", gender: "Female", color: "Cream", status: "Reserved", photo_url: "https://via.placeholder.com/300x180?text=Puppy+2", description: "Sweet and gentle female puppy" },
-  { id: 3, name: "Puppy 3", identifier: "A3", gender: "Male", color: "Golden", status: "Available", photo_url: "https://via.placeholder.com/300x180?text=Puppy+3", description: "Energetic and bold male puppy" },
-  { id: 4, name: "Puppy 4", identifier: "B1", gender: "Female", color: "Black", status: "Available", photo_url: "https://via.placeholder.com/300x180?text=Puppy+4", description: "Calm and attentive female puppy" }
-];
+// Default image URLs for fallback purposes when photos are missing
+const DEFAULT_DOG_IMAGE = "https://images.unsplash.com/photo-1612536057832-2ff7ead58194?q=80&w=1887";
+const DEFAULT_PUPPY_IMAGE = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=1974";
 
 // Properly defined React components for each shortcode
 // Each is a proper React component that can use hooks
@@ -190,35 +821,27 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
         if (status) queryParams.append('status', status);
         
         const endpoint = `/dogs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        console.log(`Fetching dogs from API endpoint: ${endpoint}`);
         const response = await get(endpoint);
         
         if (Array.isArray(response)) {
-          setDogs(response);
+          console.log(`Successfully fetched ${response.length} dogs from API`);
+          // Transform any dogs that don't have photos
+          const dogsWithPhotos = response.map(dog => ({
+            ...dog,
+            photo_url: dog.photo_url || DEFAULT_DOG_IMAGE,
+            breed: dog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
+          }));
+          setDogs(dogsWithPhotos);
         } else {
-          // Fallback to mock data if API call doesn't return an array
-          console.warn('API response was not an array, using fallback data');
-          let filteredDogs = [...MOCK_DOGS];
-          if (gender) {
-            filteredDogs = filteredDogs.filter(dog => dog.gender.toLowerCase() === gender.toLowerCase());
-          }
-          if (breed) {
-            filteredDogs = filteredDogs.filter(dog => dog.breed.toLowerCase().includes(breed.toLowerCase()));
-          }
-          setDogs(filteredDogs);
+          console.error('API response was not an array:', response);
+          setError('Failed to load dogs - invalid data returned from server');
+          setDogs([]);
         }
       } catch (err) {
         console.error('Error fetching dogs:', err);
-        setError('Failed to load dogs');
-        
-        // Fallback to mock data on error
-        let filteredDogs = [...MOCK_DOGS];
-        if (gender) {
-          filteredDogs = filteredDogs.filter(dog => dog.gender.toLowerCase() === gender.toLowerCase());
-        }
-        if (breed) {
-          filteredDogs = filteredDogs.filter(dog => dog.breed.toLowerCase().includes(breed.toLowerCase()));
-        }
-        setDogs(filteredDogs);
+        setError('Failed to load dogs. Please try again later.');
+        setDogs([]);
       } finally {
         setLoading(false);
       }
@@ -281,29 +904,27 @@ const DisplayDogShortcode = ({ id }) => {
       
       try {
         setLoading(true);
+        console.log(`Fetching dog with ID: ${id}`);
+        
         // Call the real API
         const response = await get(`/dogs/${id}`);
         
         if (response && response.id) {
-          setDog(response);
+          console.log(`Successfully fetched dog: ${response.name}`);
+          // Ensure dog has photo and breed
+          const dogWithPhoto = {
+            ...response,
+            photo_url: response.photo_url || DEFAULT_DOG_IMAGE,
+            breed: response.breed || 'Pembroke Welsh Corgi' // Default breed if missing
+          };
+          setDog(dogWithPhoto);
         } else {
-          // Fallback to mock data if API call fails
-          const dogData = MOCK_DOG_BY_ID[id];
-          if (dogData) {
-            setDog(dogData);
-          } else {
-            setError(`Dog with ID ${id} not found`);
-          }
+          console.error(`No dog found with ID: ${id}`);
+          setError(`Dog with ID ${id} not found`);
         }
       } catch (err) {
         console.error('Error fetching dog:', err);
         setError('Failed to load dog information');
-        
-        // Fallback to mock data on error
-        const dogData = MOCK_DOG_BY_ID[id];
-        if (dogData) {
-          setDog(dogData);
-        }
       } finally {
         setLoading(false);
       }
@@ -362,60 +983,21 @@ const DisplayLittersShortcode = ({ status, dam, sire }) => {
         if (sire) queryParams.append('sire_id', sire);
         
         const endpoint = `/litters${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        console.log(`Fetching litters from API endpoint: ${endpoint}`);
         const response = await get(endpoint);
         
         if (Array.isArray(response)) {
+          console.log(`Successfully fetched ${response.length} litters from API`);
           setLitters(response);
         } else {
-          // Fallback to mock data if API call doesn't return an array
-          console.warn('API response was not an array, using fallback data');
-          
-          let filteredLitters = [...MOCK_LITTERS];
-          if (status) {
-            filteredLitters = filteredLitters.filter(litter => litter.status.toLowerCase() === status.toLowerCase());
-          }
-          if (dam) {
-            filteredLitters = filteredLitters.filter(litter => {
-              // Try to match by ID or name depending on what was provided
-              if (!isNaN(parseInt(dam))) {
-                return litter.dam_id === parseInt(dam);
-              }
-              return litter.dam_name && litter.dam_name.toLowerCase().includes(dam.toLowerCase());
-            });
-          }
-          if (sire) {
-            filteredLitters = filteredLitters.filter(litter => {
-              // Try to match by ID or name depending on what was provided
-              if (!isNaN(parseInt(sire))) {
-                return litter.sire_id === parseInt(sire);
-              }
-              return litter.sire_name && litter.sire_name.toLowerCase().includes(sire.toLowerCase());
-            });
-          }
-          
-          setLitters(filteredLitters);
+          console.error('API response was not an array:', response);
+          setError('Failed to load litters - invalid data returned from server');
+          setLitters([]);
         }
       } catch (err) {
         console.error('Error fetching litters:', err);
-        setError('Failed to load litters');
-        
-        // Fallback to mock data on error
-        let filteredLitters = [...MOCK_LITTERS];
-        if (status) {
-          filteredLitters = filteredLitters.filter(litter => litter.status.toLowerCase() === status.toLowerCase());
-        }
-        if (dam) {
-          filteredLitters = filteredLitters.filter(litter => 
-            litter.dam_name && litter.dam_name.toLowerCase().includes(dam.toLowerCase())
-          );
-        }
-        if (sire) {
-          filteredLitters = filteredLitters.filter(litter => 
-            litter.sire_name && litter.sire_name.toLowerCase().includes(sire.toLowerCase())
-          );
-        }
-        
-        setLitters(filteredLitters);
+        setError('Failed to load litters. Please try again later.');
+        setLitters([]);
       } finally {
         setLoading(false);
       }
@@ -480,42 +1062,28 @@ const DisplayPuppiesShortcode = ({ status, gender, litter }) => {
         if (litter) queryParams.append('litter_id', litter);
         
         const endpoint = `/puppies${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        console.log(`Fetching puppies from API endpoint: ${endpoint}`);
         const response = await get(endpoint);
         
         if (Array.isArray(response)) {
-          setPuppies(response);
+          console.log(`Successfully fetched ${response.length} puppies from API`);
+          
+          // Ensure all puppies have photos
+          const puppiesWithPhotos = response.map(puppy => ({
+            ...puppy,
+            photo_url: puppy.photo_url || DEFAULT_PUPPY_IMAGE,
+          }));
+          
+          setPuppies(puppiesWithPhotos);
         } else {
-          // Fallback to mock data if API call doesn't return an array
-          console.warn('API response was not an array, using fallback data');
-          
-          let filteredPuppies = [...MOCK_PUPPIES];
-          if (status) {
-            filteredPuppies = filteredPuppies.filter(puppy => puppy.status.toLowerCase() === status.toLowerCase());
-          }
-          if (gender) {
-            filteredPuppies = filteredPuppies.filter(puppy => puppy.gender.toLowerCase() === gender.toLowerCase());
-          }
-          if (litter) {
-            // In mock data we don't have litter_id, but in real data we would
-            console.log('Would filter by litter_id:', litter);
-          }
-          
-          setPuppies(filteredPuppies);
+          console.error('API response was not an array:', response);
+          setError('Failed to load puppies - invalid data returned from server');
+          setPuppies([]);
         }
       } catch (err) {
         console.error('Error fetching puppies:', err);
-        setError('Failed to load puppies');
-        
-        // Fallback to mock data on error
-        let filteredPuppies = [...MOCK_PUPPIES];
-        if (status) {
-          filteredPuppies = filteredPuppies.filter(puppy => puppy.status.toLowerCase() === status.toLowerCase());
-        }
-        if (gender) {
-          filteredPuppies = filteredPuppies.filter(puppy => puppy.gender.toLowerCase() === gender.toLowerCase());
-        }
-        
-        setPuppies(filteredPuppies);
+        setError('Failed to load puppies. Please try again later.');
+        setPuppies([]);
       } finally {
         setLoading(false);
       }
