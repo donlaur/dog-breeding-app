@@ -123,31 +123,39 @@ const saveToLocalStorage = () => {
    - Less client-side memory usage with optimized data structures
    - Smoother UX with reduced network activity
 
-## Future Recommendations
+## Future Recommendations for Breeder-Specific Optimizations
 
-1. **Service Worker Implementation**:
-   - Add full offline support with service workers
-   - Implement background sync for data updates
+Given that breeding programs have specific usage patterns (infrequent edits, primarily status changes, and frequent photo updates), these optimizations would provide the most value:
 
-2. **Advanced Loading Strategies**:
-   - Preload data for likely user paths
-   - Implement priority-based loading for critical content
-   - Add prefetching for common navigation patterns
+1. **Static Site Generation for Public Pages**:
+   - Consider migrating public pages to Next.js for static generation
+   - Pre-render dog profiles, litter announcements, and available puppy pages
+   - Implement incremental static regeneration for automatic updates
+   - Keep the admin dashboard in React for interactive editing
 
-3. **React Query Integration**:
-   - Replace custom caching with React Query
-   - Utilize built-in stale-while-revalidate pattern
-   - Benefit from automatic refetching and invalidation
+2. **Photo-Centric Optimizations**:
+   - Implement a specialized photo management system with server-side resizing
+   - Add client-side image compression before upload
+   - Create multiple resolution versions of each photo for different contexts
+   - Implement progressive image loading for gallery views
 
-4. **Image Optimization**:
-   - Implement responsive images
-   - Use WebP format with fallbacks
-   - Add lazy loading for off-screen images
+3. **JSON File Caching Strategy**:
+   - Implement a hybrid approach where API data is cached to static JSON files
+   - Update JSON files whenever core entity data changes (dogs, litters, puppies)
+   - Serve static JSON directly for public pages rather than hitting the API
+   - Add versioning to JSON files for intelligent cache invalidation
 
-5. **Monitoring and Analytics**:
-   - Add performance metrics collection
-   - Track and optimize slow operations
-   - Implement real user monitoring (RUM)
+4. **Aggressive Caching for Static Content**:
+   - Use long-lived browser cache for stable content (past litters, retired dogs)
+   - Implement ETags to avoid refetching unchanged data
+   - Set HTTP cache headers for optimal browser caching
+   - Add cache-control directives to differentiate between stable and changing content
+
+5. **Status-Change Optimizations**:
+   - Create specialized lightweight endpoints just for status updates
+   - Implement optimistic UI updates for status changes
+   - Add batch update capability for multiple puppy status changes
+   - Include webhook triggers for automatic email notifications on status changes
 
 ## Files Modified
 - `/client/src/App.js` - Added code splitting with React.lazy

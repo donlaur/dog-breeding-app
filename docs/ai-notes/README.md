@@ -23,10 +23,11 @@ Each file follows a similar structure:
 
 - [Dog Pages Optimization](dog-pages-optimization.md) - Improvements to the dog display pages, API call reduction, and SEO optimization (Updated March 6, 2025)
 - [Performance Optimizations](performance-optimizations.md) - Application-wide performance improvements, code splitting, and loading states (Added March 6, 2025)
+- [Hybrid Architecture](hybrid-architecture.md) - Recommendation for Next.js/React hybrid architecture with JSON caching (Added March 6, 2025)
 
 ## Performance Optimization Strategies (March 6, 2025)
 
-The following performance optimizations have been implemented to improve load times and perceived performance:
+The following performance optimizations have been implemented to improve load times and perceived performance, with special consideration for the typical usage patterns of a breeding program (infrequent edits, status updates, and photo additions):
 
 1. **Skeleton Loading Screens**:
    - Added skeleton components for DogCard to show during data loading
@@ -41,7 +42,7 @@ The following performance optimizations have been implemented to improve load ti
 
 3. **Enhanced Caching Strategy**:
    - Implemented localStorage persistence for dogs, litters, and puppies data
-   - Extended cache expiration from 5 to 15 minutes
+   - Extended cache expiration from 5 to 15 minutes for better performance
    - Added automatic cache invalidation based on timestamps
    - Preserved cache between page refreshes for faster startup
 
@@ -50,7 +51,12 @@ The following performance optimizations have been implemented to improve load ti
    - Implemented timeout-based fallbacks to prevent stuck loading states
    - Used skeleton UI to make loading feel faster than spinner-only approach
 
-These optimizations significantly reduce API calls and improve both actual and perceived performance.
+5. **Breeder-Specific Optimizations**:
+   - Refined caching strategy for infrequently changed breeding program data
+   - Prioritized photo display optimization since photos are updated most frequently
+   - Implemented targeted performance improvements for common breeder workflows
+
+These optimizations significantly reduce API calls and improve both actual and perceived performance, particularly for the public-facing pages where visitors view dogs and available puppies.
 
 ## Modern JavaScript Frameworks Evaluation
 
