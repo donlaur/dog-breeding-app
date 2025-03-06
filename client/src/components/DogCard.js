@@ -2,8 +2,34 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getPhotoUrl } from '../utils/photoUtils';
 import { Pets as PetsIcon } from '@mui/icons-material';
+import { Skeleton, Box, Card } from '@mui/material';
 
-const DogCard = ({ dog }) => {
+// Skeleton version of DogCard for loading states
+export const DogCardSkeleton = () => {
+  return (
+    <div className="dog-card">
+      <Card>
+        <Skeleton variant="rectangular" height={200} width="100%" animation="wave" />
+        <Box sx={{ p: 2 }}>
+          <Skeleton variant="text" width="70%" height={28} animation="wave" />
+          <Skeleton variant="text" width="90%" height={20} animation="wave" />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+            <Skeleton variant="text" width="40%" height={20} animation="wave" />
+            <Skeleton variant="text" width="30%" height={20} animation="wave" />
+          </Box>
+          <Skeleton variant="rectangular" width="50%" height={24} sx={{ mt: 1.5, borderRadius: 1 }} animation="wave" />
+        </Box>
+      </Card>
+    </div>
+  );
+};
+
+const DogCard = ({ dog, loading = false }) => {
+  
+  // Return skeleton if loading
+  if (loading) {
+    return <DogCardSkeleton />;
+  }
   // Safely access properties with defaults
   const {
     id,

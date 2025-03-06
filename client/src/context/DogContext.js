@@ -38,8 +38,16 @@ export const DogProvider = ({ children }) => {
   const retryAttempts = useRef(0);
   const MAX_RETRIES = 2;
 
-  // Cache expiration time (5 minutes)
-  const CACHE_EXPIRATION = 5 * 60 * 1000; 
+  // Cache expiration time (15 minutes - increased for better performance)
+  const CACHE_EXPIRATION = 15 * 60 * 1000; 
+  
+  // LocalStorage keys for persistent caching
+  const STORAGE_KEYS = {
+    DOGS: 'breeder_app_dogs_cache',
+    LITTERS: 'breeder_app_litters_cache',
+    PUPPIES: 'breeder_app_puppies_cache',
+    TIMESTAMP: 'breeder_app_cache_timestamp'
+  };
 
   // Get adult dogs (is_adult === true)
   const adultDogs = dogs.filter(dog => dog.is_adult === true);
@@ -50,6 +58,110 @@ export const DogProvider = ({ children }) => {
   // Add a loading state flag specifically for dogs to prevent render loops
   const [dogsLoading, setDogsLoading] = useState(false);
   const [littersLoading, setLittersLoading] = useState(false);
+
+  // Load cached data from localStorage on component mount
+  useEffect(() => {
+    try {
+      // Get timestamp first to check validity
+      const storedTimestamp = localStorage.getItem(STORAGE_KEYS.TIMESTAMP);
+      
+      if (storedTimestamp) {
+        const timestamp = parseInt(storedTimestamp, 10);
+        // Check if cache is still valid
+        if ((Date.now() - timestamp) < CACHE_EXPIRATION) {
+          console.log('Loading data from localStorage cache');
+          
+          // Set the timestamp in component state
+          setDataTimestamp(timestamp);
+          
+          // Load dogs
+          const cachedDogs = localStorage.getItem(STORAGE_KEYS.DOGS);
+          if (cachedDogs) {
+            try {
+              const parsedDogs = JSON.parse(cachedDogs);
+              if (Array.isArray(parsedDogs)) {
+                setDogs(parsedDogs);
+                console.log(`Loaded ${parsedDogs.length} dogs from cache`);
+              }
+            } catch (e) {
+              console.error('Error parsing cached dogs:', e);
+            }
+          }
+          
+          // Load litters
+          const cachedLitters = localStorage.getItem(STORAGE_KEYS.LITTERS);
+          if (cachedLitters) {
+            try {
+              const parsedLitters = JSON.parse(cachedLitters);
+              if (Array.isArray(parsedLitters)) {
+                setLitters(parsedLitters);
+                console.log(`Loaded ${parsedLitters.length} litters from cache`);
+              }
+            } catch (e) {
+              console.error('Error parsing cached litters:', e);
+            }
+          }
+          
+          // Load puppies
+          const cachedPuppies = localStorage.getItem(STORAGE_KEYS.PUPPIES);
+          if (cachedPuppies) {
+            try {
+              const parsedPuppies = JSON.parse(cachedPuppies);
+              if (Array.isArray(parsedPuppies)) {
+                setPuppies(parsedPuppies);
+                console.log(`Loaded ${parsedPuppies.length} puppies from cache`);
+              }
+            } catch (e) {
+              console.error('Error parsing cached puppies:', e);
+            }
+          }
+          
+          // Mark initial load as complete
+          initialLoadComplete.current = true;
+        } else {
+          console.log('Cache expired, will load fresh data');
+          // Clear expired cache
+          localStorage.removeItem(STORAGE_KEYS.TIMESTAMP);
+          localStorage.removeItem(STORAGE_KEYS.DOGS);
+          localStorage.removeItem(STORAGE_KEYS.LITTERS);
+          localStorage.removeItem(STORAGE_KEYS.PUPPIES);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading from localStorage:', e);
+    }
+  }, []);
+
+  // Function to save current data to localStorage
+  const saveToLocalStorage = () => {
+    try {
+      // Only cache if we have data
+      if (dogs.length || litters.length || puppies.length) {
+        // Save the current timestamp
+        const timestamp = Date.now();
+        localStorage.setItem(STORAGE_KEYS.TIMESTAMP, timestamp.toString());
+        
+        // Save dogs
+        if (dogs.length) {
+          localStorage.setItem(STORAGE_KEYS.DOGS, JSON.stringify(dogs));
+        }
+        
+        // Save litters
+        if (litters.length) {
+          localStorage.setItem(STORAGE_KEYS.LITTERS, JSON.stringify(litters));
+        }
+        
+        // Save puppies
+        if (puppies.length) {
+          localStorage.setItem(STORAGE_KEYS.PUPPIES, JSON.stringify(puppies));
+        }
+        
+        console.log('Saved data to localStorage cache');
+      }
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  };
 
   // Function to check if cache is valid
   const isCacheValid = () => {
@@ -156,7 +268,11 @@ export const DogProvider = ({ children }) => {
       // If we got here, consider the data load complete even if some requests failed
       // This prevents infinite retries when some endpoints aren't available
       initialLoadComplete.current = true;
-      setDataTimestamp(Date.now());
+      const timestamp = Date.now();
+      setDataTimestamp(timestamp);
+      
+      // Save data to localStorage for persistent caching
+      saveToLocalStorage();
       
       // Reset retry counter on any successful load
       if (dogsData.length > 0) {

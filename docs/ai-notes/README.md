@@ -22,6 +22,35 @@ Each file follows a similar structure:
 ## Index of Notes
 
 - [Dog Pages Optimization](dog-pages-optimization.md) - Improvements to the dog display pages, API call reduction, and SEO optimization (Updated March 6, 2025)
+- [Performance Optimizations](performance-optimizations.md) - Application-wide performance improvements, code splitting, and loading states (Added March 6, 2025)
+
+## Performance Optimization Strategies (March 6, 2025)
+
+The following performance optimizations have been implemented to improve load times and perceived performance:
+
+1. **Skeleton Loading Screens**:
+   - Added skeleton components for DogCard to show during data loading
+   - Implemented loading state UI for stat cards on the dashboard
+   - Improves perceived performance by showing content structure before data arrives
+
+2. **Code Splitting with React.lazy**:
+   - Implemented route-based code splitting for all page components
+   - Added Suspense boundaries around lazily loaded components
+   - Reduced initial bundle size by loading components only when needed
+   - Keeps critical components like navigation always available
+
+3. **Enhanced Caching Strategy**:
+   - Implemented localStorage persistence for dogs, litters, and puppies data
+   - Extended cache expiration from 5 to 15 minutes
+   - Added automatic cache invalidation based on timestamps
+   - Preserved cache between page refreshes for faster startup
+
+4. **Loading State Improvements**:
+   - Added better loading indicators throughout the application
+   - Implemented timeout-based fallbacks to prevent stuck loading states
+   - Used skeleton UI to make loading feel faster than spinner-only approach
+
+These optimizations significantly reduce API calls and improve both actual and perceived performance.
 
 ## Modern JavaScript Frameworks Evaluation
 

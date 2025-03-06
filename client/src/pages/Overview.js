@@ -204,6 +204,7 @@ function Overview() {
           adultDogsCount={adultDogsCount}
           puppiesCount={puppiesCount}
           littersCount={activeLittersCount}
+          loading={loading}
         />
 
         <Grid container spacing={4}>

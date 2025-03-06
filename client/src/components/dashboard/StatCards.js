@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Card, CardContent, Typography, Avatar } from '@mui/material';
+import { Box, Grid, Card, CardContent, Typography, Avatar, Skeleton } from '@mui/material';
 import {
   Pets as PetsIcon,
   Visibility as LittersIcon, 
@@ -14,8 +14,9 @@ import {
  * @param {number} props.adultDogsCount - Number of adult dogs
  * @param {number} props.puppiesCount - Number of puppies
  * @param {number} props.littersCount - Number of litters
+ * @param {boolean} props.loading - Whether the data is still loading
  */
-const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0 }) => {
+const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0, loading = false }) => {
   // Count for upcoming heats and messages (placeholder for now)
   const upcomingHeats = 0;
   const newMessages = 0;
@@ -74,20 +75,28 @@ const StatCards = ({ adultDogsCount = 0, puppiesCount = 0, littersCount = 0 }) =
                 <Typography variant="subtitle2" color="text.secondary">
                   {card.title}
                 </Typography>
-                <Avatar
-                  sx={{
-                    bgcolor: card.bgColor,
-                    color: card.color,
-                    width: 32,
-                    height: 32
-                  }}
-                >
-                  {card.icon}
-                </Avatar>
+                {loading ? (
+                  <Skeleton variant="circular" width={32} height={32} />
+                ) : (
+                  <Avatar
+                    sx={{
+                      bgcolor: card.bgColor,
+                      color: card.color,
+                      width: 32,
+                      height: 32
+                    }}
+                  >
+                    {card.icon}
+                  </Avatar>
+                )}
               </Box>
-              <Typography variant="h4" sx={{ mb: 0 }}>
-                {card.value}
-              </Typography>
+              {loading ? (
+                <Skeleton variant="rectangular" width="60%" height={40} />
+              ) : (
+                <Typography variant="h4" sx={{ mb: 0 }}>
+                  {card.value}
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
