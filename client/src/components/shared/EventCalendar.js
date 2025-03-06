@@ -3,7 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { API_URL } from '../../config';
-import { CircularProgress, Box, Typography } from '@mui/material';
+import { CircularProgress, Box, Typography, Button } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
 
@@ -210,10 +210,67 @@ const EventCalendar = ({
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
   };
+  
+  // State for controlling calendar date
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Handler for the Today button
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+  
+  // Handler for navigating to previous/next month
+  const handleNavigate = (action) => {
+    const newDate = new Date(currentDate);
+    if (action === 'PREV') {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else if (action === 'NEXT') {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentDate(newDate);
+  };
 
   return (
     <div className="p-4 relative">
-      <h1 className="text-2xl font-bold mb-4">{title}</h1>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 2,
+        flexWrap: 'wrap',
+        gap: 1
+      }}>
+        <Typography variant="h6" component="h2">
+          {title}
+        </Typography>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button 
+            variant="outlined"
+            size="small"
+            onClick={() => handleNavigate('PREV')}
+          >
+            Previous
+          </Button>
+          
+          <Button 
+            variant="contained"
+            size="small"
+            onClick={handleToday}
+          >
+            Today
+          </Button>
+          
+          <Button 
+            variant="outlined"
+            size="small"
+            onClick={() => handleNavigate('NEXT')}
+          >
+            Next
+          </Button>
+        </Box>
+      </Box>
+      
       <div style={{ height: '80vh' }}>
         <Calendar
           localizer={localizer}
@@ -229,6 +286,8 @@ const EventCalendar = ({
             if (onSelectSlot) onSelectSlot(slotInfo);
           }}
           selectable
+          date={currentDate}
+          onNavigate={setCurrentDate}
         />
       </div>
 
