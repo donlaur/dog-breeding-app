@@ -108,6 +108,8 @@ The application uses React Context for state management:
 - `LitterContext` - Manages litter data and operations
 - `AuthContext` - Manages authentication state
 - `HeatContext` - Manages heat cycle data
+- `PageContext` - Manages CMS pages
+- Calendar events are managed through direct API calls rather than context
 
 ## Common Pitfalls to Avoid
 
@@ -191,6 +193,18 @@ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- Insert an admin user (Replace with your information)
 INSERT INTO users (email, name, password_hash, role)
 VALUES ('your.email@example.com', 'Admin User', 'your_password', 'admin');
+
+### Running Migrations
+
+The application includes several database migration scripts in the `docs/migrations/` directory. To run a migration:
+
+```bash
+# For the events system migration
+./run-events-migration.sh
+
+# After migrating, generate events for existing data
+python generate_all_events.py
+```
 
 
 AI Helper - Context Updates if the AI gets confused while building
