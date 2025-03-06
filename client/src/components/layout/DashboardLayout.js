@@ -26,6 +26,8 @@ import {
   MenuItem,
   alpha,
   styled,
+  Badge,
+  Tooltip,
 } from '@mui/material';
 
 // MUI icons
@@ -303,22 +305,40 @@ const DashboardLayout = () => {
           
           {/* Action icons */}
           <Box sx={{ display: 'flex' }}>
-            <IconButton size="large" color="inherit">
-              <NotificationsIcon />
-            </IconButton>
-            <IconButton size="large" color="inherit">
-              <SettingsIcon />
-            </IconButton>
-            <IconButton
-              size="large"
-              edge="end"
-              aria-label="account of current user"
-              aria-haspopup="true"
-              onClick={handleProfileMenuOpen}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
+            <Tooltip title="Notifications">
+              <IconButton 
+                size="large" 
+                color="inherit"
+                component={Link}
+                to="/dashboard/notifications"
+              >
+                <Badge badgeContent={3} color="error">
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="System Settings">
+              <IconButton 
+                size="large" 
+                color="inherit"
+                component={Link}
+                to="/dashboard/settings"
+              >
+                <SettingsIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Account">
+              <IconButton
+                size="large"
+                edge="end"
+                aria-label="account of current user"
+                aria-haspopup="true"
+                onClick={handleProfileMenuOpen}
+                color="inherit"
+              >
+                <AccountCircle />
+              </IconButton>
+            </Tooltip>
           </Box>
           
           <Menu
@@ -334,8 +354,16 @@ const DashboardLayout = () => {
               to="/dashboard/profile" 
               onClick={handleMenuClose}
             >
-              My Profile
+              Breeder Profile
             </MenuItem>
+            <MenuItem 
+              component={Link} 
+              to="/dashboard/account" 
+              onClick={handleMenuClose}
+            >
+              Account Settings
+            </MenuItem>
+            <Divider />
             <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
         </Toolbar>

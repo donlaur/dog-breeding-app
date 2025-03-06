@@ -33,6 +33,9 @@ const LoadingFallback = () => (
 const DogDetailPage = lazy(() => import('./pages/dogs/DogDetailPage'));
 const MediaLibrary = lazy(() => import('./pages/MediaLibrary'));
 const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage'));
+const UserAccount = lazy(() => import('./pages/user/UserAccount'));
+const NotificationsPage = lazy(() => import('./pages/user/NotificationsPage'));
+const SystemSettings = lazy(() => import('./pages/user/SystemSettings'));
 
 // Dashboard Pages
 const Overview = lazy(() => import('./pages/Overview'));
@@ -258,6 +261,27 @@ function App() {
                 <Route path="search" element={
                   <Suspense fallback={<LoadingFallback />}>
                     <SearchResultsPage />
+                  </Suspense>
+                } />
+                
+                {/* User Account Settings */}
+                <Route path="account" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <UserAccount />
+                  </Suspense>
+                } />
+                
+                {/* Notifications */}
+                <Route path="notifications" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <NotificationsPage />
+                  </Suspense>
+                } />
+                
+                {/* System Settings */}
+                <Route path="settings" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <SystemSettings />
                   </Suspense>
                 } />
               </Route>

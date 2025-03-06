@@ -11,7 +11,9 @@ This application helps breeders track dogs, litters, puppies, health records, an
 **Authentication** (`/api/auth`)
 - `POST /api/auth/login` — Authenticate user and receive token
 - `POST /api/auth/register` — Register new user
-- `GET /api/auth/user` — Get current user info
+- `GET /api/auth/profile` — Get current user profile
+- `PUT /api/auth/profile` — Update user profile
+- `POST /api/auth/change-password` — Change user password
 
 **Dogs** (`/api/dogs`)
 - `GET /api/dogs` — Retrieve all dogs
@@ -55,6 +57,12 @@ This application helps breeders track dogs, litters, puppies, health records, an
 - `GET /api/events/entity/<entity_type>/<entity_id>` — Get events for a specific entity
 - `POST /api/events/generate/litter/<litter_id>` — Generate events for a litter
 - `POST /api/events/generate/birthdays` — Generate birthday events for all dogs
+
+**Search** (`/api/search`)
+- `GET /api/search` — Search across multiple entity types
+  - Query parameters:
+    - `q`: Search query
+    - `type`: Optional entity filter (dogs, puppies, litters, all)
 
 ## Technical Architecture
 
@@ -106,7 +114,7 @@ These handle authentication headers, CORS requirements, and consistent error han
 The application uses React Context for state management:
 - `DogContext` - Manages dog data and operations
 - `LitterContext` - Manages litter data and operations
-- `AuthContext` - Manages authentication state
+- `AuthContext` - Manages authentication state, user profile, and password management
 - `HeatContext` - Manages heat cycle data
 - `PageContext` - Manages CMS pages
 - Calendar events are managed through direct API calls rather than context
@@ -120,13 +128,32 @@ The application uses React Context for state management:
 5. **Missing auth checks**: Ensure protected routes have proper authentication
 6. **Inconsistent file handling**: Use the standard file upload utilities
 
+## Recent Enhancements
+
+### Search Functionality
+The application now features a comprehensive search system that allows users to search across multiple entity types:
+- Global search across dogs, puppies, and litters from a single interface
+- Categorized results with filtering capabilities
+- Rich search results with thumbnails and relevant information
+- Direct navigation to entity detail pages from search results
+- See [docs/search-functionality.md](docs/search-functionality.md) for details
+
+### User Account Management
+A complete user account management system has been implemented, separate from breeder profile:
+- User profile management for personal information
+- Security settings with password change functionality
+- Notification center for system alerts and messages
+- System settings for appearance, data, security, and advanced preferences
+- See [docs/user-account-management.md](docs/user-account-management.md) for details
+
 ## Future Enhancements
 
 - **Salesforce Integration**: Explore using Salesforce forms for advanced CRM capabilities.
 - **Enhanced Heat Cycle Tracking**: Implement notifications for upcoming heat cycles and expected whelp dates.
-- **User Authentication**: Add role-based authentication for breeders vs. general users.
+- **Role-based Authentication**: Expand the user system with role-based permissions.
 - **Analytics Dashboard**: Provide breeding performance metrics and heat cycle analytics.
 - **Improved Error Handling**: Possibly serve static JSON as a fallback if the database is down.
+- **Mobile App**: Native mobile application for on-the-go management.
 
 ## Calendar Events System
 

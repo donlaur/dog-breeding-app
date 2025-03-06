@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_URL, debugLog } from '../config';
-import { apiPost, apiGet } from '../utils/apiUtils';
+import { apiPost, apiGet, apiPut } from '../utils/apiUtils';
 
 const AuthContext = createContext();
 
@@ -79,20 +79,98 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (userData) => {
+    setLoading(true);
+    setError(null);
+    
     try {
       const response = await apiPost('auth/register', userData);
-      // Handle response...
-    } catch (error) {
-      // Handle error...
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+      
+      const data = await response.json();
+      debugLog('Registration successful:', data);
+      
+      // Automatically log in after registration
+      setToken(data.token);
+      setUser(data.user);
+      return true;
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
   const getUserProfile = async () => {
     try {
-      const response = await apiGet('users/profile');
-      // Handle response...
+      const response = await apiGet('auth/profile');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch profile');
+      }
+      
+      const data = await response.json();
+      setUser(data);
+      return data;
     } catch (error) {
-      // Handle error...
+      console.error('Error fetching profile:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+  
+  const updateUserProfile = async (profileData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiPut('auth/profile', profileData);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+      
+      const data = await response.json();
+      setUser(prevUser => ({ ...prevUser, ...data }));
+      return data;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const changePassword = async (currentPassword, newPassword) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiPost('auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to change password');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,7 +184,9 @@ export function AuthProvider({ children }) {
     logout,
     getAuthHeader,
     register,
-    getUserProfile
+    getUserProfile,
+    updateUserProfile,
+    changePassword
   };
 
   return (
