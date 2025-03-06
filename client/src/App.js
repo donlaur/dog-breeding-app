@@ -78,6 +78,8 @@ function App() {
               {/* Public site routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/page/:slug" element={<PublicPage />} />
+              <Route path="/dog/:gender/:slug/:id" element={<DogDetailPage />} />
+              {/* Keep the old route for backward compatibility */}
               <Route path="/dog/:slug/:id" element={<DogDetailPage />} />
 
               {/* Authentication routes */}

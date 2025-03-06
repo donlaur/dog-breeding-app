@@ -29,6 +29,7 @@ import { useApi } from '../../hooks/useApi';
 import PageNavigation from '../../components/PageNavigation';
 import Footer from '../../components/layout/Footer';
 import { getDogAge } from '../../utils/ageUtils';
+import { getPhotoUrl } from '../../utils/photoUtils';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FemaleIcon from '@mui/icons-material/Female';
 import MaleIcon from '@mui/icons-material/Male';
@@ -39,7 +40,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 
 const DogDetailPage = () => {
-  const { id, slug } = useParams();
+  const { id, slug, gender } = useParams();
   const { get } = useApi();
   const [dog, setDog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -219,7 +220,7 @@ const DogDetailPage = () => {
                       height: { xs: 300, sm: 400 },
                       objectFit: 'cover'
                     }}
-                    image={dog.photo_url || defaultDogImage}
+                    image={dog.cover_photo ? getPhotoUrl(dog.cover_photo) : (dog.photo_url || defaultDogImage)}
                     alt={dog.call_name || dog.name}
                   />
                   

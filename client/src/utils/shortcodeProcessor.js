@@ -23,6 +23,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useDog } from '../context/DogContext';
+import { getPhotoUrl } from '../utils/photoUtils';
 
 // Regex for matching shortcodes
 // Matches: [ShortcodeName param1=value1 param2="value with spaces"]
@@ -56,8 +57,12 @@ const createDogSlug = (dog) => {
   if (!dog) return '';
   // Use call_name if available, otherwise registered_name, or just fallback to regular name
   const nameToUse = dog.call_name || dog.registered_name || dog.name || '';
+  // Prepend gender for SEO benefits
+  const gender = dog.gender?.toLowerCase() || '';
+  const genderPrefix = gender ? `${gender}-` : '';
   // Convert to lowercase, replace spaces with hyphens, remove special characters
-  return nameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  const namePart = nameToUse.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  return `${genderPrefix}${namePart}`;
 };
 
 // Helper to calculate a dog's age from date of birth
@@ -97,9 +102,9 @@ const DogCard = ({ dog }) => {
   // Default image for dogs without photos
   const defaultDogImage = "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=2487";
   
-  // Create dog detail URL using slug for SEO
-  const dogSlug = createDogSlug(dog);
-  const dogDetailUrl = `/dog/${dogSlug}/${dog.id}`;
+  // Create dog detail URL using gender and slug for better SEO
+  const namePart = createDogSlug(dog).replace(`${dog.gender?.toLowerCase()}-`, '');
+  const dogDetailUrl = `/dog/${dog.gender?.toLowerCase()}/${namePart}/${dog.id}`;
   
   // Get litter count for display
   const litterCount = (dog.gender === 'Female' && dog.litter_count) ? dog.litter_count : 
@@ -107,6 +112,10 @@ const DogCard = ({ dog }) => {
   
   // Show age if available
   const dogAge = dog.age || (dog.date_of_birth ? getDogAge(dog.date_of_birth) : null);
+  
+  // Get dog photo URL using cover_photo first, then photo_url as fallback
+  const dogPhotoUrl = dog.cover_photo ? getPhotoUrl(dog.cover_photo) : 
+                     (dog.photo_url || defaultDogImage);
   
   return (
     <Card 
@@ -133,7 +142,7 @@ const DogCard = ({ dog }) => {
         <CardMedia
           component="img"
           height="250"
-          image={dog.photo_url || defaultDogImage}
+          image={dogPhotoUrl}
           alt={dog.call_name || dog.name}
           sx={{
             objectFit: 'cover',
@@ -737,9 +746,10 @@ const DisplayDogsShortcode = ({ gender, breed, age, status }) => {
         console.log(`DisplayDogs: Found ${filteredDogs.length} dogs after filtering`);
         
         // Transform any dogs that don't have photos
+        // Prioritize cover_photo over photo_url
         const dogsWithPhotos = filteredDogs.map(dog => ({
           ...dog,
-          photo_url: dog.photo_url || DEFAULT_DOG_IMAGE,
+          photo_url: dog.cover_photo ? getPhotoUrl(dog.cover_photo) : (dog.photo_url || DEFAULT_DOG_IMAGE),
           breed: dog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
         }));
         
@@ -846,9 +856,10 @@ const DisplayDogShortcode = ({ id }) => {
         
         if (foundDog) {
           // Ensure dog has photo and breed
+          // Prioritize cover_photo over photo_url
           const dogWithPhoto = {
             ...foundDog,
-            photo_url: foundDog.photo_url || DEFAULT_DOG_IMAGE,
+            photo_url: foundDog.cover_photo ? getPhotoUrl(foundDog.cover_photo) : (foundDog.photo_url || DEFAULT_DOG_IMAGE),
             breed: foundDog.breed || 'Pembroke Welsh Corgi' // Default breed if missing
           };
           setDog(dogWithPhoto);
