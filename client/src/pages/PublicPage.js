@@ -218,29 +218,11 @@ const PublicPage = () => {
     );
   }
 
+  
+  // If there's an error, redirect to the 404 page
   if (error) {
-    // Use the NotFoundPage component by navigating to a non-existent route
-    // This provides a consistent 404 experience
-    useEffect(() => {
-      // Use a short timeout to avoid immediate redirect during render
-      const timer = setTimeout(() => {
-        navigate('/page-not-found');
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }, [navigate]);
-    
-    // Show a loading state briefly before redirecting
-    return (
-      <>
-        <PageNavigation />
-        <Container maxWidth="lg">
-          <Box sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
-    );
+    navigate('/not-found');
+    return null;
   }
 
   return (

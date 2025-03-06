@@ -121,6 +121,7 @@ function App() {
               </Route>
               
               {/* 404 Not Found Page */}
+              <Route path="/not-found" element={<NotFoundPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ErrorBoundary>
