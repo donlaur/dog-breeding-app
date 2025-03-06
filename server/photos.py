@@ -80,7 +80,9 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             # Get entity type and ID from the form data
             entity_type = request.form.get('entity_type')
             entity_id = request.form.get('entity_id')
-            is_cover = request.form.get('is_cover', 'false').lower() == 'true'
+            # If is_cover isn't explicitly set, we'll determine it based on other photos
+            is_cover_str = request.form.get('is_cover')
+            is_cover = is_cover_str.lower() == 'true' if is_cover_str is not None else None
             caption = request.form.get('caption', '')
             order = request.form.get('order', '0')
             
@@ -102,6 +104,21 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             if error:
                 return jsonify({"error": f"Failed to save file: {error}"}), 500
                 
+            # Find all existing photos for this entity
+            existing_photos = db.find_by_field_values("photos", {
+                "related_type": entity_type,
+                "related_id": entity_id
+            })
+            
+            # Determine if this should be a cover photo
+            # If is_cover is None (not specified in the upload):
+            # 1. If there are no existing photos, make it a cover (first photo is always cover)
+            # 2. If there are existing photos, don't make it a cover (preserve existing cover)
+            # This ensures uploading from Media Library won't change the cover photo status
+            if is_cover is None:
+                is_cover = len(existing_photos) == 0
+                debug_log(f"is_cover not specified, setting to {is_cover} based on {len(existing_photos)} existing photos")
+            
             # Create a new photo record
             photo_data = {
                 "related_type": entity_type,
@@ -116,14 +133,8 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             # If this is a cover photo, first set all other photos as non-cover
             if is_cover:
                 try:
-                    # Find all photos for this entity
-                    photos = db.find_by_field_values("photos", {
-                        "related_type": entity_type,
-                        "related_id": entity_id
-                    })
-                    
                     # Update them all to not be cover photos
-                    for photo in photos:
+                    for photo in existing_photos:
                         if photo["is_cover"]:
                             db.update("photos", photo["id"], {"is_cover": False})
                 except Exception as e:
@@ -132,17 +143,6 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             
             # Create the photo record
             photo = db.create("photos", photo_data)
-            
-            # If this is the first photo, set it as the cover photo
-            if not is_cover:
-                photos = db.find_by_field_values("photos", {
-                    "related_type": entity_type,
-                    "related_id": entity_id
-                })
-                
-                if len(photos) == 1:  # Only this new photo exists
-                    db.update("photos", photo["id"], {"is_cover": True})
-                    photo["is_cover"] = True
             
             # Update the entity's cover_photo field if this is a cover photo
             if photo["is_cover"]:
@@ -153,7 +153,16 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
                 }.get(entity_type)
                 
                 if table_name:
-                    db.update(table_name, entity_id, {"cover_photo": photo["url"]})
+                    # Check if the file exists before setting it as cover
+                    file_path = None
+                    if photo["url"].startswith("/uploads/"):
+                        file_path = os.path.join(current_app.root_path, photo["url"].lstrip("/"))
+                    
+                    if not file_path or os.path.exists(file_path):
+                        debug_log(f"Setting cover photo for {entity_type} {entity_id} to {photo['url']}")
+                        db.update(table_name, entity_id, {"cover_photo": photo["url"]})
+                    else:
+                        debug_log(f"Warning: Cover photo file {file_path} does not exist")
             
             return jsonify(photo), 201
             
@@ -230,7 +239,16 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
                     }.get(entity_type)
                     
                     if table_name:
-                        db.update(table_name, entity_id, {"cover_photo": first_photo["url"]})
+                        # Check if the file exists before setting it as cover
+                        file_path = None
+                        if first_photo["url"].startswith("/uploads/"):
+                            file_path = os.path.join(current_app.root_path, first_photo["url"].lstrip("/"))
+                        
+                        if not file_path or os.path.exists(file_path):
+                            debug_log(f"Setting new cover photo for {entity_type} {entity_id} to {first_photo['url']}")
+                            db.update(table_name, entity_id, {"cover_photo": first_photo["url"]})
+                        else:
+                            debug_log(f"Warning: New cover photo file {file_path} does not exist")
                 else:
                     # No other photos, clear the entity's cover_photo field
                     table_name = {
@@ -283,7 +301,16 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             }.get(entity_type)
             
             if table_name:
-                db.update(table_name, entity_id, {"cover_photo": photo["url"]})
+                # Check if the file exists before setting it as cover
+                file_path = None
+                if photo["url"].startswith("/uploads/"):
+                    file_path = os.path.join(current_app.root_path, photo["url"].lstrip("/"))
+                
+                if not file_path or os.path.exists(file_path):
+                    debug_log(f"Setting cover photo for {entity_type} {entity_id} to {photo['url']}")
+                    db.update(table_name, entity_id, {"cover_photo": photo["url"]})
+                else:
+                    debug_log(f"Warning: Cover photo file {file_path} does not exist")
             
             return jsonify({"message": "Photo set as cover successfully"}), 200
             

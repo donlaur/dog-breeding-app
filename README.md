@@ -46,6 +46,16 @@ This application helps breeders track dogs, litters, puppies, health records, an
 - `PUT /api/heat-cycles/<id>` — Update an existing heat cycle
 - `DELETE /api/heat-cycles/<id>` — Delete a heat cycle
 
+**Events** (`/api/events`)
+- `GET /api/events` — Retrieve all events
+- `GET /api/events/<id>` — Retrieve a specific event
+- `POST /api/events` — Create a new event
+- `PUT /api/events/<id>` — Update an existing event
+- `DELETE /api/events/<id>` — Delete an event
+- `GET /api/events/entity/<entity_type>/<entity_id>` — Get events for a specific entity
+- `POST /api/events/generate/litter/<litter_id>` — Generate events for a litter
+- `POST /api/events/generate/birthdays` — Generate birthday events for all dogs
+
 ## Technical Architecture
 
 ### Backend (Python/Flask)
@@ -71,6 +81,7 @@ This application helps breeders track dogs, litters, puppies, health records, an
 - **File Uploads**: Files are first saved to a temp file, then uploaded to Supabase Storage.
 - **Modular Architecture**: Endpoints are separated into blueprints (dogs, litters, heat cycles, etc.) for easier maintenance.
 - **Frontend Flexibility**: The React front end uses context for data (e.g., dogs, breeds) and shared components like `LitterForm` and `DogForm`.
+- **Event Generation**: Automatic event generation for litters and birthdays to help breeders track important milestones.
 - **Error Handling**: Basic error handling is implemented, with potential for static JSON caching as fallback if the DB is unavailable.
 - **Material UI Integration**: Consistent use of Material UI components for better UX and mobile responsiveness
 - **Loading States**: Implemented proper loading states to prevent data flashing and improve user experience
@@ -114,6 +125,39 @@ The application uses React Context for state management:
 - **User Authentication**: Add role-based authentication for breeders vs. general users.
 - **Analytics Dashboard**: Provide breeding performance metrics and heat cycle analytics.
 - **Improved Error Handling**: Possibly serve static JSON as a fallback if the database is down.
+
+## Calendar Events System
+
+The application includes a comprehensive events system to help breeders track important dates and milestones:
+
+### Automatic Event Generation
+
+- **Litter Milestones**: When a litter is added, events are automatically created for:
+  - Birth day
+  - Weekly development milestones (1-8 weeks)
+  - Important care dates (dewclaw removal, vaccinations)
+  - Go-home date (8 weeks after birth)
+  - Dam care reminders
+  
+- **Dog Birthdays**: Annual birthday events for all dogs
+
+### Custom Events
+
+Users can create custom events with:
+- Start and end dates
+- All-day or timed events
+- Color coding
+- Association with dogs or litters
+- Recurring schedules (daily, weekly, monthly, yearly)
+- Notification settings
+
+### Event Rules
+
+The system includes an event rules engine that can:
+- Trigger events based on entity changes
+- Apply conditions for when rules should execute
+- Generate events with customizable properties
+- Support multiple action types
 
 ## Setup Instructions
 

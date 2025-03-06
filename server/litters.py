@@ -271,6 +271,43 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
                 with open(log_path, "a") as f:
                     f.write(f"Successfully created litter: {litter}\n")
                 
+                # Generate litter events
+                try:
+                    # Try to use an internal request to the events endpoint
+                    import requests
+                    
+                    # Get the base URL from the current request
+                    base_url = request.url_root
+                    
+                    # Call the events endpoint to generate litter events
+                    event_url = f"{base_url}api/events/generate/litter/{litter['id']}"
+                    debug_log(f"Calling events generation endpoint: {event_url}")
+                    
+                    events_response = requests.post(event_url)
+                    
+                    if events_response.status_code == 200:
+                        debug_log(f"Successfully generated events for litter {litter['id']}")
+                        event_data = events_response.json()
+                        debug_log(f"Generated {len(event_data.get('events', []))} events")
+                        
+                        # Record success in debug file
+                        with open(log_path, "a") as f:
+                            f.write(f"Successfully generated events for litter: {event_data}\n")
+                    else:
+                        debug_log(f"Failed to generate events for litter {litter['id']}: {events_response.text}")
+                        
+                        # Record failure in debug file
+                        with open(log_path, "a") as f:
+                            f.write(f"Failed to generate events, status {events_response.status_code}: {events_response.text}\n")
+                except Exception as event_error:
+                    debug_log(f"Error generating litter events: {str(event_error)}")
+                    # Don't fail the litter creation if event generation fails
+                    
+                    # Record event error in debug file
+                    with open(log_path, "a") as f:
+                        f.write(f"Error generating events: {str(event_error)}\n")
+                        f.write(f"Event error traceback: {traceback.format_exc()}\n")
+                
                 # Add CORS headers
                 response = make_response(jsonify(litter))
                 response.headers.add('Access-Control-Allow-Origin', '*')
@@ -377,6 +414,33 @@ def create_litters_bp(db: DatabaseInterface) -> Blueprint:
                 
                 # Get the updated litter
                 updated_litter = db.get("litters", litter_id)
+                
+                # Generate or update litter events if relevant fields were changed
+                # (whelp_date, expected_date, etc.)
+                relevant_fields = ['whelp_date', 'expected_date', 'litter_name']
+                if any(field in clean_data for field in relevant_fields):
+                    try:
+                        # Use an internal request to the events endpoint
+                        import requests
+                        
+                        # Get the base URL from the current request
+                        base_url = request.url_root
+                        
+                        # Call the events endpoint to generate/update litter events
+                        event_url = f"{base_url}api/events/generate/litter/{litter_id}"
+                        debug_log(f"Calling events generation endpoint after litter update: {event_url}")
+                        
+                        events_response = requests.post(event_url)
+                        
+                        if events_response.status_code == 200:
+                            debug_log(f"Successfully updated events for litter {litter_id}")
+                            event_data = events_response.json()
+                            debug_log(f"Generated/updated {len(event_data.get('events', []))} events")
+                        else:
+                            debug_log(f"Failed to update events for litter {litter_id}: {events_response.text}")
+                    except Exception as event_error:
+                        debug_log(f"Error updating litter events: {str(event_error)}")
+                        # Don't fail the litter update if event generation fails
                 
                 # Return the updated litter
                 return jsonify(updated_litter), 200

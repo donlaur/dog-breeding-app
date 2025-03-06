@@ -112,10 +112,13 @@ function DogDetails() {
       }
 
       setLoading(true);
+      // Reset image error state when reloading
+      setCoverPhotoError(false);
       
       try {
         debugLog(`Fetching dog details for ID: ${dogId}`);
-        const response = await fetch(`${API_URL}/dogs/${dogId}`);
+        // Add a cache-busting parameter to avoid cached responses
+        const response = await fetch(`${API_URL}/dogs/${dogId}?_=${Date.now()}`);
         
         if (!response.ok) {
           const status = response.status;
@@ -181,31 +184,15 @@ function DogDetails() {
     fetchHeatCycles();
   }, [dogId, dog]);
 
-  // Add effect to fetch sired litters for male dogs
-  useEffect(() => {
-    const fetchSiredLitters = async () => {
-      if (dog && dog.gender === 'Male') {
-        setLittersLoading(true);
-        try {
-          const response = await apiGet(`litters?sire_id=${dogId}`);
-          if (response && response.ok) {
-            setSiredLitters(response.data || []);
-          }
-        } catch (error) {
-          console.error('Error fetching sired litters:', error);
-        } finally {
-          setLittersLoading(false);
-        }
-      }
-    };
-
-    fetchSiredLitters();
-  }, [dogId, dog]);
+  // We'll use fetchLitters instead, so we don't need this useEffect
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
+
+  // State to track image loading errors
+  const [coverPhotoError, setCoverPhotoError] = useState(false);
 
   // Function to get the correct image URL
   const getImageUrl = (photoUrl) => {
@@ -222,10 +209,132 @@ function DogDetails() {
     // Import from utils
     return formatApiUrl(url);
   };
+  
+  // Handler for image load errors
+  const handleImageError = () => {
+    console.error("Cover photo failed to load, using fallback");
+    setCoverPhotoError(true);
+  };
 
   // Get gender icon
   const GenderIcon = dog?.gender === 'Male' ? MaleIcon : FemaleIcon;
   const genderColor = dog?.gender === 'Male' ? '#1976d2' : '#d32f2f';
+  
+  // Helper to get the correct puppies message
+  const getPuppiesMessage = (litter) => {
+    if (!litter || !litter.puppies) return 'No puppies have been added to this litter yet.';
+    
+    // If we have puppy records that match the expected count, show appropriate message
+    if (litter.puppies.length === 0) {
+      return 'No puppies have been added to this litter yet.';
+    } else if (litter.num_puppies > 0 && litter.puppies.length < litter.num_puppies) {
+      return `This litter has ${litter.num_puppies} puppies, but only ${litter.puppies.length} have been added individually.`;
+    } else {
+      return ''; // No message needed, showing the puppies list
+    }
+  };
+  
+  // Component to display a litter card with puppies
+  const LitterCard = ({ litter, navigate, isDam = false }) => {
+    return (
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }} key={litter.id}>
+        <Box sx={{ 
+          p: 2, 
+          backgroundColor: '#f5f5f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 2 }}>
+              {litter.litter_name || `Litter #${litter.id}`}
+            </Typography>
+            <Chip 
+              label={litter.status || 'Unknown'} 
+              color={
+                litter.status === 'Born' ? 'success' :
+                litter.status === 'Expected' ? 'warning' :
+                litter.status === 'Planned' ? 'info' : 'default'
+              } 
+              size="small" 
+              sx={{ mr: 2 }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+              {isDam ? 
+                `Sire: ${litter.sire?.call_name || litter.sire?.name || `#${litter.sire_id || 'Unknown'}`}` : 
+                `Dam: ${litter.dam?.call_name || litter.dam?.name || `#${litter.dam_id || 'Unknown'}`}`
+              }
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {litter.whelp_date ? 
+                `Born: ${new Date(litter.whelp_date).toLocaleDateString()}` : 
+                litter.expected_date ? 
+                `Expected: ${new Date(litter.expected_date).toLocaleDateString()}` : 
+                'Date not set'}
+            </Typography>
+          </Box>
+          <Button 
+            variant="outlined" 
+            size="small" 
+            component={Link} 
+            to={`/dashboard/litters/${litter.id}`}
+          >
+            Litter Details
+          </Button>
+        </Box>
+        
+        {/* Puppies Section */}
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Puppies ({litter.puppies?.length || litter.num_puppies || 0})
+          </Typography>
+          
+          {(!litter.puppies || litter.puppies.length === 0 || 
+            (litter.num_puppies > 0 && litter.puppies.length < litter.num_puppies)) ? (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              {getPuppiesMessage(litter)}
+            </Typography>
+          ) : (
+            <Grid container spacing={1}>
+              {litter.puppies.map(puppy => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={puppy.id}>
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 1.5, 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        cursor: 'pointer'
+                      }
+                    }}
+                    onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
+                  >
+                    {puppy.gender === 'Male' ? (
+                      <MaleIcon color="primary" sx={{ mr: 1 }} />
+                    ) : puppy.gender === 'Female' ? (
+                      <FemaleIcon color="error" sx={{ mr: 1 }} />
+                    ) : (
+                      <PetsIcon sx={{ mr: 1 }} />
+                    )}
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        {puppy.name || `Puppy #${puppy.id}`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {puppy.color || 'Unknown color'}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Box>
+      </Paper>
+    );
+  };
 
   // Format heat cycle status with color
   const getHeatStatusDisplay = (status) => {
@@ -265,25 +374,34 @@ function DogDetails() {
     
     setLoadingLitters(true);
     try {
-      const endpoint = gender === 'Male' 
-        ? `${API_URL}/litters/sire/${dogId}` 
-        : `${API_URL}/litters/dam/${dogId}`;
+      console.log(`Fetching ${gender === 'Male' ? 'sired' : 'dam'} litters for dog ID: ${dogId}`);
       
-      console.log(`Fetching ${gender === 'Male' ? 'sired' : 'dam'} litters from: ${endpoint}`);
-      
-      const response = await fetch(endpoint);
+      // First get all litters
+      const response = await fetch(`${API_URL}/litters`);
       
       if (!response.ok) {
         console.error(`Error fetching litters: ${response.status}`);
         return;
       }
       
-      const littersData = await response.json();
-      console.log(`Found ${littersData.length} ${gender === 'Male' ? 'sired' : 'dam'} litters`, littersData);
+      const allLitters = await response.json();
+      
+      // Manually filter based on gender and ID to ensure we only get the right litters
+      const filteredLitters = allLitters.filter(litter => {
+        if (gender === 'Male') {
+          // Ensure sire_id is exactly matching our dog ID as a number
+          return Number(litter.sire_id) === Number(dogId);
+        } else {
+          // For females, filter by dam_id
+          return Number(litter.dam_id) === Number(dogId);
+        }
+      });
+      
+      console.log(`Found ${filteredLitters.length} ${gender === 'Male' ? 'sired' : 'dam'} litters after filtering`, filteredLitters);
       
       // For each litter, fetch its puppies
       const littersWithPuppies = await Promise.all(
-        littersData.map(async (litter) => {
+        filteredLitters.map(async (litter) => {
           try {
             // Only fetch puppies for litters that have puppies
             if (litter.num_puppies > 0) {
@@ -398,7 +516,7 @@ function DogDetails() {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              {dog.cover_photo || dog.profile_photo ? (
+              {!coverPhotoError && (dog.cover_photo || dog.profile_photo) ? (
                 <img 
                   src={getImageUrl(dog.cover_photo || dog.profile_photo)} 
                   alt={dog.name}
@@ -407,9 +525,23 @@ function DogDetails() {
                     height: '100%', 
                     objectFit: 'cover' 
                   }}
+                  // Add a key with timestamp to force re-render when component updates
+                  key={`dog-cover-${Date.now()}`}
+                  // Add error handler to catch 404s and other image loading failures
+                  onError={handleImageError}
                 />
               ) : (
-                <PetsIcon sx={{ fontSize: 80, color: 'grey.500' }} />
+                <Box sx={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  bgcolor: 'rgba(0, 0, 0, 0.05)',
+                  color: 'text.secondary'
+                }}>
+                  <PetsIcon sx={{ fontSize: 80, opacity: 0.7 }} />
+                </Box>
               )}
               <Chip 
                 label={dog.status || 'Active'} 
@@ -557,199 +689,23 @@ function DogDetails() {
                     ) : dog?.gender === 'Male' && siredLitters.length > 0 ? (
                       <Box>
                         {siredLitters.map((litter) => (
-                          <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }} key={litter.id}>
-                            <Box sx={{ 
-                              p: 2, 
-                              backgroundColor: '#f5f5f5',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 2 }}>
-                                  {litter.litter_name || `Litter #${litter.id}`}
-                                </Typography>
-                                <Chip 
-                                  label={litter.status || 'Unknown'} 
-                                  color={
-                                    litter.status === 'Born' ? 'success' :
-                                    litter.status === 'Expected' ? 'warning' :
-                                    litter.status === 'Planned' ? 'info' : 'default'
-                                  } 
-                                  size="small" 
-                                  sx={{ mr: 2 }}
-                                />
-                                <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-                                  Dam: {litter.dam?.call_name || litter.dam?.name || `#${litter.dam_id || 'Unknown'}`}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {litter.whelp_date ? 
-                                    `Born: ${new Date(litter.whelp_date).toLocaleDateString()}` : 
-                                    litter.expected_date ? 
-                                    `Expected: ${new Date(litter.expected_date).toLocaleDateString()}` : 
-                                    'Date not set'}
-                                </Typography>
-                              </Box>
-                              <Button 
-                                variant="outlined" 
-                                size="small" 
-                                component={Link} 
-                                to={`/dashboard/litters/${litter.id}`}
-                              >
-                                Litter Details
-                              </Button>
-                            </Box>
-                            
-                            {/* Puppies Section */}
-                            <Box sx={{ p: 2 }}>
-                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                Puppies ({litter.puppies?.length || litter.num_puppies || 0})
-                              </Typography>
-                              
-                              {(!litter.puppies || litter.puppies.length === 0) ? (
-                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                  {litter.num_puppies > 0 ? 
-                                    `This litter has ${litter.num_puppies} puppies, but they haven't been added individually yet.` : 
-                                    'No puppies have been added to this litter yet.'}
-                                </Typography>
-                              ) : (
-                                <Grid container spacing={1}>
-                                  {litter.puppies.map(puppy => (
-                                    <Grid item xs={12} sm={6} md={4} lg={3} key={puppy.id}>
-                                      <Paper 
-                                        variant="outlined" 
-                                        sx={{ 
-                                          p: 1.5, 
-                                          display: 'flex', 
-                                          alignItems: 'center',
-                                          '&:hover': { 
-                                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                            cursor: 'pointer'
-                                          }
-                                        }}
-                                        onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
-                                      >
-                                        {puppy.gender === 'Male' ? (
-                                          <MaleIcon color="primary" sx={{ mr: 1 }} />
-                                        ) : puppy.gender === 'Female' ? (
-                                          <FemaleIcon color="error" sx={{ mr: 1 }} />
-                                        ) : (
-                                          <PetsIcon sx={{ mr: 1 }} />
-                                        )}
-                                        <Box>
-                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                            {puppy.name || `Puppy #${puppy.id}`}
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            {puppy.color || 'Unknown color'}
-                                          </Typography>
-                                        </Box>
-                                      </Paper>
-                                    </Grid>
-                                  ))}
-                                </Grid>
-                              )}
-                            </Box>
-                          </Paper>
+                          <LitterCard
+                            key={litter.id}
+                            litter={litter}
+                            navigate={navigate}
+                            isDam={false}
+                          />
                         ))}
                       </Box>
                     ) : dog?.gender === 'Female' && damLitters.length > 0 ? (
                       <Box>
                         {damLitters.map((litter) => (
-                          <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }} key={litter.id}>
-                            <Box sx={{ 
-                              p: 2, 
-                              backgroundColor: '#f5f5f5',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 2 }}>
-                                  {litter.litter_name || `Litter #${litter.id}`}
-                                </Typography>
-                                <Chip 
-                                  label={litter.status || 'Unknown'} 
-                                  color={
-                                    litter.status === 'Born' ? 'success' :
-                                    litter.status === 'Expected' ? 'warning' :
-                                    litter.status === 'Planned' ? 'info' : 'default'
-                                  } 
-                                  size="small" 
-                                  sx={{ mr: 2 }}
-                                />
-                                <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-                                  Sire: {litter.sire?.call_name || litter.sire?.name || `#${litter.sire_id || 'Unknown'}`}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {litter.whelp_date ? 
-                                    `Born: ${new Date(litter.whelp_date).toLocaleDateString()}` : 
-                                    litter.expected_date ? 
-                                    `Expected: ${new Date(litter.expected_date).toLocaleDateString()}` : 
-                                    'Date not set'}
-                                </Typography>
-                              </Box>
-                              <Button 
-                                variant="outlined" 
-                                size="small" 
-                                component={Link} 
-                                to={`/dashboard/litters/${litter.id}`}
-                              >
-                                Litter Details
-                              </Button>
-                            </Box>
-                            
-                            {/* Puppies Section */}
-                            <Box sx={{ p: 2 }}>
-                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                Puppies ({litter.puppies?.length || litter.num_puppies || 0})
-                              </Typography>
-                              
-                              {(!litter.puppies || litter.puppies.length === 0) ? (
-                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                  {litter.num_puppies > 0 ? 
-                                    `This litter has ${litter.num_puppies} puppies, but they haven't been added individually yet.` : 
-                                    'No puppies have been added to this litter yet.'}
-                                </Typography>
-                              ) : (
-                                <Grid container spacing={1}>
-                                  {litter.puppies.map(puppy => (
-                                    <Grid item xs={12} sm={6} md={4} lg={3} key={puppy.id}>
-                                      <Paper 
-                                        variant="outlined" 
-                                        sx={{ 
-                                          p: 1.5, 
-                                          display: 'flex', 
-                                          alignItems: 'center',
-                                          '&:hover': { 
-                                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                            cursor: 'pointer'
-                                          }
-                                        }}
-                                        onClick={() => navigate(`/dashboard/puppies/${puppy.id}`)}
-                                      >
-                                        {puppy.gender === 'Male' ? (
-                                          <MaleIcon color="primary" sx={{ mr: 1 }} />
-                                        ) : puppy.gender === 'Female' ? (
-                                          <FemaleIcon color="error" sx={{ mr: 1 }} />
-                                        ) : (
-                                          <PetsIcon sx={{ mr: 1 }} />
-                                        )}
-                                        <Box>
-                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                            {puppy.name || `Puppy #${puppy.id}`}
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            {puppy.color || 'Unknown color'}
-                                          </Typography>
-                                        </Box>
-                                      </Paper>
-                                    </Grid>
-                                  ))}
-                                </Grid>
-                              )}
-                            </Box>
-                          </Paper>
+                          <LitterCard
+                            key={litter.id}
+                            litter={litter}
+                            navigate={navigate}
+                            isDam={true}
+                          />
                         ))}
                       </Box>
                     ) : (

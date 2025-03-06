@@ -136,8 +136,16 @@ const PhotoGallery = ({
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Upload failed (${response.status})`);
+        let errorMessage = `Upload failed (${response.status})`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (jsonError) {
+          console.error('Error parsing error response:', jsonError);
+        }
+        throw new Error(errorMessage);
       }
       
       const newPhoto = await response.json();
@@ -226,6 +234,18 @@ const PhotoGallery = ({
       
       // Get the new cover photo
       const coverPhoto = updatedPhotos.find(p => p.id === photoId);
+      
+      // Check if the image file exists by attempting to load it
+      const img = new Image();
+      img.onload = () => {
+        console.log('Cover photo file verified as accessible');
+      };
+      img.onerror = () => {
+        console.warn('Warning: The cover photo URL appears to be invalid or inaccessible. This may cause display issues.');
+        setError('Warning: The new cover photo may not display correctly due to file access issues.');
+        setErrorSnackbarOpen(true);
+      };
+      img.src = coverPhoto.url;
       
       // Notify parent component
       onPhotoChange(coverPhoto);

@@ -40,6 +40,7 @@ import ManagePages from './pages/pages/ManagePages';
 import PageForm from './pages/pages/PageForm';
 import PagePreview from './pages/pages/PagePreview';
 import PublicPage from './pages/PublicPage';
+import MediaLibrary from './pages/MediaLibrary';
 
 function App() {
   // Use a ref to track if interceptors are installed
@@ -101,6 +102,9 @@ function App() {
                 <Route path="heats/add" element={<AddHeat />} />
                 <Route path="heats/edit/:id" element={<EditHeat />} />
                 <Route path="calendar" element={<CalendarPage />} />
+                
+                {/* Media Library */}
+                <Route path="media" element={<MediaLibrary />} />
                 
                 {/* CMS Pages Management */}
                 <Route path="pages" element={<ManagePages />} />

@@ -60,6 +60,12 @@ function Sidebar() {
             >
               Events
             </Link>
+            <Link
+              to="/dashboard/media"
+              className={`block p-2 rounded ${isActive('/dashboard/media') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+            >
+              Media Library
+            </Link>
           </div>
         </div>
         
