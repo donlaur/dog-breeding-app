@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePages } from '../context/PageContext';
+import { useApi } from '../hooks/useApi';
 import ShortcodeRenderer from '../utils/shortcodeProcessor';
 import PageNavigation from '../components/PageNavigation';
 import Footer from '../components/layout/Footer';
@@ -354,6 +355,34 @@ const AboutTemplate = ({ content, page }) => {
 // Contact Template
 const ContactTemplate = ({ content, page }) => {
   const theme = useTheme();
+  const { get } = useApi();
+  const [programInfo, setProgramInfo] = useState({
+    contact_email: 'info@pembrokepups.com',
+    phone: '(555) 123-4567',
+    address: 'Portland, Oregon'
+  });
+  
+  // Fetch program info for contact details
+  useEffect(() => {
+    const fetchProgramInfo = async () => {
+      try {
+        const data = await get('/program');
+        console.log('Fetched program info:', data);
+        if (data) {
+          setProgramInfo({
+            contact_email: data.contact_email || 'info@pembrokepups.com',
+            phone: data.phone || '(555) 123-4567',
+            address: data.address || 'Portland, Oregon'
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching program info:', err);
+        // Keep default values on error
+      }
+    };
+    
+    fetchProgramInfo();
+  }, [get]);
   
   return (
     <Box>
@@ -455,7 +484,7 @@ const ContactTemplate = ({ content, page }) => {
                 <Box>
                   <Typography variant="subtitle2">Our Location</Typography>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    Portland, Oregon
+                    {programInfo.address}
                   </Typography>
                 </Box>
               </Box>
@@ -467,7 +496,7 @@ const ContactTemplate = ({ content, page }) => {
                 <Box>
                   <Typography variant="subtitle2">Phone</Typography>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    (555) 123-4567
+                    {programInfo.phone}
                   </Typography>
                 </Box>
               </Box>
@@ -479,7 +508,7 @@ const ContactTemplate = ({ content, page }) => {
                 <Box>
                   <Typography variant="subtitle2">Email</Typography>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    info@pembrokepups.com
+                    {programInfo.contact_email}
                   </Typography>
                 </Box>
               </Box>
@@ -497,24 +526,17 @@ const ContactTemplate = ({ content, page }) => {
               </Box>
             </CardContent>
             
-            {/* Map placeholder */}
+{/* Image of dogs/puppies instead of map */}
             <Box 
               sx={{ 
                 width: '100%', 
                 height: 200, 
-                bgcolor: 'rgba(0,0,0,0.2)', 
-                backgroundImage: 'url(https://maps.googleapis.com/maps/api/staticmap?center=Portland,Oregon&zoom=12&size=600x200&key=YOUR_API_KEY)',
+                backgroundImage: 'url(https://images.unsplash.com/photo-1612536057832-2ff7ead58194?q=80&w=1887)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                borderRadius: '0 0 3px 3px'
               }}
-            >
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                Map of Portland, Oregon area
-              </Typography>
-            </Box>
+            />
           </Card>
         </Grid>
       </Grid>
@@ -1469,87 +1491,100 @@ const PublicPage = () => {
   const [error, setError] = useState(null);
   const theme = useTheme();
 
-  useEffect(() => {
-    const loadPage = async () => {
-      try {
-        console.log(`Attempting to load page with slug: '${slug}'`);
-        const pageData = await fetchPageBySlug(slug);
+  // Convert loadPage to useCallback to prevent unnecessary re-renders
+  const loadPage = useCallback(async () => {
+    if (!slug) {
+      setError('No page specified');
+      setLoading(false);
+      return;
+    }
+    
+    // Only set loading to true if we don't already have this page
+    if (!page || page.slug !== slug) {
+      setLoading(true);
+    }
+    
+    try {
+      console.log(`Attempting to load page with slug: '${slug}'`);
+      const pageData = await fetchPageBySlug(slug);
+      
+      if (pageData) {
+        console.log(`Successfully found page: ${pageData.title} (${pageData.status})`);
         
-        if (pageData) {
-          console.log(`Successfully found page: ${pageData.title} (${pageData.status})`);
-          
-          // Check if page is published
-          if (pageData.status === 'draft') {
-            console.log(`Page '${slug}' is a draft, redirecting to homepage`);
-            // Navigate to 404 or homepage if page is draft
-            navigate('/');
-            return;
-          }
-          
-          setPage(pageData);
-        } else {
-          console.error(`Page with slug '${slug}' not found in database`);
-          
-          // Special cases for common pages - create them on the fly if needed
-          if (slug === 'dogs' || slug === 'our-dogs') {
-            console.log('Creating dogs page on the fly');
-            setPage({
-              title: 'Our Dogs',
-              slug: slug,
-              content: '',
-              template: 'dogs',
-              status: 'published'
-            });
-          } else if (slug === 'puppies' || slug === 'available-puppies') {
-            console.log('Creating puppies page on the fly');
-            setPage({
-              title: 'Available Puppies',
-              slug: slug,
-              content: '',
-              template: 'puppies',
-              status: 'published'
-            });
-          } else if (slug === 'about' || slug === 'about-us') {
-            console.log('Creating about page on the fly');
-            setPage({
-              title: 'About Us',
-              slug: slug,
-              content: '',
-              template: 'about',
-              status: 'published'
-            });
-          } else if (slug === 'contact' || slug === 'contact-us') {
-            console.log('Creating contact page on the fly');
-            setPage({
-              title: 'Contact Us',
-              slug: slug,
-              content: '',
-              template: 'contact',
-              status: 'published'
-            });
-          } else if (slug === 'faq' || slug === 'faqs') {
-            console.log('Creating FAQ page on the fly');
-            setPage({
-              title: 'Frequently Asked Questions',
-              slug: slug,
-              content: '',
-              template: 'faq',
-              status: 'published'
-            });
-          } else {
-            setError('Page not found');
-          }
+        // Check if page is published
+        if (pageData.status === 'draft') {
+          console.log(`Page '${slug}' is a draft, redirecting to homepage`);
+          // Navigate to 404 or homepage if page is draft
+          navigate('/');
+          return;
         }
-      } catch (err) {
-        console.error(`Error loading page '${slug}':`, err);
-        setError('Failed to load page');
-      } finally {
-        setLoading(false);
+        
+        setPage(pageData);
+      } else {
+        console.error(`Page with slug '${slug}' not found in database`);
+        
+        // Special cases for common pages - create them on the fly if needed
+        if (slug === 'dogs' || slug === 'our-dogs') {
+          console.log('Creating dogs page on the fly');
+          setPage({
+            title: 'Our Dogs',
+            slug: slug,
+            content: '',
+            template: 'dogs',
+            status: 'published'
+          });
+        } else if (slug === 'puppies' || slug === 'available-puppies') {
+          console.log('Creating puppies page on the fly');
+          setPage({
+            title: 'Available Puppies',
+            slug: slug,
+            content: '',
+            template: 'puppies',
+            status: 'published'
+          });
+        } else if (slug === 'about' || slug === 'about-us') {
+          console.log('Creating about page on the fly');
+          setPage({
+            title: 'About Us',
+            slug: slug,
+            content: '',
+            template: 'about',
+            status: 'published'
+          });
+        } else if (slug === 'contact' || slug === 'contact-us') {
+          console.log('Creating contact page on the fly');
+          setPage({
+            title: 'Contact Us',
+            slug: slug,
+            content: '',
+            template: 'contact',
+            status: 'published'
+          });
+        } else if (slug === 'faq' || slug === 'faqs') {
+          console.log('Creating FAQ page on the fly');
+          setPage({
+            title: 'Frequently Asked Questions',
+            slug: slug,
+            content: '',
+            template: 'faq',
+            status: 'published'
+          });
+        } else {
+          setError('Page not found');
+        }
       }
-    };
-
-    loadPage();
+    } catch (err) {
+      console.error(`Error loading page '${slug}':`, err);
+      setError('Failed to load page');
+    } finally {
+      setLoading(false);
+    }
   }, [slug, fetchPageBySlug, navigate]);
+
+  // Load the page when slug changes
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   // Function to render content based on template
   const renderPageContent = () => {

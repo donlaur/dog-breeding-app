@@ -23,7 +23,9 @@ const BreederProfile = () => {
     contact_email: '',
     website: '',
     facility_details: '',
-    testimonial: ''
+    testimonial: '',
+    address: '',
+    phone: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,11 +164,33 @@ const BreederProfile = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label="Phone Number"
+                name="phone"
+                value={program.phone || ''}
+                onChange={handleChange}
+                placeholder="Enter your phone number"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label="Website"
                 name="website"
                 value={program.website || ''}
                 onChange={handleChange}
                 placeholder="Enter your website URL"
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Location/Address"
+                name="address"
+                value={program.address || ''}
+                onChange={handleChange}
+                placeholder="City, State or full address"
               />
             </Grid>
             
