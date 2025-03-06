@@ -62,6 +62,15 @@ def search():
 
 ## Usage
 
+### Search Methods
+
+Users can search using three methods:
+1. **Search Bar** - Available in the dashboard header
+2. **Keyboard Shortcut** - Press `Ctrl+K` (Windows/Linux) or `⌘+K` (Mac) from anywhere in the application
+3. **Mobile Search Icon** - Tap the search icon in the mobile view
+
+### Search Targets
+
 Users can search for:
 - Dogs by name, registered name, microchip, or color
 - Puppies by name, microchip, or color

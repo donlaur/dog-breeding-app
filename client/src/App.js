@@ -69,6 +69,8 @@ const ManagePages = lazy(() => import('./pages/pages/ManagePages'));
 const PageForm = lazy(() => import('./pages/pages/PageForm'));
 const PagePreview = lazy(() => import('./pages/pages/PagePreview'));
 
+// GlobalSearchShortcut moved to its own file for cleaner organization
+
 function App() {
   // Use a ref to track if interceptors are installed
   const interceptorsInstalledRef = useRef(false);

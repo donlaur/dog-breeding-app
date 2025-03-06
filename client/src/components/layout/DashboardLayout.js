@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import GlobalSearchShortcut from '../GlobalSearchShortcut';
 
 // MUI components
 import {
@@ -28,6 +29,8 @@ import {
   styled,
   Badge,
   Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 
 // MUI icons
@@ -46,6 +49,8 @@ import {
   AccountCircle,
   Article as PageIcon,
   PhotoLibrary as MediaIcon,
+  Keyboard as KeyboardIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -79,14 +84,23 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
   color: 'inherit',
+  display: 'flex',
+  alignItems: 'center',
   '& .MuiInputBase-input': {
     padding: theme.spacing(1, 1, 1, 0),
     paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+    paddingRight: '42px', // Make room for the shortcut badge
     transition: theme.transitions.create('width'),
     width: '100%',
     [theme.breakpoints.up('md')]: {
-      width: '20ch',
+      width: '25ch',
     },
+  },
+  '& .MuiInputAdornment-root': {
+    position: 'absolute',
+    right: theme.spacing(1),
+    top: '50%',
+    transform: 'translateY(-50%)',
   },
 }));
 
@@ -99,6 +113,7 @@ const DashboardLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchTip, setShowSearchTip] = useState(false);
   
   const isActive = (path) => location.pathname.startsWith(path);
   
@@ -127,13 +142,31 @@ const DashboardLayout = () => {
   const handleSearchSubmit = (event) => {
     if (event.key === 'Enter' && searchQuery.trim()) {
       navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      // Show search tip if it's the user's first search
+      if (!localStorage.getItem('searchTipShown')) {
+        localStorage.setItem('searchTipShown', 'true');
+        setShowSearchTip(true);
+        // Hide the tip after 5 seconds
+        setTimeout(() => setShowSearchTip(false), 5000);
+      }
     }
   };
   
   const handleSearchClick = () => {
     if (searchQuery.trim()) {
       navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      // Show search tip if it's the user's first search
+      if (!localStorage.getItem('searchTipShown')) {
+        localStorage.setItem('searchTipShown', 'true');
+        setShowSearchTip(true);
+        // Hide the tip after 5 seconds
+        setTimeout(() => setShowSearchTip(false), 5000);
+      }
     }
+  };
+  
+  const handleCloseTip = () => {
+    setShowSearchTip(false);
   };
   
   const navItems = [
@@ -290,6 +323,21 @@ const DashboardLayout = () => {
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyPress={handleSearchSubmit}
+              endAdornment={
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.08)', 
+                    px: 0.5, 
+                    py: 0.2, 
+                    borderRadius: 1,
+                    color: 'text.secondary',
+                    display: { xs: 'none', md: 'inline' }
+                  }}
+                >
+                  {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}
+                </Typography>
+              }
             />
           </Search>
           
@@ -425,6 +473,44 @@ const DashboardLayout = () => {
         <Toolbar /> {/* This creates space for the fixed app bar */}
         <Outlet />
       </Box>
+      
+      {/* Add global search shortcut */}
+      <GlobalSearchShortcut />
+      
+      {/* Keyboard shortcut tip */}
+      <Snackbar
+        open={showSearchTip}
+        autoHideDuration={5000}
+        onClose={handleCloseTip}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseTip} 
+          severity="info"
+          icon={<KeyboardIcon />}
+          sx={{ 
+            width: '100%',
+            '& .MuiAlert-message': { 
+              display: 'flex', 
+              alignItems: 'center' 
+            }
+          }}
+          action={
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseTip}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          <Typography variant="body2">
+            Pro tip: Press <b>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+K</b> to search from anywhere
+          </Typography>
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
