@@ -253,6 +253,13 @@ function App() {
                     <PagePreview />
                   </Suspense>
                 } />
+                
+                {/* Search Results */}
+                <Route path="search" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <SearchResultsPage />
+                  </Suspense>
+                } />
               </Route>
               
               {/* 404 Not Found Page */}

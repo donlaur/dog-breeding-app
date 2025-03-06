@@ -69,10 +69,10 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
   padding: theme.spacing(0, 2),
   height: '100%',
   position: 'absolute',
-  pointerEvents: 'none',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  cursor: 'pointer',
 }));
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
@@ -96,6 +96,7 @@ const DashboardLayout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const isActive = (path) => location.pathname.startsWith(path);
   
@@ -115,6 +116,22 @@ const DashboardLayout = () => {
     handleMenuClose();
     logout();
     navigate('/login');
+  };
+  
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+  
+  const handleSearchSubmit = (event) => {
+    if (event.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+  
+  const handleSearchClick = () => {
+    if (searchQuery.trim()) {
+      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
   
   const navItems = [
@@ -262,14 +279,25 @@ const DashboardLayout = () => {
           
           {/* Search - visible on desktop */}
           <Search sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <SearchIconWrapper>
+            <SearchIconWrapper onClick={handleSearchClick}>
               <SearchIcon />
             </SearchIconWrapper>
             <StyledInputBase
-              placeholder="Search here…"
+              placeholder="Search dogs, puppies, litters..."
               inputProps={{ 'aria-label': 'search' }}
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onKeyPress={handleSearchSubmit}
             />
           </Search>
+          
+          {/* Mobile search icon */}
+          <IconButton 
+            onClick={() => navigate('/dashboard/search')}
+            sx={{ display: { xs: 'block', sm: 'none' }, mr: 1 }}
+          >
+            <SearchIcon />
+          </IconButton>
           
           <Box sx={{ flexGrow: 1 }} />
           
