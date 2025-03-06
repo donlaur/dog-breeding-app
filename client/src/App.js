@@ -32,6 +32,7 @@ const LoadingFallback = () => (
 // Public Pages
 const DogDetailPage = lazy(() => import('./pages/dogs/DogDetailPage'));
 const MediaLibrary = lazy(() => import('./pages/MediaLibrary'));
+const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage'));
 
 // Dashboard Pages
 const Overview = lazy(() => import('./pages/Overview'));
