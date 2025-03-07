@@ -22,6 +22,7 @@ from server.photos import create_photos_bp
 from server.files import create_files_bp
 from server.events import create_events_bp
 from server.search import create_search_bp
+from server.applications import applications_bp
 
 # Try importing pages blueprint with exception handling
 try:
@@ -64,6 +65,7 @@ def create_app():
     app.register_blueprint(create_files_bp(db), url_prefix='/api/files')
     app.register_blueprint(create_events_bp(db), url_prefix='/api/events')
     app.register_blueprint(create_search_bp(db), url_prefix='/api/search')
+    app.register_blueprint(applications_bp)
     
     # Debug pages blueprint - add more detailed debugging
     try:

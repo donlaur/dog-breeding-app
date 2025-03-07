@@ -36,6 +36,12 @@ const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage'));
 const UserAccount = lazy(() => import('./pages/user/UserAccount'));
 const NotificationsPage = lazy(() => import('./pages/user/NotificationsPage'));
 const SystemSettings = lazy(() => import('./pages/user/SystemSettings'));
+const ApplicationForm = lazy(() => import('./pages/applications/ApplicationForm'));
+
+// Application Management
+const FormsManagement = lazy(() => import('./pages/applications/FormsManagement'));
+const FormBuilder = lazy(() => import('./pages/applications/FormBuilder'));
+const ApplicationsList = lazy(() => import('./pages/applications/ApplicationsList'));
 
 // Dashboard Pages
 const Overview = lazy(() => import('./pages/Overview'));
@@ -119,6 +125,13 @@ function App() {
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
+              
+              {/* Public Application Form */}
+              <Route path="/apply/:formId" element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <ApplicationForm />
+                </Suspense>
+              } />
               
               {/* Admin Dashboard routes - protected */}
               <Route path="/dashboard" element={
@@ -284,6 +297,28 @@ function App() {
                 <Route path="settings" element={
                   <Suspense fallback={<LoadingFallback />}>
                     <SystemSettings />
+                  </Suspense>
+                } />
+                
+                {/* Application Forms Management */}
+                <Route path="applications" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <FormsManagement />
+                  </Suspense>
+                } />
+                <Route path="applications/forms/new" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <FormBuilder />
+                  </Suspense>
+                } />
+                <Route path="applications/forms/edit" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <FormBuilder />
+                  </Suspense>
+                } />
+                <Route path="applications/submissions" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ApplicationsList />
                   </Suspense>
                 } />
               </Route>

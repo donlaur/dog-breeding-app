@@ -48,6 +48,7 @@ import {
   Search as SearchIcon,
   AccountCircle,
   Article as PageIcon,
+  ArticleOutlined as ArticleIcon,
   PhotoLibrary as MediaIcon,
   Keyboard as KeyboardIcon,
   Close as CloseIcon,
@@ -177,6 +178,7 @@ const DashboardLayout = () => {
     { path: '/dashboard/calendar', label: 'Events', icon: <CalendarIcon /> },
     { path: '/dashboard/media', label: 'Media Library', icon: <MediaIcon /> },
     { path: '/dashboard/pages', label: 'Pages', icon: <PageIcon /> },
+    { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> },
     { path: '/dashboard/profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
   

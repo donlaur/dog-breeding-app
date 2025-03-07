@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   Box, Button, Grid, TextField, MenuItem, 
   FormControl, InputLabel, Select, FormHelperText,
-  Typography, Divider
+  Typography, Divider, CircularProgress, Autocomplete
 } from '@mui/material';
+import axios from 'axios';
 import PhotoGallery from '../../components/PhotoGallery';
 
 function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = [] }) {
@@ -16,10 +17,48 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
     birth_date: null,
     notes: '',
     status: initialData.status || 'Available', // Ensure status is preserved from initialData
+    // Customer reference
+    customer_id: null,
+    reservation_date: null,
+    sale_date: null,
+    transaction_notes: '',
+    application_id: null,
     ...initialData
   });
 
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  // Fetch customers for selection
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      if (puppy.status === 'Reserved' || puppy.status === 'Sold') {
+        setLoadingCustomers(true);
+        try {
+          const response = await axios.get('/api/customers');
+          if (response.data.success) {
+            setCustomers(response.data.data || []);
+            
+            // If puppy has a customer_id, find and set the selected customer
+            if (puppy.customer_id) {
+              const customer = response.data.data.find(c => c.id === puppy.customer_id);
+              if (customer) {
+                setSelectedCustomer(customer);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching customers:', error);
+        } finally {
+          setLoadingCustomers(false);
+        }
+      }
+    };
+    
+    fetchCustomers();
+  }, [puppy.status, puppy.customer_id]);
   
   // Generate next available identifier and pre-fill data from litter
   useEffect(() => {

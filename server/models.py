@@ -153,3 +153,55 @@ class Page:
     def delete_page(page_id):
         response = supabase.table("pages").delete().eq("id", page_id).execute()
         return response.data
+
+# Customer Model
+class Customer:
+    @staticmethod
+    def get_all():
+        response = supabase.table("customers").select("*").execute()
+        return response.data
+    
+    @staticmethod
+    def get_by_id(customer_id):
+        response = supabase.table("customers").select("*").eq("id", customer_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def get_by_email(email):
+        response = supabase.table("customers").select("*").eq("email", email).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def create_customer(name, email=None, phone=None, address=None, city=None, state=None, zip_code=None, country=None, notes=None):
+        data = {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "address": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code,
+            "country": country,
+            "notes": notes,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        response = supabase.table("customers").insert(data).execute()
+        return response.data
+    
+    @staticmethod
+    def update_customer(customer_id, data):
+        # Add updated_at timestamp
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("customers").update(data).eq("id", customer_id).execute()
+        return response.data
+    
+    @staticmethod
+    def delete_customer(customer_id):
+        response = supabase.table("customers").delete().eq("id", customer_id).execute()
+        return response.data
+    
+    @staticmethod
+    def get_customer_puppies(customer_id):
+        response = supabase.table("puppies").select("*").eq("customer_id", customer_id).execute()
+        return response.data

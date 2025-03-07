@@ -57,6 +57,24 @@ function Sidebar() {
         </div>
         
         <div className="pt-4">
+          <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Applications</h3>
+          <div className="space-y-1">
+            <Link
+              to="/dashboard/applications"
+              className={`block p-2 rounded ${isActive('/dashboard/applications') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+            >
+              Manage Forms
+            </Link>
+            <Link
+              to="/dashboard/applications/submissions"
+              className={`block p-2 rounded ${isActive('/dashboard/applications/submissions') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+            >
+              View Submissions
+            </Link>
+          </div>
+        </div>
+        
+        <div className="pt-4">
           <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Settings</h3>
           <Link
             to="/profile"
