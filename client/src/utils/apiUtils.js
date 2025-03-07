@@ -2,6 +2,50 @@ import { API_URL, debugLog, debugError } from '../config';
 import { showError } from './notifications';
 
 /**
+ * Debug tool to check auth token status
+ * This function can be called from the console: checkAuthToken()
+ */
+export const checkAuthToken = () => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.error('⚠️ NO AUTH TOKEN FOUND IN LOCALSTORAGE');
+    return false;
+  }
+  
+  try {
+    // Check token format (simple check, not full validation)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('⚠️ INVALID TOKEN FORMAT (not a valid JWT)');
+      return false;
+    }
+    
+    // Try to decode payload (middle part)
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Check expiration
+    if (payload.exp) {
+      const expiryDate = new Date(payload.exp * 1000);
+      const now = new Date();
+      
+      if (expiryDate < now) {
+        console.error(`⚠️ TOKEN EXPIRED at ${expiryDate.toLocaleString()}`);
+        return false;
+      } else {
+        console.log(`✅ Token valid until ${expiryDate.toLocaleString()}`);
+      }
+    }
+    
+    console.log('Token payload:', payload);
+    return true;
+  } catch (e) {
+    console.error('⚠️ ERROR PARSING TOKEN:', e);
+    return false;
+  }
+};
+
+/**
  * Helper to format API URLs consistently
  * @param {string} endpoint - API endpoint path
  * @returns {string} Properly formatted endpoint URL
@@ -61,12 +105,21 @@ export const apiRequest = async (endpoint, options = {}) => {
  */
 export const apiGet = async (endpoint) => {
   try {
-    const url = `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
+    const url = formatApiUrl(endpoint);
     console.log(`Making API GET request to: ${url}`);
     
-    const response = await fetch(url);
+    // Get token for authorization
+    const token = localStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      }
+    });
     
     if (!response.ok) {
+      console.error(`API GET Error (${url}): ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
@@ -131,10 +184,15 @@ export const apiPost = async (endpoint, data, options = {}) => {
   try {
     const url = formatApiUrl(endpoint);
     debugLog(`POST ${url}`);
+    
+    // Get token for authorization
+    const token = localStorage.getItem('token');
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
       },
       body: JSON.stringify(data),
       ...options,
@@ -153,6 +211,7 @@ export const apiPost = async (endpoint, data, options = {}) => {
     }
     
     if (!response.ok) {
+      debugError(`API Error (${endpoint}): ${response.status}`, responseData);
       return { 
         ok: false, 
         error: responseData.error || `HTTP error ${response.status}`, 
@@ -174,24 +233,31 @@ export const apiPost = async (endpoint, data, options = {}) => {
  * @param {Object} options - Additional fetch options
  * @return {Promise<Object>} - Response data or error
  */
-export const apiPut = async (endpoint, data) => {
-  const url = `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
-  console.log(`[API] PUT ${url}`, data);
+export const apiPut = async (endpoint, data, options = {}) => {
+  // Detect if the endpoint contains an undefined ID
+  if (endpoint.includes('undefined') || endpoint.includes('null')) {
+    const error = `Invalid API call: Endpoint contains undefined or null ID: ${endpoint}`;
+    debugError(error);
+    showError(`API Error: Invalid ID in request`);
+    return { ok: false, error, data: null };
+  }
   
   try {
-    const token = localStorage.getItem('token');
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const url = formatApiUrl(endpoint);
+    debugLog(`PUT ${url}`);
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    // Get token for authorization
+    const token = localStorage.getItem('token');
     
     const response = await fetch(url, {
       method: 'PUT',
-      headers: headers,
-      body: JSON.stringify(data)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        ...(options.headers || {})
+      },
+      body: JSON.stringify(data),
+      ...options,
     });
     
     let responseData;
@@ -214,6 +280,10 @@ export const apiPut = async (endpoint, data) => {
       }
     }
     
+    if (!response.ok) {
+      debugError(`API PUT Error (${url}): ${response.status}`, responseData);
+    }
+    
     // Create a standard response object
     return {
       ok: response.ok,
@@ -223,7 +293,7 @@ export const apiPut = async (endpoint, data) => {
       error: !response.ok ? (responseData.error || responseData.message || response.statusText) : null
     };
   } catch (error) {
-    console.error(`Network error in apiPut to ${url}:`, error);
+    debugError(`Network error in apiPut to ${endpoint}:`, error);
     return {
       ok: false,
       status: 0,
@@ -252,8 +322,17 @@ export const apiDelete = async (endpoint, options = {}) => {
   try {
     const url = formatApiUrl(endpoint);
     debugLog(`DELETE ${url}`);
+    
+    // Get token for authorization
+    const token = localStorage.getItem('token');
+    
     const response = await fetch(url, {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        ...(options.headers || {})
+      },
       ...options,
     });
     
@@ -270,6 +349,7 @@ export const apiDelete = async (endpoint, options = {}) => {
     }
     
     if (!response.ok) {
+      debugError(`API DELETE Error (${url}): ${response.status}`, responseData);
       return { 
         ok: false, 
         error: responseData.error || `HTTP error ${response.status}`, 

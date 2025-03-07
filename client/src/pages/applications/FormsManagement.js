@@ -11,9 +11,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { apiGet, apiPut, apiDelete } from '../../utils/apiUtils';
 
 const FormsManagement = () => {
   const [forms, setForms] = useState([]);
@@ -36,9 +36,22 @@ const FormsManagement = () => {
   const fetchForms = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/application-forms');
-      if (response.data.success) {
-        setForms(response.data.data);
+      console.log('Fetching application forms...');
+      const result = await apiGet('application-forms');
+      console.log('API response:', result);
+      
+      if (result.ok && result.data) {
+        // Handle different response structures
+        if (Array.isArray(result.data)) {
+          setForms(result.data);
+        } else if (result.data.data && Array.isArray(result.data.data)) {
+          setForms(result.data.data);
+        } else {
+          console.warn('Unexpected data format:', result.data);
+          setForms([]);
+        }
+      } else {
+        throw new Error(result.error || 'Failed to load forms');
       }
     } catch (error) {
       console.error('Error fetching forms:', error);
@@ -54,11 +67,14 @@ const FormsManagement = () => {
   
   const handleToggleActive = async (formId, currentStatus) => {
     try {
-      const response = await axios.put(`/api/application-forms/${formId}`, {
+      console.log(`Toggling form ${formId} active status from ${currentStatus} to ${!currentStatus}`);
+      const result = await apiPut(`application-forms/${formId}`, {
         is_active: !currentStatus
       });
       
-      if (response.data.success) {
+      console.log('Toggle result:', result);
+      
+      if (result.ok) {
         // Update forms list
         setForms(prevForms => 
           prevForms.map(form => 
@@ -67,6 +83,14 @@ const FormsManagement = () => {
               : form
           )
         );
+        
+        setSnackbar({
+          open: true,
+          message: `Form is now ${!currentStatus ? 'active' : 'inactive'}`,
+          severity: 'success'
+        });
+      } else {
+        throw new Error(result.error || 'Failed to update form status');
       }
     } catch (error) {
       console.error('Error updating form status:', error);
@@ -96,9 +120,11 @@ const FormsManagement = () => {
   
   const handleDeleteForm = async () => {
     try {
-      const response = await axios.delete(`/api/application-forms/${deleteDialog.formId}`);
+      console.log(`Deleting form with ID: ${deleteDialog.formId}`);
+      const result = await apiDelete(`application-forms/${deleteDialog.formId}`);
+      console.log('Delete result:', result);
       
-      if (response.data.success) {
+      if (result.ok) {
         // Remove from forms list
         setForms(prevForms => prevForms.filter(form => form.id !== deleteDialog.formId));
         
@@ -107,6 +133,8 @@ const FormsManagement = () => {
           message: 'Form deleted successfully',
           severity: 'success'
         });
+      } else {
+        throw new Error(result.error || 'Failed to delete form');
       }
     } catch (error) {
       console.error('Error deleting form:', error);

@@ -11,7 +11,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import FormQuestionBuilder from '../../components/applications/FormQuestionBuilder';
 import FormPreview from '../../components/applications/FormPreview';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
-import axios from 'axios';
+import { apiPost, apiPut, apiGet, apiDelete } from '../../utils/apiUtils';
 
 const FormBuilder = () => {
   const [form, setForm] = useState({
@@ -39,11 +39,11 @@ const FormBuilder = () => {
       setFormId(id);
       setLoading(true);
       
-      axios.get(`/api/application-forms/${id}`)
+      apiGet(`application-forms/${id}`)
         .then(response => {
-          if (response.data.success) {
-            const formData = response.data.data.form;
-            const questionsData = response.data.data.questions;
+          if (response.ok && response.data) {
+            const formData = response.data.form;
+            const questionsData = response.data.questions;
             
             setForm({
               name: formData.name || '',
@@ -52,6 +52,12 @@ const FormBuilder = () => {
             });
             
             setQuestions(questionsData || []);
+          } else {
+            setSnackbar({
+              open: true,
+              message: 'Failed to load form',
+              severity: 'error'
+            });
           }
         })
         .catch(error => {
@@ -77,8 +83,11 @@ const FormBuilder = () => {
   };
   
   const addQuestion = () => {
+    // Generate a unique ID with more entropy to avoid collisions
+    const uniqueId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newQuestion = {
-      tempId: Date.now(), // Temporary ID for new questions
+      tempId: uniqueId, // Enhanced temporary ID for questions
       question_text: 'New Question',
       description: '',
       question_type: 'text',
@@ -87,16 +96,23 @@ const FormBuilder = () => {
       options: null
     };
     
-    setQuestions([...questions, newQuestion]);
+    // Add question to state using functional update to ensure latest state
+    setQuestions(prevQuestions => [...prevQuestions, newQuestion]);
   };
   
   const updateQuestion = (updatedQuestion) => {
+    // For diagnostic purposes, log what's being updated
+    console.log("Updating question:", updatedQuestion.tempId || updatedQuestion.id);
+    
     setQuestions(prevQuestions => 
-      prevQuestions.map(q => 
-        (q.id === updatedQuestion.id || q.tempId === updatedQuestion.tempId) 
-          ? updatedQuestion 
-          : q
-      )
+      prevQuestions.map(q => {
+        // Compare IDs to find the specific question to update
+        const isMatch = (q.id && updatedQuestion.id && q.id === updatedQuestion.id) || 
+                        (q.tempId && updatedQuestion.tempId && q.tempId === updatedQuestion.tempId);
+        
+        // Only update the matching question, preserve all others exactly as they are
+        return isMatch ? {...updatedQuestion} : q;
+      })
     );
   };
   
@@ -152,17 +168,17 @@ const FormBuilder = () => {
       
       if (formId) {
         // Update existing form
-        response = await axios.put(`/api/application-forms/${formId}`, {
+        response = await apiPut(`application-forms/${formId}`, {
           name: form.name,
           description: form.description,
           is_active: form.is_active
         });
         
         // Handle questions (update, create, delete) if form update was successful
-        if (response.data.success) {
+        if (response.ok) {
           // Get existing questions
-          const existingQuestionsRes = await axios.get(`/api/application-forms/${formId}`);
-          const existingQuestions = existingQuestionsRes.data.data.questions || [];
+          const existingQuestionsRes = await apiGet(`application-forms/${formId}`);
+          const existingQuestions = existingQuestionsRes.data?.questions || [];
           const existingIds = new Set(existingQuestions.map(q => q.id));
           
           // Identify questions to create, update, or delete
@@ -171,27 +187,33 @@ const FormBuilder = () => {
           const idsToKeep = new Set(questions.filter(q => q.id).map(q => q.id));
           const questionsToDelete = existingQuestions.filter(q => !idsToKeep.has(q.id));
           
+          console.log('Creating questions:', questionsToCreate.length);
+          console.log('Updating questions:', questionsToUpdate.length);
+          console.log('Deleting questions:', questionsToDelete.length);
+          
           // Create new questions
           for (const question of questionsToCreate) {
-            await axios.post('/api/form-questions', {
-              ...question,
+            // Create a clean copy of the question without tempId
+            const { tempId, ...cleanQuestion } = question;
+            await apiPost('form-questions', {
+              ...cleanQuestion,
               form_id: formId
             });
           }
           
           // Update existing questions
           for (const question of questionsToUpdate) {
-            await axios.put(`/api/form-questions/${question.id}`, question);
+            await apiPut(`form-questions/${question.id}`, question);
           }
           
           // Delete removed questions
           for (const question of questionsToDelete) {
-            await axios.delete(`/api/form-questions/${question.id}`);
+            await apiDelete(`form-questions/${question.id}`);
           }
           
           // Update question order if needed
           if (questionsToUpdate.length > 0) {
-            await axios.post('/api/form-questions/reorder', {
+            await apiPost('form-questions/reorder', {
               form_id: formId,
               questions: questions.filter(q => q.id).map((q, idx) => ({
                 id: q.id,
@@ -202,9 +224,15 @@ const FormBuilder = () => {
         }
       } else {
         // Create new form with questions
-        response = await axios.post('/api/application-forms', formData);
-        if (response.data.success) {
-          setFormId(response.data.data.id);
+        response = await apiPost('application-forms', formData);
+        console.log('Form creation response:', response);
+        if (response.ok && response.data) {
+          if (response.data.id) {
+            setFormId(response.data.id);
+          } else if (response.data.data && response.data.data.id) {
+            // Handle different API response formats
+            setFormId(response.data.data.id);
+          }
         }
       }
       
@@ -215,13 +243,24 @@ const FormBuilder = () => {
       });
       
       // If new form was created, update the URL with the form ID
-      if (!formId && response.data.success) {
-        window.history.replaceState(
-          null, 
-          '', 
-          `${window.location.pathname}?id=${response.data.data.id}`
-        );
-        setFormId(response.data.data.id);
+      if (!formId && response.ok && response.data) {
+        // Get the form ID from the response, accounting for different API response formats
+        let newFormId = null;
+        if (response.data.id) {
+          newFormId = response.data.id;
+        } else if (response.data.data && response.data.data.id) {
+          newFormId = response.data.data.id;
+        }
+        
+        if (newFormId) {
+          console.log(`Form created with ID: ${newFormId}`);
+          window.history.replaceState(
+            null, 
+            '', 
+            `${window.location.pathname}?id=${newFormId}`
+          );
+          setFormId(newFormId);
+        }
       }
     } catch (error) {
       console.error('Error saving form:', error);
@@ -327,7 +366,11 @@ const FormBuilder = () => {
       ) : null}
       
       <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="questions">
+        <Droppable 
+          droppableId="questions" 
+          isDropDisabled={false}
+          isCombineEnabled={false}
+        >
           {(provided) => (
             <Box
               {...provided.droppableProps}

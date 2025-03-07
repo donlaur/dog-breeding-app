@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Paper, Box, Typography, TextField, IconButton, 
   FormControlLabel, Switch, FormControl, InputLabel,
@@ -21,10 +21,21 @@ const QUESTION_TYPES = [
 ];
 
 const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }) => {
+  // Generate a unique component instance ID to help with debugging
+  const instanceId = React.useRef(`builder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  // Use the question text as initial state, track this separately from the prop
+  const [questionText, setQuestionText] = useState(question.question_text || '');
+  const [description, setDescription] = useState(question.description || '');
   const [options, setOptions] = useState([]);
   const [newOption, setNewOption] = useState('');
   
-  // Initialize options from question.options if it exists
+  // When question prop changes, update our local state
+  useEffect(() => {
+    console.log(`Question ${index} (${instanceId.current}) received new props:`, question.tempId || question.id);
+  }, [question, index]);
+  
+  // Initialize options from question.options if it exists - only on first load
   useEffect(() => {
     if (question.options) {
       try {
@@ -42,13 +53,46 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     } else {
       setOptions([]);
     }
-  }, [question.options]);
+    // Only run this effect once on component mount with the initial question value
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
+  // Handle local state updates for text fields
+  const handleLocalTextChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'question_text') {
+      setQuestionText(value);
+    } else if (name === 'description') {
+      setDescription(value);
+    }
+  };
+  
+  // On blur, update the parent component
+  const handleTextBlur = (e) => {
+    const { name, value } = e.target;
+    console.log(`${instanceId.current} updating ${name} with value:`, value);
+    
+    // Create a deep copy to prevent reference issues
+    const questionCopy = JSON.parse(JSON.stringify(question));
+    questionCopy[name] = value;
+    
+    updateQuestion(questionCopy);
+  };
+  
+  // Handle select/checkbox field changes immediately
   const handleChange = (e) => {
     const { name, value, checked } = e.target;
     
+    // Don't handle text fields here - they're managed by handleLocalTextChange
+    if (name === 'question_text' || name === 'description') {
+      return;
+    }
+    
+    // Create a deep copy to prevent any reference issues
+    const questionCopy = JSON.parse(JSON.stringify(question));
+    
     let updatedQuestion = {
-      ...question,
+      ...questionCopy,
       [name]: name === 'is_required' ? checked : value
     };
     
@@ -57,12 +101,14 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
       const needsOptions = ['select', 'radio', 'checkbox'].includes(value);
       if (!needsOptions) {
         updatedQuestion.options = null;
+        setOptions([]);
       } else if (!question.options) {
         // Initialize options array if switching to an option-based type
         updatedQuestion.options = [];
       }
     }
     
+    console.log(`${instanceId.current} updating ${name}:`, name === 'is_required' ? checked : value);
     updateQuestion(updatedQuestion);
   };
   
@@ -71,8 +117,10 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     
     const updatedOptions = [...options, newOption.trim()];
     setOptions(updatedOptions);
+    // Create a deep copy of the question to avoid reference issues
+    const questionCopy = JSON.parse(JSON.stringify(question));
     updateQuestion({
-      ...question,
+      ...questionCopy,
       options: updatedOptions
     });
     setNewOption('');
@@ -82,8 +130,10 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     const updatedOptions = [...options];
     updatedOptions.splice(index, 1);
     setOptions(updatedOptions);
+    // Create a deep copy of the question to avoid reference issues
+    const questionCopy = JSON.parse(JSON.stringify(question));
     updateQuestion({
-      ...question,
+      ...questionCopy,
       options: updatedOptions
     });
   };
@@ -120,20 +170,24 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
           <TextField
             label="Question Text"
             name="question_text"
-            value={question.question_text}
-            onChange={handleChange}
+            value={questionText}
+            onChange={handleLocalTextChange}
+            onBlur={handleTextBlur}
             fullWidth
             required
             margin="normal"
+            id={`question_text_${question.tempId || question.id}`}
           />
           
           <TextField
             label="Description/Help Text (Optional)"
             name="description"
-            value={question.description || ''}
-            onChange={handleChange}
+            value={description}
+            onChange={handleLocalTextChange}
+            onBlur={handleTextBlur}
             fullWidth
             margin="normal"
+            id={`description_${question.tempId || question.id}`}
           />
           
           <Box display="flex" alignItems="center" mt={2} mb={2}>
