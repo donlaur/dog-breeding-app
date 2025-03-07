@@ -1,5 +1,187 @@
 # AI Development Notes
 
+## Customer Experience Improvements
+
+### Dedicated Application Form
+
+#### Database Schema
+
+```sql
+-- Form Templates
+CREATE TABLE application_forms (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  breeder_id UUID REFERENCES users(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Form Questions
+CREATE TABLE form_questions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  form_id UUID REFERENCES application_forms(id) ON DELETE CASCADE,
+  question_text TEXT NOT NULL,
+  description TEXT,
+  question_type TEXT NOT NULL, -- text, textarea, select, radio, checkbox, etc.
+  is_required BOOLEAN DEFAULT true,
+  order_position INTEGER NOT NULL,
+  options JSONB, -- For select, radio, checkbox options
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Form Submissions
+CREATE TABLE form_submissions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  form_id UUID REFERENCES application_forms(id),
+  puppy_id UUID REFERENCES puppies(id) NULL, -- NULL if applying for waitlist
+  applicant_name TEXT NOT NULL,
+  applicant_email TEXT NOT NULL,
+  applicant_phone TEXT,
+  status TEXT DEFAULT 'pending', -- pending, approved, rejected, waitlist
+  responses JSONB NOT NULL, -- Stores all question responses
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+#### Default Application Questions
+
+1. **Basic Information**
+   - Full Name (First and Last)
+   - Email Address
+   - Phone Number
+   - Location (City, State, Zip)
+
+2. **Living Situation**
+   - Type of Home (House, Apartment, Condo, etc.)
+   - Do you own or rent?
+   - If renting, do you have landlord permission for pets?
+   - Yard size and fencing situation
+   - Who else lives in your home? (Adults, children, ages)
+
+3. **Pet Experience**
+   - Current pets in household (type, breed, age)
+   - Previous experience with Pembroke Welsh Corgis
+   - Previous dog ownership experience
+   - Who will be the primary caretaker?
+
+4. **Lifestyle & Planning**
+   - Work schedule and hours away from home
+   - Exercise plans for the puppy
+   - Training plans and approach
+   - Vacation/travel arrangements for the dog
+
+5. **Puppy Preferences**
+   - Gender preference (Male, Female, No preference)
+   - Color/marking preferences (Red/Fawn, Tri, Any)
+   - Temperament priorities (active, calm, etc.)
+   - Timeline for adding a puppy
+
+6. **Corgi-Specific Questions**
+   - Awareness of herding behaviors (nipping, barking, activity level)
+   - Plans for addressing these breed-specific traits
+   - Understanding of grooming needs (heavy shedding)
+
+7. **Additional Information**
+   - Why have you chosen a Pembroke Welsh Corgi?
+   - Any specific questions for the breeder?
+
+#### Admin UI Features
+
+1. **Form Builder Interface**
+   - Drag-and-drop question ordering
+   - Add/edit/delete questions
+   - Set required vs. optional fields
+   - Preview form appearance
+
+2. **Application Review Dashboard**
+   - List of all applications with status
+   - Filtering by status, date, puppy preference
+   - Search functionality
+   - Export applications to CSV/PDF
+
+3. **Applicant Communication**
+   - Email templates for different statuses
+   - Ability to send custom messages
+   - Application status updates
+   - Notes/comments on applications
+
+4. **Waitlist Management**
+   - Move applicants between waitlist positions
+   - Match applicants to available puppies
+   - Convert waitlist to reservation
+   
+#### Public UI Features
+
+1. **Mobile-Friendly Form**
+   - Progress indicator
+   - Save draft functionality
+   - Responsive design for all screen sizes
+
+2. **Applicant Dashboard**
+   - View submission status
+   - Update contact information
+   - Message breeder
+   - View waitlist position (if applicable)
+
+3. **Puppy-Specific Applications**
+   - Apply directly from puppy profile
+   - Photo of puppy included in application
+   - Special questions for specific puppies
+
+#### Implementation Plan
+
+1. **Phase 1: Database & API**
+   - Create database tables
+   - Build CRUD endpoints for forms, questions, submissions
+   - Implement form validation
+
+2. **Phase 2: Admin Interface**
+   - Form builder UI
+   - Application review dashboard
+   - Communication tools
+
+3. **Phase 3: Public Interface**
+   - Public-facing application form
+   - Applicant dashboard/portal
+   - Notifications system
+
+## Customer Experience Improvement Roadmap
+
+1. **Dedicated Application Form** - Priority: High
+   - Interactive form builder in admin dashboard
+   - Customizable questions for breeder preferences
+   - Ability to apply for specific puppy or waitlist position
+   - Application review and management in admin panel
+
+2. **Puppy Reservation System** - Priority: High
+   - Deposit payment capability
+   - Waitlist position tracking
+   - Status updates for applicants
+
+3. **Testimonials & References Section** - Priority: Medium
+   - Stories from previous puppy buyers
+   - Photos of grown puppies in their homes
+   - Optional video testimonials
+
+4. **Puppy Development Timeline** - Priority: Medium
+   - Week-by-week growth information
+   - Expected milestones and developmental stages
+   - Photo/video gallery organized by age
+
+5. **Interactive Breed Information** - Priority: Medium
+   - Detailed Corgi-specific content beyond FAQs
+   - Care guides, training tips, and health information
+   - Nutrition and exercise recommendations
+
+6. **Mobile-Optimized Gallery** - Priority: Low
+   - Better photo/video viewing experience
+   - Swipe gestures and fullscreen options
+   - Virtual tours of facilities
+
 ## Suggested Next Features
 
 ### 1. Customer Portal & Puppy Wait List Management
