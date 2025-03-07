@@ -105,6 +105,18 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
       [name]: value
     }));
     
+    // When status changes, handle customer selection accordingly
+    if (name === 'status') {
+      if (value !== 'Reserved' && value !== 'Sold') {
+        // If status is not Reserved or Sold, clear customer
+        setPuppy(prev => ({
+          ...prev,
+          customer_id: null
+        }));
+        setSelectedCustomer(null);
+      }
+    }
+    
     // Clear error when field is edited
     if (errors[name]) {
       setErrors(prev => ({
@@ -112,6 +124,15 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
         [name]: null
       }));
     }
+  };
+  
+  // Handle customer selection
+  const handleCustomerChange = (event, newValue) => {
+    setSelectedCustomer(newValue);
+    setPuppy(prev => ({
+      ...prev,
+      customer_id: newValue ? newValue.id : null
+    }));
   };
 
   // Format date for input field YYYY-MM-DD
@@ -142,6 +163,20 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
     if (!puppy.status) {
       // Default to Available if not set
       puppy.status = 'Available';
+    }
+    
+    // Validate customer selection for Reserved or Sold puppies
+    if ((puppy.status === 'Reserved' || puppy.status === 'Sold') && !puppy.customer_id) {
+      newErrors.customer_id = 'Customer is required for Reserved or Sold puppies';
+    }
+    
+    // Validate dates for Reserved or Sold puppies
+    if (puppy.status === 'Reserved' && !puppy.reservation_date) {
+      newErrors.reservation_date = 'Reservation date is required';
+    }
+    
+    if (puppy.status === 'Sold' && !puppy.sale_date) {
+      newErrors.sale_date = 'Sale date is required';
     }
     
     setErrors(newErrors);
@@ -279,6 +314,65 @@ function PuppyForm({ initialData = {}, onSave, litter = {}, existingPuppies = []
             {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
           </FormControl>
         </Grid>
+        
+        {/* Customer selection - only visible when status is Reserved or Sold */}
+        {(puppy.status === 'Reserved' || puppy.status === 'Sold') && (
+          <>
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                id="customer-select"
+                options={customers}
+                loading={loadingCustomers}
+                getOptionLabel={(option) => option.name}
+                value={selectedCustomer}
+                onChange={handleCustomerChange}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Customer"
+                    required
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingCustomers ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                    error={!!errors.customer_id}
+                    helperText={errors.customer_id || ''}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label={puppy.status === 'Reserved' ? 'Reservation Date' : 'Sale Date'}
+                name={puppy.status === 'Reserved' ? 'reservation_date' : 'sale_date'}
+                type="date"
+                value={formatDateForInput(puppy.status === 'Reserved' ? puppy.reservation_date : puppy.sale_date)}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Transaction Notes"
+                name="transaction_notes"
+                value={puppy.transaction_notes || ''}
+                onChange={handleChange}
+                multiline
+                rows={2}
+              />
+            </Grid>
+          </>
+        )}
         
         <Grid item xs={12}>
           <TextField

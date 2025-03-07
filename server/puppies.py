@@ -6,12 +6,14 @@ Blueprint for puppy-related endpoints, including:
 - Updating puppy details
 - Retrieving puppy information
 - Managing puppy availability
+- Associating puppies with customers
 """
 
 from flask import Blueprint, request, jsonify, make_response
 from server.database.db_interface import DatabaseInterface
 from server.database.supabase_db import DatabaseError
 from server.config import debug_log
+from server.supabase_client import supabase
 import traceback
 
 def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
@@ -123,6 +125,20 @@ def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
                 puppy = db.get_by_id("puppies", puppy_id)
                 if not puppy:
                     return jsonify({"error": "Puppy not found"}), 404
+                
+                # If the puppy has a customer_id, include customer information
+                if puppy.get('customer_id'):
+                    try:
+                        # Directly use supabase client to get the customer
+                        customer_response = supabase.table("customers").select("*").eq("id", puppy['customer_id']).execute()
+                        if customer_response.data:
+                            puppy['customer'] = customer_response.data[0]
+                            # For convenience, also include customer name directly in puppy object
+                            puppy['customer_name'] = customer_response.data[0].get('name', 'Unknown')
+                    except Exception as ce:
+                        debug_log(f"Error fetching customer: {str(ce)}")
+                        # Don't fail the whole request if customer fetch fails
+                
                 return jsonify(puppy)
             except Exception as e:
                 debug_log(f"Error fetching puppy: {str(e)}")
@@ -142,7 +158,9 @@ def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
                     'color': 'color',
                     'markings': 'markings',
                     'birthdate': 'birth_date',
+                    'birth_date': 'birth_date',  # Allow both field names
                     'weight_birth': 'weight_at_birth',
+                    'weight': 'weight',
                     'description': 'description',
                     'litter_id': 'litter_id',
                     'status': 'status',
@@ -151,6 +169,11 @@ def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
                     'registered_name': 'registered_name',
                     'microchip': 'microchip',
                     'notes': 'notes',
+                    'customer_id': 'customer_id',
+                    'reservation_date': 'reservation_date',
+                    'sale_date': 'sale_date',
+                    'transaction_notes': 'transaction_notes',
+                    'application_id': 'application_id',
                     'breed_id': 'breed_id',
                     'sire_id': 'sire_id',
                     'dam_id': 'dam_id',
@@ -203,6 +226,18 @@ def create_puppies_bp(db: DatabaseInterface) -> Blueprint:
             puppies = db.find_by_field("puppies", "litter_id", litter_id)
             
             debug_log(f"Found {len(puppies)} puppies for litter ID {litter_id}")
+            
+            # Fetch customer information for puppies with customer_id
+            for puppy in puppies:
+                if puppy.get('customer_id'):
+                    try:
+                        # Directly use supabase client to get the customer
+                        customer_response = supabase.table("customers").select("name,email,phone").eq("id", puppy['customer_id']).execute()
+                        if customer_response.data:
+                            # Just include basic customer info to keep the response lean
+                            puppy['customer_name'] = customer_response.data[0].get('name', 'Unknown')
+                    except Exception as ce:
+                        debug_log(f"Error fetching customer for puppy {puppy.get('id')}: {str(ce)}")
             
             # Add CORS headers
             response = make_response(jsonify(puppies))

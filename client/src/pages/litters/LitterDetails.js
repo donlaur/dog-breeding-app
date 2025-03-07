@@ -518,6 +518,24 @@ function LitterDetail() {
                               Born: {new Date(puppy.birth_date).toLocaleDateString()}
                             </Typography>
                           )}
+                          <Box mt={1} display="flex" alignItems="center">
+                            <Chip 
+                              label={puppy.status || 'Available'} 
+                              size="small"
+                              color={
+                                puppy.status === 'Available' ? 'success' : 
+                                puppy.status === 'Reserved' ? 'warning' : 
+                                puppy.status === 'Sold' ? 'primary' : 'default'
+                              }
+                              sx={{ mr: 1 }}
+                            />
+                            {/* If customer exists, fetch and display customer name */}
+                            {puppy.customer_id && (
+                              <Typography variant="caption" color="text.secondary">
+                                {puppy.customer_name || `Customer #${puppy.customer_id}`}
+                              </Typography>
+                            )}
+                          </Box>
                           <Button 
                             size="small" 
                             variant="outlined" 
