@@ -73,6 +73,7 @@ def create_app():
         return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
     
     # Create database interface
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@mcp-database-host:5432/dog_breeding_db'
     db = SupabaseDatabase()
     
     # Register blueprints
