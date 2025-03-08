@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Breeder Tools API",
+    "description": "API collection for testing the Dog Breeding Application endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Dogs",
+      "item": [
+        {
+          "name": "Get All Dogs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/dogs/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "dogs", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Dog by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/dogs/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "dogs", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Dog",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/dogs/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "dogs", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Dog\",\n    \"gender\": \"Male\",\n    \"breed_id\": 1,\n    \"is_adult\": true,\n    \"birth_date\": \"2020-05-15\",\n    \"color\": \"Red\",\n    \"call_name\": \"Buddy\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Litters",
+      "item": [
+        {
+          "name": "Get All Litters",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/litters/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "litters", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Litter by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/litters/2",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "litters", "2"]
+            }
+          }
+        },
+        {
+          "name": "Create Litter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/litters/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "litters", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Litter\",\n    \"dam_id\": 1,\n    \"sire_id\": 2,\n    \"whelping_date\": \"2023-06-20\",\n    \"status\": \"Active\",\n    \"puppy_count\": 5\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Puppies",
+      "item": [
+        {
+          "name": "Get All Puppies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/puppies/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "puppies", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Puppies by Litter ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/puppies/litter/2",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "puppies", "litter", "2"]
+            }
+          }
+        },
+        {
+          "name": "Get Puppy by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/puppies/5",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "puppies", "5"]
+            }
+          }
+        },
+        {
+          "name": "Create Puppy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/puppies/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "puppies", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Puppy\",\n    \"gender\": \"female\",\n    \"litter_id\": 2,\n    \"birthdate\": \"2024-07-20\",\n    \"color\": \"Red\",\n    \"status\": \"Available\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Heats",
+      "item": [
+        {
+          "name": "Get All Heats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/heats",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "heats"]
+            }
+          }
+        },
+        {
+          "name": "Create Heat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/heats",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "heats"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"dog_id\": 1,\n    \"start_date\": \"2023-06-01\",\n    \"end_date\": \"2023-06-14\",\n    \"notes\": \"Regular heat cycle\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Breeds",
+      "item": [
+        {
+          "name": "Get All Breeds",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/breeds/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "breeds", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Program",
+      "item": [
+        {
+          "name": "Get Program Information",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/program/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "program", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Program Information",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/program/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "program", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Laur's Classic Corgis\",\n    \"description\": \"Top Quality Corgis\",\n    \"contact_email\": \"contact@corgis.com\",\n    \"website\": \"https://corgis.com\",\n    \"facility_details\": \"Great Facility\",\n    \"testimonial\": \"Best Breeder in Town\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

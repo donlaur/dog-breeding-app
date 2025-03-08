@@ -1,0 +1,32 @@
+.rbc-calendar {
+  min-height: 600px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rbc-event {
+  padding: 4px;
+}
+
+.rbc-event-content {
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rbc-today {
+  background-color: rgba(66, 153, 225, 0.1);
+}
+
+/* Modal positioning */
+.fixed {
+  position: fixed;
+  z-index: 9999;
+}
+
+.relative {
+  position: relative;
+} 

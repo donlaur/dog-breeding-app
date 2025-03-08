@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # React frontend - development version with hot reload
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - breeder-app-network
+
+  # Flask backend API - development version with hot reload
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app
+    environment:
+      - FLASK_APP=server/app.py
+      - FLASK_DEBUG=1
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - breeder-app-network
+
+networks:
+  breeder-app-network:
+    driver: bridge 
