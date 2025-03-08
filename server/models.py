@@ -159,7 +159,7 @@ class Customer:
     @staticmethod
     def get_all():
         response = supabase.table("customers").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(customer_id):
@@ -180,38 +180,37 @@ class Customer:
             "address": address,
             "city": city,
             "state": state,
-            "zip": zip_code,
+            "zip_code": zip_code,
             "country": country,
             "notes": notes,
             "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         }
         response = supabase.table("customers").insert(data).execute()
-        return response.data
+        return response.data[0] if response.data else None
     
     @staticmethod
     def update_customer(customer_id, data):
-        # Add updated_at timestamp
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         response = supabase.table("customers").update(data).eq("id", customer_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
     
     @staticmethod
     def delete_customer(customer_id):
         response = supabase.table("customers").delete().eq("id", customer_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
     
     @staticmethod
     def get_customer_puppies(customer_id):
         response = supabase.table("puppies").select("*").eq("customer_id", customer_id).execute()
-        return response.data
+        return response.data if response.data else []
 
 # Health Record Model
 class HealthRecord:
     @staticmethod
     def get_all():
         response = supabase.table("health_records").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(record_id):
@@ -220,46 +219,41 @@ class HealthRecord:
     
     @staticmethod
     def get_for_dog(dog_id):
-        response = supabase.table("health_records").select("*").eq("dog_id", dog_id).order("record_date", desc=True).execute()
-        return response.data
+        response = supabase.table("health_records").select("*").eq("dog_id", dog_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
     def get_for_puppy(puppy_id):
-        response = supabase.table("health_records").select("*").eq("puppy_id", puppy_id).order("record_date", desc=True).execute()
-        return response.data
+        response = supabase.table("health_records").select("*").eq("puppy_id", puppy_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new health record
     def create_record(data):
-        """Create a new health record"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("health_records").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_record(record_id, data):
-        """Update an existing health record"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("health_records").update(data).eq("id", record_id).execute()
-        return response.data
+        response = supabase.table("health_records").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing health record
+    def update_record(record_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("health_records").update(data).eq("id", record_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a health record
     def delete_record(record_id):
-        """Delete a health record"""
         response = supabase.table("health_records").delete().eq("id", record_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
 
 # Vaccination Model
 class Vaccination:
     @staticmethod
     def get_all():
         response = supabase.table("vaccinations").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(vaccination_id):
@@ -268,55 +262,51 @@ class Vaccination:
     
     @staticmethod
     def get_for_dog(dog_id):
-        response = supabase.table("vaccinations").select("*").eq("dog_id", dog_id).order("administration_date", desc=True).execute()
-        return response.data
+        response = supabase.table("vaccinations").select("*").eq("dog_id", dog_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
     def get_for_puppy(puppy_id):
-        response = supabase.table("vaccinations").select("*").eq("puppy_id", puppy_id).order("administration_date", desc=True).execute()
-        return response.data
+        response = supabase.table("vaccinations").select("*").eq("puppy_id", puppy_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Get vaccinations due in the next X days
     def get_upcoming_vaccinations(days=30):
-        """Get vaccinations due in the next X days"""
-        today = datetime.utcnow()
-        future_date = today + datetime.timedelta(days=days)
+        from datetime import timedelta
+        due_date_limit = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+        due_date_today = datetime.utcnow().strftime("%Y-%m-%d")
         
-        response = supabase.table("vaccinations").select("*").gte("next_due_date", today.strftime("%Y-%m-%d")).lte("next_due_date", future_date.strftime("%Y-%m-%d")).execute()
-        return response.data
+        response = supabase.table("vaccinations").select("*").gte("due_date", due_date_today).lte("due_date", due_date_limit).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new vaccination record
     def create_vaccination(data):
-        """Create a new vaccination record"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("vaccinations").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_vaccination(vaccination_id, data):
-        """Update an existing vaccination record"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("vaccinations").update(data).eq("id", vaccination_id).execute()
-        return response.data
+        response = supabase.table("vaccinations").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing vaccination record
+    def update_vaccination(vaccination_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("vaccinations").update(data).eq("id", vaccination_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a vaccination record
     def delete_vaccination(vaccination_id):
-        """Delete a vaccination record"""
         response = supabase.table("vaccinations").delete().eq("id", vaccination_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
 
 # Weight Record Model
 class WeightRecord:
     @staticmethod
     def get_all():
         response = supabase.table("weight_records").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(record_id):
@@ -325,46 +315,41 @@ class WeightRecord:
     
     @staticmethod
     def get_for_dog(dog_id):
-        response = supabase.table("weight_records").select("*").eq("dog_id", dog_id).order("measurement_date", desc=True).execute()
-        return response.data
+        response = supabase.table("weight_records").select("*").eq("dog_id", dog_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
     def get_for_puppy(puppy_id):
-        response = supabase.table("weight_records").select("*").eq("puppy_id", puppy_id).order("measurement_date", desc=True).execute()
-        return response.data
+        response = supabase.table("weight_records").select("*").eq("puppy_id", puppy_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new weight record
     def create_record(data):
-        """Create a new weight record"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("weight_records").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_record(record_id, data):
-        """Update an existing weight record"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("weight_records").update(data).eq("id", record_id).execute()
-        return response.data
+        response = supabase.table("weight_records").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing weight record
+    def update_record(record_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("weight_records").update(data).eq("id", record_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a weight record
     def delete_record(record_id):
-        """Delete a weight record"""
         response = supabase.table("weight_records").delete().eq("id", record_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
 
 # Medication Record Model
 class MedicationRecord:
     @staticmethod
     def get_all():
         response = supabase.table("medication_records").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(record_id):
@@ -373,54 +358,52 @@ class MedicationRecord:
     
     @staticmethod
     def get_for_dog(dog_id):
-        response = supabase.table("medication_records").select("*").eq("dog_id", dog_id).order("administration_date", desc=True).execute()
-        return response.data
+        response = supabase.table("medication_records").select("*").eq("dog_id", dog_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
     def get_for_puppy(puppy_id):
-        response = supabase.table("medication_records").select("*").eq("puppy_id", puppy_id).order("administration_date", desc=True).execute()
-        return response.data
+        response = supabase.table("medication_records").select("*").eq("puppy_id", puppy_id).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Get currently active medications (those without an end_date or with end_date in the future)
     def get_active_medications():
-        """Get currently active medications (those without an end_date or with end_date in the future)"""
         today = datetime.utcnow().strftime("%Y-%m-%d")
         
-        response = supabase.table("medication_records").select("*").or(f"end_date.is.null,end_date.gt.{today}").execute()
-        return response.data
+        response = supabase.table("medication_records").select("*").or_([
+            supabase.table("medication_records").column("end_date").gte(today),
+            supabase.table("medication_records").column("end_date").is_(None)
+        ]).execute()
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new medication record
     def create_record(data):
-        """Create a new medication record"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("medication_records").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_record(record_id, data):
-        """Update an existing medication record"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("medication_records").update(data).eq("id", record_id).execute()
-        return response.data
+        response = supabase.table("medication_records").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing medication record
+    def update_record(record_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("medication_records").update(data).eq("id", record_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a medication record
     def delete_record(record_id):
-        """Delete a medication record"""
         response = supabase.table("medication_records").delete().eq("id", record_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
 
 # Health Condition Model
 class HealthCondition:
     @staticmethod
     def get_all():
         response = supabase.table("health_conditions").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(condition_id):
@@ -430,50 +413,45 @@ class HealthCondition:
     @staticmethod
     def get_for_dog(dog_id):
         response = supabase.table("health_conditions").select("*").eq("dog_id", dog_id).execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_for_puppy(puppy_id):
         response = supabase.table("health_conditions").select("*").eq("puppy_id", puppy_id).execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_status(status):
         response = supabase.table("health_conditions").select("*").eq("status", status).execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new health condition
     def create_condition(data):
-        """Create a new health condition"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("health_conditions").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_condition(condition_id, data):
-        """Update an existing health condition"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("health_conditions").update(data).eq("id", condition_id).execute()
-        return response.data
+        response = supabase.table("health_conditions").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing health condition
+    def update_condition(condition_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("health_conditions").update(data).eq("id", condition_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a health condition
     def delete_condition(condition_id):
-        """Delete a health condition"""
         response = supabase.table("health_conditions").delete().eq("id", condition_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
 
 # Health Condition Template Model
 class HealthConditionTemplate:
     @staticmethod
     def get_all():
         response = supabase.table("health_condition_templates").select("*").execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
     def get_by_id(template_id):
@@ -483,30 +461,25 @@ class HealthConditionTemplate:
     @staticmethod
     def get_by_breed(breed_id):
         response = supabase.table("health_condition_templates").select("*").eq("breed_id", breed_id).execute()
-        return response.data
+        return response.data if response.data else []
     
     @staticmethod
+    # Create a new health condition template
     def create_template(data):
-        """Create a new health condition template"""
-        # Add timestamps
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data["created_at"] = now
-        data["updated_at"] = now
-        
-        response = supabase.table("health_condition_templates").insert(data).execute()
-        return response.data
-    
-    @staticmethod
-    def update_template(template_id, data):
-        """Update an existing health condition template"""
-        # Add updated_at timestamp
+        data["created_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        
-        response = supabase.table("health_condition_templates").update(data).eq("id", template_id).execute()
-        return response.data
+        response = supabase.table("health_condition_templates").insert(data).execute()
+        return response.data[0] if response.data else None
     
     @staticmethod
+    # Update an existing health condition template
+    def update_template(template_id, data):
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("health_condition_templates").update(data).eq("id", template_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    # Delete a health condition template
     def delete_template(template_id):
-        """Delete a health condition template"""
         response = supabase.table("health_condition_templates").delete().eq("id", template_id).execute()
-        return response.data
+        return response.data[0] if response.data else None
