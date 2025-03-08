@@ -1,4 +1,5 @@
-"""
+// Let's view line 23 where the import is
+import { usePage } from '../../context/PageContext';"""
 app.py
 
 Simple entrypoint that creates the Flask app using the factory in __init__.py

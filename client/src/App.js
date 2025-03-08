@@ -50,18 +50,17 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 
 // Dog Management
 const ManageDogs = lazy(() => import('./pages/dogs/ManageDogs'));
-const DogDetails = lazy(() => import('./pages/DogDetails'));
 const DogForm = lazy(() => import('./pages/dogs/DogForm'));
+const DogDetails = lazy(() => import('./pages/dogs/DogDetails'));
 
 // Litter Management
-const Litters = lazy(() => import('./pages/litters'));
 const ManageLitters = lazy(() => import('./pages/litters/ManageLitters'));
 const AddLitterPage = lazy(() => import('./pages/litters/AddLitterPage'));
-const LitterDetails = lazy(() => import('./pages/litters/LitterDetails'));
 const EditLitterPage = lazy(() => import('./pages/litters/EditLitterPage'));
-const ManagePuppies = lazy(() => import('./pages/litters/ManagePuppies'));
+const LitterDetails = lazy(() => import('./pages/litters/LitterDetails'));
 
 // Puppy Management
+const ManagePuppies = lazy(() => import('./pages/puppies/ManagePuppies'));
 const AddPuppy = lazy(() => import('./pages/puppies/AddPuppy'));
 const PuppyDetails = lazy(() => import('./pages/puppies/PuppyDetails'));
 
@@ -70,10 +69,19 @@ const ManageHeats = lazy(() => import('./pages/heats/ManageHeats'));
 const AddHeat = lazy(() => import('./pages/heats/AddHeat'));
 const EditHeat = lazy(() => import('./pages/heats/EditHeat'));
 
-// CMS Pages
-const ManagePages = lazy(() => import('./pages/pages/ManagePages'));
-const PageForm = lazy(() => import('./pages/pages/PageForm'));
-const PagePreview = lazy(() => import('./pages/pages/PagePreview'));
+// Health Management
+const HealthDashboard = lazy(() => import('./pages/health/HealthDashboard'));
+const ManageVaccinations = lazy(() => import('./pages/health/ManageVaccinations'));
+const ManageMedications = lazy(() => import('./pages/health/ManageMedications'));
+const ManageHealthRecords = lazy(() => import('./pages/health/ManageHealthRecords'));
+const AddHealthRecord = lazy(() => import('./pages/health/AddHealthRecord'));
+const AddVaccination = lazy(() => import('./pages/health/AddVaccination'));
+const AddMedication = lazy(() => import('./pages/health/AddMedication'));
+
+// CMS Pages Management
+const ManagePages = lazy(() => import('./pages/cms/ManagePages'));
+const PageForm = lazy(() => import('./pages/cms/PageForm'));
+const PagePreview = lazy(() => import('./pages/cms/PagePreview'));
 
 // GlobalSearchShortcut moved to its own file for cleaner organization
 
@@ -247,6 +255,43 @@ function App() {
                 <Route path="media" element={
                   <Suspense fallback={<LoadingFallback />}>
                     <MediaLibrary />
+                  </Suspense>
+                } />
+                
+                {/* Health Management Routes */}
+                <Route path="health" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <HealthDashboard />
+                  </Suspense>
+                } />
+                <Route path="health/vaccinations" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ManageVaccinations />
+                  </Suspense>
+                } />
+                <Route path="health/vaccinations/add" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AddVaccination />
+                  </Suspense>
+                } />
+                <Route path="health/medications" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ManageMedications />
+                  </Suspense>
+                } />
+                <Route path="health/medications/add" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AddMedication />
+                  </Suspense>
+                } />
+                <Route path="health/records" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ManageHealthRecords />
+                  </Suspense>
+                } />
+                <Route path="health/records/add" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AddHealthRecord />
                   </Suspense>
                 } />
                 

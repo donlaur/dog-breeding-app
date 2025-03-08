@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Typography, TableContainer, Table, TableHead, TableBody, TableRow, Paper, Chip, Button, Box, CircularProgress, Divider } from '@mui/material';
-import { FavoriteIcon, PetsIcon, AddIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { 
-  Link as RouterLink
-} from '@mui/material';
 import PetsIcon from '@mui/icons-material/Pets';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import AddIcon from '@mui/icons-material/Add';
+import { TableCell } from '@mui/material';
+import { API_URL } from '../../config';
 
 const DogDetails = () => {
   const theme = useTheme();

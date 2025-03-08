@@ -1,13 +1,13 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { AuthContext } from './AuthContext';
-import { DogContext } from './DogContext';
+import { useAuth } from './AuthContext';
+import { useDog } from './DogContext';
 import { formatISO } from 'date-fns';
 
 export const HealthContext = createContext();
 
 export const HealthProvider = ({ children }) => {
-  const { isAuthenticated, getToken } = useContext(AuthContext);
-  const { dogs, puppies } = useContext(DogContext);
+  const { isAuthenticated, getToken } = useAuth();
+  const { dogs, puppies } = useDog();
   
   // State for different health record types
   const [healthRecords, setHealthRecords] = useState([]);

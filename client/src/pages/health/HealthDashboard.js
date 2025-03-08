@@ -13,6 +13,9 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import AddIcon from '@mui/icons-material/Add';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import HealthAnalytics from '../../components/health/HealthAnalytics';
+import HealthAlerts from '../../components/health/HealthAlerts';
+import HealthReportPrinter from '../../components/health/HealthReportPrinter';
 
 // Dashboard tile component for consistent styling
 const DashboardTile = ({ title, icon, count, children, color = 'primary', linkTo }) => {
@@ -127,8 +130,15 @@ const HealthDashboard = () => {
         <Typography variant="subtitle1" color="textSecondary" paragraph>
           Monitor the health status of your dogs and puppies
         </Typography>
+        <HealthReportPrinter />
       </Box>
 
+      {/* Health Alerts Section */}
+      <HealthAlerts />
+
+      {/* Health Analytics Section */}
+      <HealthAnalytics />
+      
       <Grid container spacing={3}>
         {/* Upcoming Vaccinations */}
         <Grid item xs={12} md={6}>
