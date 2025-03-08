@@ -37,6 +37,7 @@ import { formatDate, formatAge } from '../../utils/dateUtils';
 import { API_URL, debugLog, debugError } from '../../config';
 import { showError, showInfo } from '../../utils/notifications';
 import { useTheme } from '@mui/material/styles';
+import PhotoGallery from '../../components/PhotoGallery';
 
 function LitterDetail() {
   const params = useParams();
@@ -275,7 +276,7 @@ function LitterDetail() {
   if (loading) {
     return (
       <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
           <CircularProgress />
         </Box>
       </Container>
@@ -374,7 +375,7 @@ function LitterDetail() {
                     Whelp Date
                   </Typography>
                   <Typography variant="body1">
-                    {formatDate(litter.whelp_date) || 'Not recorded'}
+                    {litter.whelp_date ? formatDate(litter.whelp_date) : 'Not recorded'}
                   </Typography>
                 </Grid>
                 
@@ -397,7 +398,7 @@ function LitterDetail() {
               </Grid>
             </Paper>
             
-            <Paper elevation={2} sx={{ p: 3 }}>
+            <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
               <Typography variant="h6" gutterBottom>
                 Parents
               </Typography>
@@ -473,6 +474,20 @@ function LitterDetail() {
               </Grid>
             </Paper>
 
+            <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Photos
+              </Typography>
+              {litter && litter.id && (
+                <PhotoGallery 
+                  entityType="litter" 
+                  entityId={litter.id} 
+                  maxPhotos={25}
+                  gridCols={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                />
+              )}
+            </Paper>
+            
             <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
               <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                 <PetsIcon sx={{ mr: 1, color: 'primary.light' }} />
@@ -631,14 +646,14 @@ function LitterDetail() {
                   Created
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  {formatDate(litter.created_at)}
+                  {litter.created_at ? formatDate(litter.created_at) : 'Not recorded'}
                 </Typography>
                 
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
                   Last Updated
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  {formatDate(litter.updated_at)}
+                  {litter.updated_at ? formatDate(litter.updated_at) : 'Not recorded'}
                 </Typography>
                 
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>

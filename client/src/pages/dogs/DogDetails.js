@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Typography, TableContainer, Table, TableHead, TableBody, TableRow, Paper, Chip, Button, Box, CircularProgress, Divider } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import PetsIcon from '@mui/icons-material/Pets';
@@ -7,10 +7,13 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import AddIcon from '@mui/icons-material/Add';
 import { TableCell } from '@mui/material';
 import { API_URL } from '../../config';
+import PhotoGallery from '../../components/PhotoGallery';
 
 const DogDetails = () => {
   const theme = useTheme();
+  const { id: dogId } = useParams(); // Extract 'id' from URL params
   const [dog, setDog] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [siredLitters, setSiredLitters] = useState([]);
   const [damLitters, setDamLitters] = useState([]);
   const [heatCycles, setHeatCycles] = useState([]);
@@ -19,13 +22,31 @@ const DogDetails = () => {
   useEffect(() => {
     // Fetch dog details
     fetchDogDetails();
-    fetchSiredLitters();
-    fetchDamLitters();
-    fetchHeatCycles();
-  }, []);
+  }, [dogId]);
 
   const fetchDogDetails = async () => {
-    // Implementation of fetchDogDetails
+    if (!dogId) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/dogs/${dogId}`);
+      if (!response.ok) {
+        console.error(`Error fetching dog details: ${response.status}`);
+        return;
+      }
+      
+      const data = await response.json();
+      setDog(data);
+      
+      // After setting dog data, fetch related information
+      if (data && data.gender) {
+        fetchLitters(data.id, data.gender);
+      }
+    } catch (error) {
+      console.error('Error fetching dog details:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchSiredLitters = async () => {
@@ -73,16 +94,24 @@ const DogDetails = () => {
     }
   };
 
-  useEffect(() => {
-    // ... existing code to fetch dog details ...
-    
-    // Add this inside the existing useEffect after you set the dog data
-    if (dog && dog.id && dog.gender) {
-      fetchLitters(dog.id, dog.gender);
-    }
-    
-    // Make sure to add dog and dog.gender to the dependency array if you're adding to an existing useEffect
-  }, [dog?.id, dog?.gender]);
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!dog) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h6" color="error">Error loading dog details</Typography>
+        <Button component={Link} to="/dashboard/dogs" sx={{ mt: 2 }}>
+          Return to Dogs List
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <div>
@@ -90,7 +119,7 @@ const DogDetails = () => {
       <Box sx={{ py: 3 }}>
         <Typography variant="h6" sx={{ mb: 3 }}>Breeding Information</Typography>
         
-        {dog.gender === 'female' && (
+        {dog && dog.gender === 'female' && (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <FavoriteIcon sx={{ mr: 1, color: 'error.main' }} />
@@ -117,7 +146,7 @@ const DogDetails = () => {
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
           <PetsIcon sx={{ mr: 1 }} />
           <Typography variant="subtitle1">
-            {dog.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
+            {dog && dog.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
           </Typography>
           <Button 
             variant="outlined" 
@@ -135,7 +164,7 @@ const DogDetails = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : dog.gender === 'male' && siredLitters.length > 0 ? (
+        ) : dog && dog.gender === 'male' && siredLitters.length > 0 ? (
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -179,7 +208,7 @@ const DogDetails = () => {
               </TableBody>
             </Table>
           </TableContainer>
-        ) : dog.gender === 'female' && damLitters.length > 0 ? (
+        ) : dog && dog.gender === 'female' && damLitters.length > 0 ? (
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -225,12 +254,25 @@ const DogDetails = () => {
           </TableContainer>
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
-            No litters {dog.gender === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
+            No litters {dog && dog.gender === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
           </Typography>
+        )}
+      </Box>
+
+      {/* Photo Gallery Section */}
+      <Box sx={{ py: 3 }}>
+        <Typography variant="h6" sx={{ mb: 3 }}>Photos</Typography>
+        {dog && dog.id && (
+          <PhotoGallery 
+            entityType="dog" 
+            entityId={dog.id} 
+            maxPhotos={25}
+            gridCols={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+          />
         )}
       </Box>
     </div>
   );
 };
 
-export default DogDetails; 
+export default DogDetails;
