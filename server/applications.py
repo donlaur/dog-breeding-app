@@ -24,6 +24,13 @@ def get_application_forms(current_user):
         print(f"Getting application forms for breeder ID: {current_user['id']}")
         print(f"Breeder ID type: {type(current_user['id'])}")
         
+        # Development mode - handle mock user specially
+        if current_user['id'] == "00000000-0000-4000-a000-000000000001":
+            print("Development mode detected - using mock data")
+            # In development mode with mock user, return empty list
+            # This prevents foreign key constraint errors with the mock UUID
+            return jsonify({"success": True, "data": []}), 200
+        
         # Make sure we have a valid UUID for breeder_id lookup
         try:
             # Get the user ID and ensure it's a valid UUID
@@ -94,6 +101,28 @@ def create_application_form(current_user):
         print(f"Creating form with data: {data}")
         print(f"Current user ID: {current_user['id']}")
         print(f"Current user ID type: {type(current_user['id'])}")
+        
+        # Development mode - handle mock user specially
+        if current_user['id'] == "00000000-0000-4000-a000-000000000001":
+            print("Development mode detected - creating mock form response")
+            # Simulate successful form creation with mock data
+            # This prevents foreign key constraint errors with the mock UUID
+            mock_form = {
+                "id": 9999,  # Mock ID for development
+                "breeder_id": current_user['id'],
+                "name": data['name'],
+                "description": data.get('description', ''),
+                "is_active": data.get('is_active', True),
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            # Handle questions if provided
+            if 'questions' in data and data['questions']:
+                for i, question in enumerate(data['questions']):
+                    question['id'] = 9000 + i  # Mock IDs for questions
+                    question['form_id'] = mock_form['id']
+                    
+            return jsonify({"success": True, "data": mock_form}), 201
         
         # Verify the user ID is actually a UUID
         try:
