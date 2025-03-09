@@ -8,8 +8,8 @@ import { useDog } from '../../context/DogContext';
  * HealthAnalytics component to display health trends and statistics
  */
 const HealthAnalytics = () => {
-  const { healthRecords, vaccinations, medicationRecords, weightRecords } = useHealth();
-  const { dogs, puppies } = useDog();
+  const { healthRecords = [], vaccinations = [], medicationRecords = [], weightRecords = [] } = useHealth();
+  const { dogs = [], puppies = [] } = useDog();
   const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState('recordTypes');
   const [timeFrame, setTimeFrame] = useState('6months');
@@ -34,10 +34,10 @@ const HealthAnalytics = () => {
       } else if (chartType === 'vaccinationStatus') {
         // Calculate vaccination status for all animals
         const totalAnimals = dogs.length + puppies.length;
-        const fullyVaccinated = dogs.filter(dog => dog.vaccination_status === 'complete').length +
-                                puppies.filter(puppy => puppy.vaccination_status === 'complete').length;
-        const partiallyVaccinated = dogs.filter(dog => dog.vaccination_status === 'partial').length +
-                                    puppies.filter(puppy => puppy.vaccination_status === 'partial').length;
+        const fullyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'complete').length +
+                                puppies.filter(puppy => puppy && puppy.vaccination_status === 'complete').length;
+        const partiallyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'partial').length +
+                                    puppies.filter(puppy => puppy && puppy.vaccination_status === 'partial').length;
         const notVaccinated = totalAnimals - fullyVaccinated - partiallyVaccinated;
         
         setChartData([
@@ -64,17 +64,25 @@ const HealthAnalytics = () => {
         
         // Count records by month
         healthRecords.forEach(record => {
-          if (!record.record_date) return;
+          if (!record || !record.record_date) return;
           
-          const recordDate = new Date(record.record_date);
-          for (const monthData of months) {
-            const monthStart = monthData.fullDate;
-            const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+          try {
+            const recordDate = new Date(record.record_date);
             
-            if (recordDate >= monthStart && recordDate <= monthEnd) {
-              monthData.count += 1;
-              break;
+            // Skip invalid dates
+            if (isNaN(recordDate.getTime())) return;
+            
+            for (const monthData of months) {
+              const monthStart = monthData.fullDate;
+              const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+              
+              if (recordDate >= monthStart && recordDate <= monthEnd) {
+                monthData.count += 1;
+                break;
+              }
             }
+          } catch (error) {
+            console.error('Error processing record date:', error);
           }
         });
         
