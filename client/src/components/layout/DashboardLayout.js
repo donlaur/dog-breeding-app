@@ -52,6 +52,10 @@ import {
   PhotoLibrary as MediaIcon,
   Keyboard as KeyboardIcon,
   Close as CloseIcon,
+  MedicalServices as HealthIcon,
+  Vaccines as VaccinesIcon,
+  Medication as MedicationIcon,
+  HealthAndSafety as HealthRecordsIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -177,6 +181,10 @@ const DashboardLayout = () => {
     { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> },
     { path: '/dashboard/calendar', label: 'Events', icon: <CalendarIcon /> },
     { path: '/dashboard/media', label: 'Media Library', icon: <MediaIcon /> },
+    { path: '/dashboard/health', label: 'Health Dashboard', icon: <HealthIcon /> },
+    { path: '/dashboard/health/vaccinations', label: 'Manage Vaccinations', icon: <VaccinesIcon /> },
+    { path: '/dashboard/health/medications', label: 'Manage Medications', icon: <MedicationIcon /> },
+    { path: '/dashboard/health/records', label: 'Manage Health Records', icon: <HealthRecordsIcon /> },
     { path: '/dashboard/pages', label: 'Pages', icon: <PageIcon /> },
     { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> },
     { path: '/dashboard/profile', label: 'Profile', icon: <ProfileIcon /> },
