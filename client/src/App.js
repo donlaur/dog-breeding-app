@@ -9,6 +9,7 @@ import theme from './theme';
 import { AuthProvider } from './context/AuthContext';
 import { HeatProvider } from './context/HeatContext';
 import { PageProvider } from './context/PageContext';
+import { HealthProvider } from './context/HealthContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './utils/errorBoundary';
@@ -112,267 +113,269 @@ function App() {
       <AuthProvider>
         <HeatProvider>
           <PageProvider>
-            <ErrorBoundary>
-              <DebugRouteInfo />
-              <Routes>
-              {/* Public site routes */}
-              <Route path="/" element={<HomePage />} />
-              <Route path="/page/:slug" element={<PublicPage />} />
-              <Route path="/dog/:gender/:slug/:id" element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <DogDetailPage />
-                </Suspense>
-              } />
-              {/* Keep the old route for backward compatibility */}
-              <Route path="/dog/:slug/:id" element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <DogDetailPage />
-                </Suspense>
-              } />
+            <HealthProvider>
+              <ErrorBoundary>
+                <DebugRouteInfo />
+                <Routes>
+                {/* Public site routes */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/page/:slug" element={<PublicPage />} />
+                <Route path="/dog/:gender/:slug/:id" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <DogDetailPage />
+                  </Suspense>
+                } />
+                {/* Keep the old route for backward compatibility */}
+                <Route path="/dog/:slug/:id" element={
+                  <Suspense fallback={<LoadingFallback />}>
+                    <DogDetailPage />
+                  </Suspense>
+                } />
 
-              {/* Authentication routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
-              
-              {/* Public Application Form */}
-              <Route path="/apply/:formId" element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <ApplicationForm />
-                </Suspense>
-              } />
-              
-              {/* Admin Dashboard routes - protected */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={
+                {/* Authentication routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
+                
+                {/* Public Application Form */}
+                <Route path="/apply/:formId" element={
                   <Suspense fallback={<LoadingFallback />}>
-                    <Overview />
-                  </Suspense>
-                } />
-                <Route path="profile" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <BreederProfile />
+                    <ApplicationForm />
                   </Suspense>
                 } />
                 
-                {/* Dog Management Routes */}
-                <Route path="dogs" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageDogs />
-                  </Suspense>
-                } />
-                <Route path="dogs/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <DogForm />
-                  </Suspense>
-                } />
-                <Route path="dogs/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <DogDetails />
-                  </Suspense>
-                } />
-                <Route path="dogs/:id/edit" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <DogForm />
-                  </Suspense>
-                } />
+                {/* Admin Dashboard routes - protected */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Overview />
+                    </Suspense>
+                  } />
+                  <Route path="profile" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <BreederProfile />
+                    </Suspense>
+                  } />
+                  
+                  {/* Dog Management Routes */}
+                  <Route path="dogs" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageDogs />
+                    </Suspense>
+                  } />
+                  <Route path="dogs/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <DogForm />
+                    </Suspense>
+                  } />
+                  <Route path="dogs/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <DogDetails />
+                    </Suspense>
+                  } />
+                  <Route path="dogs/:id/edit" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <DogForm />
+                    </Suspense>
+                  } />
+                  
+                  {/* Litter Management Routes */}
+                  <Route path="litters" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageLitters />
+                    </Suspense>
+                  } />
+                  <Route path="litters/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddLitterPage />
+                    </Suspense>
+                  } />
+                  <Route path="litters/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LitterDetails />
+                    </Suspense>
+                  } />
+                  <Route path="litters/edit/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <EditLitterPage />
+                    </Suspense>
+                  } />
+                  <Route path="litters/:litterId/puppies" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManagePuppies />
+                    </Suspense>
+                  } />
+                  <Route path="litters/:litterId/puppies/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddPuppy />
+                    </Suspense>
+                  } />
+                  
+                  {/* Puppy Management Routes */}
+                  <Route path="puppies/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PuppyDetails />
+                    </Suspense>
+                  } />
+                  <Route path="puppies/:id/edit" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PuppyDetails isEdit={true} />
+                    </Suspense>
+                  } />
+                  <Route path="puppies/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddPuppy />
+                    </Suspense>
+                  } />
+                  
+                  {/* Heat Management Routes */}
+                  <Route path="heats" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageHeats />
+                    </Suspense>
+                  } />
+                  <Route path="heats/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddHeat />
+                    </Suspense>
+                  } />
+                  <Route path="heats/edit/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <EditHeat />
+                    </Suspense>
+                  } />
+                  <Route path="calendar" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <CalendarPage />
+                    </Suspense>
+                  } />
+                  
+                  {/* Media Library */}
+                  <Route path="media" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <MediaLibrary />
+                    </Suspense>
+                  } />
+                  
+                  {/* Health Management Routes */}
+                  <Route path="health" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <HealthDashboard />
+                    </Suspense>
+                  } />
+                  <Route path="health/vaccinations" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageVaccinations />
+                    </Suspense>
+                  } />
+                  <Route path="health/vaccinations/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddVaccination />
+                    </Suspense>
+                  } />
+                  <Route path="health/medications" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageMedications />
+                    </Suspense>
+                  } />
+                  <Route path="health/medications/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddMedication />
+                    </Suspense>
+                  } />
+                  <Route path="health/records" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManageHealthRecords />
+                    </Suspense>
+                  } />
+                  <Route path="health/records/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AddHealthRecord />
+                    </Suspense>
+                  } />
+                  
+                  {/* CMS Pages Management */}
+                  <Route path="pages" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ManagePages />
+                    </Suspense>
+                  } />
+                  <Route path="pages/add" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PageForm />
+                    </Suspense>
+                  } />
+                  <Route path="pages/edit/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PageForm />
+                    </Suspense>
+                  } />
+                  <Route path="pages/preview/:id" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PagePreview />
+                    </Suspense>
+                  } />
+                  
+                  {/* Search Results */}
+                  <Route path="search" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SearchResultsPage />
+                    </Suspense>
+                  } />
+                  
+                  {/* User Account Settings */}
+                  <Route path="account" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <UserAccount />
+                    </Suspense>
+                  } />
+                  
+                  {/* Notifications */}
+                  <Route path="notifications" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <NotificationsPage />
+                    </Suspense>
+                  } />
+                  
+                  {/* System Settings */}
+                  <Route path="settings" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SystemSettings />
+                    </Suspense>
+                  } />
+                  
+                  {/* Application Forms Management */}
+                  <Route path="applications" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <FormsManagement />
+                    </Suspense>
+                  } />
+                  <Route path="applications/forms/new" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <FormBuilder />
+                    </Suspense>
+                  } />
+                  <Route path="applications/forms/edit" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <FormBuilder />
+                    </Suspense>
+                  } />
+                  <Route path="applications/submissions" element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ApplicationsList />
+                    </Suspense>
+                  } />
+                </Route>
                 
-                {/* Litter Management Routes */}
-                <Route path="litters" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageLitters />
-                  </Suspense>
-                } />
-                <Route path="litters/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddLitterPage />
-                  </Suspense>
-                } />
-                <Route path="litters/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <LitterDetails />
-                  </Suspense>
-                } />
-                <Route path="litters/edit/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <EditLitterPage />
-                  </Suspense>
-                } />
-                <Route path="litters/:litterId/puppies" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManagePuppies />
-                  </Suspense>
-                } />
-                <Route path="litters/:litterId/puppies/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddPuppy />
-                  </Suspense>
-                } />
-                
-                {/* Puppy Management Routes */}
-                <Route path="puppies/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PuppyDetails />
-                  </Suspense>
-                } />
-                <Route path="puppies/:id/edit" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PuppyDetails isEdit={true} />
-                  </Suspense>
-                } />
-                <Route path="puppies/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddPuppy />
-                  </Suspense>
-                } />
-                
-                {/* Heat Management Routes */}
-                <Route path="heats" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageHeats />
-                  </Suspense>
-                } />
-                <Route path="heats/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddHeat />
-                  </Suspense>
-                } />
-                <Route path="heats/edit/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <EditHeat />
-                  </Suspense>
-                } />
-                <Route path="calendar" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <CalendarPage />
-                  </Suspense>
-                } />
-                
-                {/* Media Library */}
-                <Route path="media" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <MediaLibrary />
-                  </Suspense>
-                } />
-                
-                {/* Health Management Routes */}
-                <Route path="health" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <HealthDashboard />
-                  </Suspense>
-                } />
-                <Route path="health/vaccinations" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageVaccinations />
-                  </Suspense>
-                } />
-                <Route path="health/vaccinations/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddVaccination />
-                  </Suspense>
-                } />
-                <Route path="health/medications" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageMedications />
-                  </Suspense>
-                } />
-                <Route path="health/medications/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddMedication />
-                  </Suspense>
-                } />
-                <Route path="health/records" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManageHealthRecords />
-                  </Suspense>
-                } />
-                <Route path="health/records/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AddHealthRecord />
-                  </Suspense>
-                } />
-                
-                {/* CMS Pages Management */}
-                <Route path="pages" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManagePages />
-                  </Suspense>
-                } />
-                <Route path="pages/add" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageForm />
-                  </Suspense>
-                } />
-                <Route path="pages/edit/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageForm />
-                  </Suspense>
-                } />
-                <Route path="pages/preview/:id" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PagePreview />
-                  </Suspense>
-                } />
-                
-                {/* Search Results */}
-                <Route path="search" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <SearchResultsPage />
-                  </Suspense>
-                } />
-                
-                {/* User Account Settings */}
-                <Route path="account" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <UserAccount />
-                  </Suspense>
-                } />
-                
-                {/* Notifications */}
-                <Route path="notifications" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <NotificationsPage />
-                  </Suspense>
-                } />
-                
-                {/* System Settings */}
-                <Route path="settings" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <SystemSettings />
-                  </Suspense>
-                } />
-                
-                {/* Application Forms Management */}
-                <Route path="applications" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <FormsManagement />
-                  </Suspense>
-                } />
-                <Route path="applications/forms/new" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <FormBuilder />
-                  </Suspense>
-                } />
-                <Route path="applications/forms/edit" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <FormBuilder />
-                  </Suspense>
-                } />
-                <Route path="applications/submissions" element={
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ApplicationsList />
-                  </Suspense>
-                } />
-              </Route>
-              
-              {/* 404 Not Found Page */}
-              <Route path="/not-found" element={<NotFoundPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </ErrorBoundary>
+                {/* 404 Not Found Page */}
+                <Route path="/not-found" element={<NotFoundPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </ErrorBoundary>
+            </HealthProvider>
           </PageProvider>
         </HeatProvider>
       </AuthProvider>
