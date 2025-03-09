@@ -36,7 +36,7 @@ const FormBuilder = () => {
     const id = params.get('id');
     
     if (id) {
-      setFormId(id);
+      setFormId(parseInt(id));
       setLoading(true);
       
       apiGet(`application-forms/${id}`)
@@ -139,71 +139,94 @@ const FormBuilder = () => {
   };
   
   const saveForm = async () => {
-    if (!form.name.trim()) {
-      setSnackbar({
-        open: true,
-        message: 'Form name is required',
-        severity: 'error'
-      });
-      return;
-    }
-    
-    if (questions.length === 0) {
-      setSnackbar({
-        open: true,
-        message: 'Add at least one question to your form',
-        severity: 'error'
-      });
-      return;
-    }
-    
     setLoading(true);
     
     try {
-      let response;
+      // Validate form data
+      if (!form.name) {
+        setSnackbar({
+          open: true,
+          message: 'Form name is required',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Validate questions
+      if (questions.length === 0) {
+        setSnackbar({
+          open: true,
+          message: 'At least one question is required',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Prepare form data - ensure all IDs are treated as integers
       const formData = {
         ...form,
-        questions: questions
+        questions: questions.map((q, idx) => {
+          const questionData = {
+            ...q,
+            order_position: idx
+          };
+          
+          // Convert ID to integer if it exists
+          if (q.id) {
+            questionData.id = parseInt(q.id);
+          }
+          
+          return questionData;
+        })
       };
       
+      console.log('Saving form data:', formData);
+      
+      let response;
+      
+      // Update existing form or create new one
       if (formId) {
         // Update existing form
+        const questionsToCreate = questions.filter(q => !q.id);
+        const questionsToUpdate = questions.filter(q => q.id && q.modified);
+        const questionsToDelete = [];
+        
+        // Update the form first
         response = await apiPut(`application-forms/${formId}`, {
           name: form.name,
           description: form.description,
           is_active: form.is_active
         });
         
-        // Handle questions (update, create, delete) if form update was successful
         if (response.ok) {
-          // Get existing questions
-          const existingQuestionsRes = await apiGet(`application-forms/${formId}`);
-          const existingQuestions = existingQuestionsRes.data?.questions || [];
-          const existingIds = new Set(existingQuestions.map(q => q.id));
-          
-          // Identify questions to create, update, or delete
-          const questionsToCreate = questions.filter(q => !q.id);
-          const questionsToUpdate = questions.filter(q => q.id && existingIds.has(q.id));
-          const idsToKeep = new Set(questions.filter(q => q.id).map(q => q.id));
-          const questionsToDelete = existingQuestions.filter(q => !idsToKeep.has(q.id));
-          
-          console.log('Creating questions:', questionsToCreate.length);
-          console.log('Updating questions:', questionsToUpdate.length);
-          console.log('Deleting questions:', questionsToDelete.length);
-          
           // Create new questions
           for (const question of questionsToCreate) {
-            // Create a clean copy of the question without tempId
-            const { tempId, ...cleanQuestion } = question;
-            await apiPost('form-questions', {
-              ...cleanQuestion,
-              form_id: formId
-            });
+            const questionData = {
+              form_id: formId,
+              question_text: question.question_text,
+              description: question.description || '',
+              question_type: question.question_type,
+              is_required: question.is_required,
+              options: question.options,
+              order_position: questions.indexOf(question)
+            };
+            
+            const createResponse = await apiPost('form-questions', questionData);
+            console.log('Question creation response:', createResponse);
           }
           
           // Update existing questions
           for (const question of questionsToUpdate) {
-            await apiPut(`form-questions/${question.id}`, question);
+            // Ensure ID is an integer
+            const questionData = {
+              ...question,
+              id: parseInt(question.id)
+            };
+            
+            const updateResponse = await apiPut(`form-questions/${question.id}`, questionData);
+            console.log('Question update response:', updateResponse);
           }
           
           // Delete removed questions
@@ -212,28 +235,25 @@ const FormBuilder = () => {
           }
           
           // Update question order if needed
-          if (questionsToUpdate.length > 0) {
-            await apiPost('form-questions/reorder', {
+          if (questions.filter(q => q.id).length > 0) {
+            const reorderResponse = await apiPost('form-questions/reorder', {
               form_id: formId,
               questions: questions.filter(q => q.id).map((q, idx) => ({
-                id: q.id,
+                id: parseInt(q.id),
                 order_position: idx
               }))
             });
+            console.log('Question reorder response:', reorderResponse);
           }
         }
       } else {
         // Create new form with questions
         response = await apiPost('application-forms', formData);
         console.log('Form creation response:', response);
-        if (response.ok && response.data) {
-          if (response.data.id) {
-            setFormId(response.data.id);
-          } else if (response.data.data && response.data.data.id) {
-            // Handle different API response formats
-            setFormId(response.data.data.id);
-          }
-        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(response.error || 'Failed to save form');
       }
       
       setSnackbar({
@@ -253,20 +273,37 @@ const FormBuilder = () => {
         }
         
         if (newFormId) {
-          console.log(`Form created with ID: ${newFormId}`);
-          window.history.replaceState(
-            null, 
-            '', 
-            `${window.location.pathname}?id=${newFormId}`
-          );
-          setFormId(newFormId);
+          // For development mode with mock IDs (9999), redirect to forms list
+          if (newFormId === 9999) {
+            console.log("Development mode detected with mock ID, redirecting to forms list");
+            setTimeout(() => {
+              window.location.href = "/dashboard/applications/forms";
+            }, 1500);
+          } else {
+            // Regular behavior for real form IDs - update URL and redirect to form builder
+            // Update URL without reloading the page
+            window.history.replaceState(
+              null, 
+              '', 
+              `${window.location.pathname}?id=${newFormId}`
+            );
+            
+            // Set the form ID in state
+            setFormId(parseInt(newFormId));
+            
+            // Refresh the page to load the newly created form
+            setTimeout(() => {
+              window.location.href = `/dashboard/applications/builder?id=${newFormId}`;
+            }, 1000);
+          }
         }
       }
+      
     } catch (error) {
       console.error('Error saving form:', error);
       setSnackbar({
         open: true,
-        message: 'Failed to save form',
+        message: `Error: ${error.message || 'Failed to save form'}`,
         severity: 'error'
       });
     } finally {
@@ -368,13 +405,17 @@ const FormBuilder = () => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable 
           droppableId="questions" 
+          type="QUESTION"
+          ignoreContainerClipping={false}
           isDropDisabled={false}
           isCombineEnabled={false}
+          direction="vertical"
         >
           {(provided) => (
             <Box
               {...provided.droppableProps}
               ref={provided.innerRef}
+              sx={{ minHeight: '100px' }}
             >
               {questions.map((question, index) => (
                 <FormQuestionBuilder
