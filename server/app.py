@@ -7,8 +7,10 @@ Simple entrypoint that creates the Flask app using the factory in __init__.py
 import os
 import sys
 import logging
-from flask import Flask, jsonify
+import traceback
+from flask import Flask, jsonify, send_from_directory, redirect, url_for, request
 from flask_cors import CORS  # Import CORS
+from werkzeug.exceptions import HTTPException, InternalServerError, NotFound
 
 # Add the parent directory to sys.path to allow imports from server module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,6 +33,8 @@ from server.search import create_search_bp
 from server.customers import create_customers_bp
 from server.applications import applications_bp
 from server.health import create_health_bp
+from server.routes.leads import leads_bp
+from server.routes.messages import messages_bp
 
 # Try importing pages blueprint with exception handling
 try:
@@ -47,87 +51,248 @@ def create_app():
     app = Flask(__name__)
     
     # Configure logging
-    if not app.debug:
-        # Set up file handler
-        file_handler = logging.FileHandler('app.log')
-        file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        file_handler.setFormatter(file_formatter)
-        app.logger.addHandler(file_handler)
-    
-    # Set up console handler for all environments
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(console_formatter)
-    app.logger.addHandler(console_handler)
-    
-    app.logger.setLevel(logging.INFO)
+    configure_logging(app)
     
     # Setup CORS for all routes
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     
     # Setup static file serving for uploads
-    from flask import send_from_directory
+    setup_file_serving(app)
     
+    # Create database interface
+    try:
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+            'DATABASE_URL',
+            'postgresql://user:password@mcp-database-host:5432/dog_breeding_db'
+        )
+        db = SupabaseDatabase()
+    except Exception as e:
+        app.logger.error(f"Database initialization error: {e}")
+        db = FallbackDatabase()  # Define this class below
+    
+    # Register blueprints with error handling
+    register_blueprints(app, db)
+    
+    # Register error handlers
+    register_error_handlers(app)
+    
+    # Add health check endpoint
+    @app.route('/api/health-check')
+    def health_check():
+        """Basic health check endpoint to verify API is running"""
+        return jsonify({
+            "status": "ok",
+            "message": "Service is running",
+            "timestamp": import_datetime().now().isoformat()
+        })
+    
+    # Add global request logging middleware
+    @app.before_request
+    def log_request_info():
+        """Log request details for debugging"""
+        if request.path != '/api/health-check':  # Skip logging health checks
+            app.logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
+    
+    return app
+
+def import_datetime():
+    """Helper function to safely import datetime"""
+    try:
+        from datetime import datetime
+        return datetime
+    except ImportError:
+        class FallbackDatetime:
+            @staticmethod
+            def now():
+                class Now:
+                    @staticmethod
+                    def isoformat():
+                        return "datetime-import-error"
+                return Now()
+        return FallbackDatetime()
+
+def configure_logging(app):
+    """Configure application logging with proper exception handling"""
+    try:
+        # Set up file handler
+        log_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+        os.makedirs(log_directory, exist_ok=True)
+        
+        log_file = os.path.join(log_directory, 'app.log')
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
+        app.logger.addHandler(file_handler)
+        
+        # Set up console handler for all environments
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        app.logger.addHandler(console_handler)
+        
+        app.logger.setLevel(logging.INFO)
+        app.logger.info("Logging configured successfully")
+    except Exception as e:
+        print(f"Warning: Failed to configure logging: {e}")
+        # Setup minimal console logging as fallback
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        app.logger.addHandler(handler)
+        app.logger.setLevel(logging.WARNING)
+        app.logger.warning(f"Using fallback logging configuration due to error: {e}")
+
+def setup_file_serving(app):
+    """Setup static file serving with proper error handling"""
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
         """Serve uploaded files"""
-        debug_log(f"Serving uploaded file: {filename}")
-        return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
+        try:
+            debug_log(f"Serving uploaded file: {filename}")
+            uploads_path = os.path.join(app.root_path, 'uploads')
+            if not os.path.exists(uploads_path):
+                os.makedirs(uploads_path, exist_ok=True)
+                
+            if not os.path.exists(os.path.join(uploads_path, filename)):
+                app.logger.warning(f"Requested file not found: {filename}")
+                return jsonify({"error": "File not found"}), 404
+                
+            return send_from_directory(uploads_path, filename)
+        except Exception as e:
+            app.logger.error(f"Error serving file {filename}: {e}")
+            return jsonify({"error": "Error serving file", "details": str(e)}), 500
     
-    # Create database interface
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@mcp-database-host:5432/dog_breeding_db'
-    db = SupabaseDatabase()
+    @app.route('/api/uploads/<path:filename>')
+    def serve_api_upload(filename):
+        """Serve uploaded files through the API path"""
+        try:
+            debug_log(f"Serving uploaded file through API path: {filename}")
+            return redirect(url_for('serve_upload', filename=filename))
+        except Exception as e:
+            app.logger.error(f"Error redirecting for file {filename}: {e}")
+            return jsonify({"error": "Error serving file", "details": str(e)}), 500
+
+def register_blueprints(app, db):
+    """Register all blueprints with error handling"""
+    blueprints = [
+        (create_dogs_bp(db), '/api/dogs'),
+        (create_litters_bp(db), '/api/litters'),
+        (breeds_bp, '/api/breeds'),
+        (create_heats_bp(db), '/api/heats'),
+        (create_auth_bp(db), '/api/auth'),
+        (create_program_bp(db), '/api/program'),
+        (create_puppies_bp(db), '/api/puppies'),
+        (create_photos_bp(db), '/api/photos'),
+        (create_files_bp(db), '/api/files'),
+        (create_events_bp(db), '/api/events'),
+        (create_search_bp(db), '/api/search'),
+        (create_customers_bp(db), '/api/customers'),
+        (applications_bp, ''),  # Uses its own URL prefix
+        (create_health_bp(), '/api/health'),
+        (leads_bp, '/api/leads'),
+        (messages_bp, '/api/messages'),
+    ]
     
-    # Register blueprints
-    app.register_blueprint(create_dogs_bp(db), url_prefix='/api/dogs')
-    app.register_blueprint(create_litters_bp(db), url_prefix='/api/litters')
-    app.register_blueprint(breeds_bp, url_prefix='/api/breeds')
-    app.register_blueprint(create_heats_bp(db), url_prefix='/api/heats')
-    app.register_blueprint(create_auth_bp(db), url_prefix='/api/auth')
-    app.register_blueprint(create_program_bp(db), url_prefix='/api/program')
-    app.register_blueprint(create_puppies_bp(db), url_prefix='/api/puppies')
-    app.register_blueprint(create_photos_bp(db), url_prefix='/api/photos')
-    app.register_blueprint(create_files_bp(db), url_prefix='/api/files')
-    app.register_blueprint(create_events_bp(db), url_prefix='/api/events')
-    app.register_blueprint(create_search_bp(db), url_prefix='/api/search')
-    app.register_blueprint(create_customers_bp(db), url_prefix='/api/customers')
-    app.register_blueprint(applications_bp)
-    app.register_blueprint(create_health_bp(), url_prefix='/api/health')
+    for blueprint, url_prefix in blueprints:
+        try:
+            app.register_blueprint(blueprint, url_prefix=url_prefix)
+            app.logger.info(f"Registered blueprint at {url_prefix}")
+        except Exception as e:
+            app.logger.error(f"Failed to register blueprint for {url_prefix}: {e}")
     
-    # Debug pages blueprint - add more detailed debugging
+    # Handle pages blueprint separately since it's more prone to errors
     try:
-        print("Attempting to create pages blueprint...")
+        app.logger.info("Attempting to create pages blueprint...")
         pages_bp = create_pages_blueprint(db)
-        print(f"Pages blueprint created successfully: {pages_bp}")
+        app.logger.info(f"Pages blueprint created successfully: {pages_bp}")
         
-        print("Attempting to register pages blueprint...")
+        app.logger.info("Attempting to register pages blueprint...")
         app.register_blueprint(pages_bp, url_prefix='/api/pages')
-        print("Pages blueprint registered successfully")
+        app.logger.info("Pages blueprint registered successfully")
         
         # Print all routes after registration
-        print("\nRoutes after registering pages blueprint:")
+        app.logger.info("\nRoutes after registering pages blueprint:")
         for rule in app.url_map.iter_rules():
             if 'pages' in rule.rule:
-                print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+                app.logger.info(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
     except Exception as e:
-        import traceback
-        print(f"Error registering pages blueprint: {e}")
-        print(traceback.format_exc())
-    
-    # Basic error handler just for 404 errors
+        app.logger.error(f"Error registering pages blueprint: {e}")
+        app.logger.error(traceback.format_exc())
+
+def register_error_handlers(app):
+    """Register comprehensive error handlers"""
     @app.errorhandler(404)
     def not_found_error(error):
-        debug_log(f"404 Error: {error}")
-        response = jsonify({"error": "Resource not found"})
+        app.logger.warning(f"404 Error: {error} - Path: {request.path}")
+        response = jsonify({
+            "error": "Resource not found",
+            "path": request.path,
+            "status": 404
+        })
         response.status_code = 404
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+        return add_cors_headers(response)
     
-    return app
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        app.logger.error(f"500 Error: {error}")
+        app.logger.error(traceback.format_exc())
+        response = jsonify({
+            "error": "Internal server error",
+            "status": 500,
+            "message": "The server encountered an unexpected condition that prevented it from fulfilling the request."
+        })
+        response.status_code = 500
+        return add_cors_headers(response)
+    
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Pass through HTTP errors
+        if isinstance(e, HTTPException):
+            app.logger.warning(f"HTTP Exception {e.code}: {e}")
+            response = jsonify({
+                "error": e.name,
+                "status": e.code,
+                "message": e.description
+            })
+            response.status_code = e.code
+        else:
+            app.logger.error(f"Unhandled Exception: {e}")
+            app.logger.error(traceback.format_exc())
+            response = jsonify({
+                "error": "Internal server error",
+                "status": 500,
+                "message": "The server encountered an unexpected condition."
+            })
+            response.status_code = 500
+        return add_cors_headers(response)
+
+def add_cors_headers(response):
+    """Add CORS headers to response"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+class FallbackDatabase:
+    """Fallback database class when main database is unavailable"""
+    def __init__(self):
+        self.available = False
+        self.error_message = "Database connection failed. Using fallback stub database."
+    
+    def execute(self, *args, **kwargs):
+        """Return empty results for any query"""
+        return []
+    
+    def get(self, *args, **kwargs):
+        """Return None for any get operation"""
+        return None
+    
+    def __getattr__(self, name):
+        """Handle any attribute access with a method that returns None"""
+        def method(*args, **kwargs):
+            return None
+        return method
 
 if __name__ == "__main__":
     import argparse
@@ -135,8 +300,16 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Start the Flask server')
     parser.add_argument('--port', type=int, default=5000, help='Port to run the server on')
-    args = parser.parse_args()
+    parser.add_argument('--debug', action='store_true', help='Run in debug mode')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
     
-    app = create_app()
-    print(f"Starting server on port {args.port}...")
-    app.run(debug=True, port=args.port, host='0.0.0.0')
+    try:
+        args = parser.parse_args()
+        
+        app = create_app()
+        print(f"Starting server on {args.host}:{args.port}...")
+        app.run(debug=args.debug, port=args.port, host=args.host)
+    except Exception as e:
+        print(f"Critical error starting application: {e}")
+        traceback.print_exc()
+        sys.exit(1)
