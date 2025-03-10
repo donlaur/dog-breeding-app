@@ -100,9 +100,27 @@ def create_auth_bp(db):
         # 3. Verify password hash
         # 4. Generate a JWT token
         
-        # For testing, return a demo user
+        # Generate a real JWT token for testing
+        import os
+        import jwt
+        from datetime import datetime, timedelta
+        
+        # Create token payload
+        payload = {
+            'user_id': 1,
+            'email': email,
+            'exp': datetime.utcnow() + timedelta(days=1)  # Token expires in 1 day
+        }
+        
+        # Get secret key from environment or use a default for development
+        secret_key = os.environ.get('JWT_SECRET_KEY', 'development_secret_key')
+        
+        # Generate token
+        token = jwt.encode(payload, secret_key, algorithm='HS256')
+        
+        # For testing, return a demo user with the real token
         return jsonify({
-            'token': 'test-token',
+            'token': token,
             'user': {
                 'id': 1,
                 'email': email,

@@ -16,7 +16,7 @@ def create_app(test_config=None):
     app = Flask(__name__)
     CORS(app, resources={
         r"/api/*": {
-            "origins": "*",  # Allow all origins for testing
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],  # Allow client on port 3000
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { apiPost } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 
 const Login = () => {
@@ -21,22 +20,16 @@ const Login = () => {
     setLoading(true);
     
     try {
-      const response = await apiPost('auth/login', { email, password });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      // Use the login function from AuthContext directly instead of manual API call
+      const success = await login(email, password);
+      
+      if (success) {
+        showSuccess("Login successful!");
+        // Redirect to dashboard or the intended page
+        navigate(from);
+      } else {
+        throw new Error("Login failed. Please check your credentials.");
       }
-      
-      const data = await response.json();
-      
-      // Save the token and user data
-      login(data.token, data.user);
-      
-      showSuccess("Login successful!");
-      
-      // Redirect to dashboard
-      navigate('/dashboard');
-      
     } catch (error) {
       console.error("Login error:", error);
       showError(`Login failed: ${error.message}`);

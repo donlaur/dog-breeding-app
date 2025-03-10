@@ -13,7 +13,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { apiGet, apiPut, apiDelete } from '../../utils/apiUtils';
+import { apiGet, apiPut, apiDelete, apiPost } from '../../utils/apiUtils';
 
 const FormsManagement = () => {
   const [forms, setForms] = useState([]);
@@ -68,6 +68,12 @@ const FormsManagement = () => {
   const handleToggleActive = async (formId, currentStatus) => {
     try {
       console.log(`Toggling form ${formId} active status from ${currentStatus} to ${!currentStatus}`);
+      
+      // Form ID should be an integer, no need to validate UUID format
+      if (!formId) {
+        throw new Error('Invalid form ID');
+      }
+      
       const result = await apiPut(`application-forms/${formId}`, {
         is_active: !currentStatus
       });
@@ -96,9 +102,93 @@ const FormsManagement = () => {
       console.error('Error updating form status:', error);
       setSnackbar({
         open: true,
-        message: 'Failed to update form status',
+        message: 'Failed to update form status: ' + error.message,
         severity: 'error'
       });
+    }
+  };
+  
+  const handleDeleteForm = async (formId) => {
+    try {
+      setLoading(true);
+      
+      // Convert formId to integer to ensure proper handling
+      const response = await apiDelete(`application-forms/${parseInt(formId)}`);
+      
+      if (!response.ok) {
+        throw new Error(response.error || 'Failed to delete form');
+      }
+      
+      // Refresh the forms list
+      fetchForms();
+      
+      setSnackbar({
+        open: true,
+        message: 'Form deleted successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting form:', error);
+      setSnackbar({
+        open: true,
+        message: `Error: ${error.message || 'Failed to delete form'}`,
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleDuplicateForm = async (formId) => {
+    try {
+      setLoading(true);
+      
+      // Fetch the form to duplicate
+      const response = await apiGet(`application-forms/${formId}`);
+      
+      if (!response.ok || !response.data) {
+        throw new Error('Failed to fetch form data');
+      }
+      
+      const formData = response.data.form;
+      const questionsData = response.data.questions;
+      
+      // Create a new form with the same data but a different name
+      const newFormData = {
+        name: `${formData.name} (Copy)`,
+        description: formData.description,
+        is_active: formData.is_active,
+        questions: questionsData.map(q => {
+          // Remove the id from each question so new ones will be created
+          const { id, created_at, updated_at, ...questionData } = q;
+          return questionData;
+        })
+      };
+      
+      // Create the new form
+      const createResponse = await apiPost('application-forms', newFormData);
+      
+      if (!createResponse.ok) {
+        throw new Error('Failed to duplicate form');
+      }
+      
+      // Refresh the forms list
+      fetchForms();
+      
+      setSnackbar({
+        open: true,
+        message: 'Form duplicated successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error duplicating form:', error);
+      setSnackbar({
+        open: true,
+        message: `Error: ${error.message || 'Failed to duplicate form'}`,
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -116,36 +206,6 @@ const FormsManagement = () => {
       formId: null,
       formName: ''
     });
-  };
-  
-  const handleDeleteForm = async () => {
-    try {
-      console.log(`Deleting form with ID: ${deleteDialog.formId}`);
-      const result = await apiDelete(`application-forms/${deleteDialog.formId}`);
-      console.log('Delete result:', result);
-      
-      if (result.ok) {
-        // Remove from forms list
-        setForms(prevForms => prevForms.filter(form => form.id !== deleteDialog.formId));
-        
-        setSnackbar({
-          open: true,
-          message: 'Form deleted successfully',
-          severity: 'success'
-        });
-      } else {
-        throw new Error(result.error || 'Failed to delete form');
-      }
-    } catch (error) {
-      console.error('Error deleting form:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to delete form',
-        severity: 'error'
-      });
-    } finally {
-      closeDeleteDialog();
-    }
   };
   
   const handleCopyFormLink = (formId) => {
@@ -284,6 +344,15 @@ const FormsManagement = () => {
                         </IconButton>
                       </Tooltip>
                       
+                      <Tooltip title="Duplicate Form">
+                        <IconButton 
+                          size="small"
+                          onClick={() => handleDuplicateForm(form.id)}
+                        >
+                          <FileCopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      
                       <Tooltip title="Delete Form">
                         <IconButton 
                           size="small"
@@ -330,7 +399,7 @@ const FormsManagement = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteDialog}>Cancel</Button>
-          <Button onClick={handleDeleteForm} color="error">Delete</Button>
+          <Button onClick={() => handleDeleteForm(deleteDialog.formId)} color="error">Delete</Button>
         </DialogActions>
       </Dialog>
       

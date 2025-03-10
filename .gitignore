@@ -24,19 +24,35 @@ logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 debug.log
+*donlaur*log
+*personal*log
+.log.*
 
 # OS-specific files
 .DS_Store
 Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
 
 # Editor/IDE files
 .vscode/
 .idea/
+*.sublime-*
+*.swp
+*.swo
+*~
 
 # Flask-related
 instance/
 .env
+.flaskenv
+.env.*
 
 # dependencies
 /node_modules
@@ -45,9 +61,12 @@ instance/
 
 # testing
 /coverage
+/reports
+/test-results
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -56,6 +75,23 @@ instance/
 .env.test.local
 .env.production.local
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Local Configurations with potential personal info
+*config.local*
+*personal*
+*credentials*
+*secret*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3-journal
+
+# Temporary files
+.tmp/
+.temp/
+tmp/
+temp/
+
+# Deployment artifacts
+.deploy/
+deploy.config.js

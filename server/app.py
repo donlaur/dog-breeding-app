@@ -1,14 +1,18 @@
-// Let's view line 23 where the import is
-import { usePage } from '../../context/PageContext';"""
+"""
 app.py
 
 Simple entrypoint that creates the Flask app using the factory in __init__.py
 """
 
 import os
+import sys
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS  # Import CORS
+
+# Add the parent directory to sys.path to allow imports from server module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from server.database.supabase_db import SupabaseDatabase
 from server.config import debug_log
 
@@ -134,4 +138,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     app = create_app()
-    app.run(debug=True, port=args.port)
+    print(f"Starting server on port {args.port}...")
+    app.run(debug=True, port=args.port, host='0.0.0.0')

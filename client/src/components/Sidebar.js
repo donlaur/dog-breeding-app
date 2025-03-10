@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { MedicalServices, Vaccines, Medication, HealthAndSafety } from '@mui/icons-material';
 
 function Sidebar() {
   const { logout } = useAuth();
@@ -52,6 +53,64 @@ function Sidebar() {
               className={`block p-2 rounded ${isActive('/calendar') ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
             >
               Heat Calendar
+            </Link>
+          </div>
+        </div>
+        
+        <div className="pt-4">
+          <h3 className="text-gray-500 uppercase text-xs font-semibold mb-2">Health Management</h3>
+          <div className="space-y-1">
+            <Link
+              to="/dashboard/health"
+              className={`block p-2 rounded ${
+                isActive('/dashboard/health') 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <MedicalServices className="w-5 h-5" />
+                <span>Health Dashboard</span>
+              </div>
+            </Link>
+            <Link
+              to="/dashboard/health/vaccinations"
+              className={`block p-2 rounded ${
+                isActive('/dashboard/health/vaccinations') 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Vaccines className="w-5 h-5" />
+                <span>Manage Vaccinations</span>
+              </div>
+            </Link>
+            <Link
+              to="/dashboard/health/medications"
+              className={`block p-2 rounded ${
+                isActive('/dashboard/health/medications') 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Medication className="w-5 h-5" />
+                <span>Manage Medications</span>
+              </div>
+            </Link>
+            <Link
+              to="/dashboard/health/records"
+              className={`block p-2 rounded ${
+                isActive('/dashboard/health/records') 
+                  ? 'bg-blue-100 text-blue-700 font-medium' 
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <HealthAndSafety className="w-5 h-5" />
+                <span>Manage Health Records</span>
+              </div>
             </Link>
           </div>
         </div>

@@ -8,9 +8,18 @@ are loaded automatically via the server's configuration.
 """
 
 from server import create_app
+from flask_cors import CORS
 
 if __name__ == "__main__":
     app = create_app()
+    # Apply CORS configuration
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
     
     # Print all registered routes before running
     print("\n=== Registered routes: ===")
@@ -20,4 +29,4 @@ if __name__ == "__main__":
         print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
     
     print("\n=== Starting server... ===")
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=3001, debug=True)

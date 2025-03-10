@@ -142,7 +142,7 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
   const needsOptions = ['select', 'radio', 'checkbox'].includes(question.question_type);
   
   return (
-    <Draggable draggableId={question.id?.toString() || question.tempId?.toString()} index={index}>
+    <Draggable draggableId={(question.id || question.tempId).toString()} index={index}>
       {(provided) => (
         <Paper 
           ref={provided.innerRef}

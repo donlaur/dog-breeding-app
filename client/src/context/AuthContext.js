@@ -18,10 +18,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Save to localStorage whenever token/user changes
+  // Effect to sync token with localStorage
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
+      
+      // Try to parse the user from the token
+      try {
+        // If token is a JWT, it's in the format header.payload.signature
+        // We need to extract the payload and decode it
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          // This is likely a JWT token
+          const payload = JSON.parse(atob(parts[1]));
+          console.log('Decoded token payload:', payload);
+          
+          // If we don't have user data but have it in the token, use it
+          if (!user && payload.user_id) {
+            setUser({
+              id: payload.user_id,
+              email: payload.email,
+              name: payload.name || 'User'
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing token:', e);
+      }
     } else {
       localStorage.removeItem('token');
     }
@@ -42,15 +65,22 @@ export function AuthProvider({ children }) {
       const response = await apiPost('auth/login', { email, password });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        throw new Error(response.error || 'Login failed');
       }
       
-      const data = await response.json();
+      // The apiPost function already parses the JSON response
+      const data = response.data;
       debugLog('Login successful:', data);
       
-      setToken(data.token);
+      // Store token without any Bearer prefix - it will be added when making API requests
+      const tokenToStore = data.token.replace('Bearer ', '');
+      setToken(tokenToStore);
       setUser(data.user);
+      
+      // Force token refresh in localStorage
+      localStorage.removeItem('token');
+      localStorage.setItem('token', tokenToStore);
+      
       return true;
     } catch (err) {
       console.error('Login error:', err);

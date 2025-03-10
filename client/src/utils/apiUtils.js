@@ -46,21 +46,13 @@ export const checkAuthToken = () => {
 };
 
 /**
- * Helper to format API URLs consistently
- * @param {string} endpoint - API endpoint path
- * @returns {string} Properly formatted endpoint URL
+ * Format API URL
+ * @param {string} endpoint - API endpoint
+ * @return {string} - Formatted URL
  */
 export const formatApiUrl = (endpoint) => {
-  // Remove any leading slash from endpoint
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
-  
-  // Ensure no trailing slashes for consistency (avoid redirect issues with CORS)
-  const noTrailingSlash = cleanEndpoint.endsWith('/') 
-    ? cleanEndpoint.slice(0, -1) 
-    : cleanEndpoint;
-  
-  // For development with proxy, use relative URL
-  return `/api/${noTrailingSlash}`;
+  // Use the proxy configuration in package.json instead of hardcoding the port
+  return `/api/${endpoint.replace(/^\/+/, '')}`;
 };
 
 /**
@@ -85,6 +77,11 @@ export const apiRequest = async (endpoint, options = {}) => {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
   };
+
+  // Debug the token being sent
+  if (token) {
+    debugLog(`Using token for request: ${token.substring(0, 10)}...`);
+  }
 
   const config = {
     ...options,
