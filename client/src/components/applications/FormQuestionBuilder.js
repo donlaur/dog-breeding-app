@@ -33,10 +33,12 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
   // When question prop changes, update our local state
   useEffect(() => {
     console.log(`Question ${index} (${instanceId.current}) received new props:`, question.tempId || question.id);
-  }, [question, index]);
-  
-  // Initialize options from question.options if it exists - only on first load
-  useEffect(() => {
+    
+    // Update local state when props change
+    setQuestionText(question.question_text || '');
+    setDescription(question.description || '');
+    
+    // Update options when question prop changes
     if (question.options) {
       try {
         const parsedOptions = typeof question.options === 'string' 
@@ -53,9 +55,7 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     } else {
       setOptions([]);
     }
-    // Only run this effect once on component mount with the initial question value
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [question, index]);
   
   // Handle local state updates for text fields
   const handleLocalTextChange = (e) => {
@@ -75,6 +75,7 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     // Create a deep copy to prevent reference issues
     const questionCopy = JSON.parse(JSON.stringify(question));
     questionCopy[name] = value;
+    questionCopy.modified = true; // Mark as modified for saving
     
     updateQuestion(questionCopy);
   };
@@ -93,7 +94,8 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     
     let updatedQuestion = {
       ...questionCopy,
-      [name]: name === 'is_required' ? checked : value
+      [name]: name === 'is_required' ? checked : value,
+      modified: true // Mark as modified for saving
     };
     
     // Reset options when question type changes to non-option type
@@ -121,7 +123,8 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     const questionCopy = JSON.parse(JSON.stringify(question));
     updateQuestion({
       ...questionCopy,
-      options: updatedOptions
+      options: updatedOptions,
+      modified: true // Mark as modified for saving
     });
     setNewOption('');
   };
@@ -134,7 +137,8 @@ const FormQuestionBuilder = ({ question, index, updateQuestion, removeQuestion }
     const questionCopy = JSON.parse(JSON.stringify(question));
     updateQuestion({
       ...questionCopy,
-      options: updatedOptions
+      options: updatedOptions,
+      modified: true // Mark as modified for saving
     });
   };
   

@@ -271,6 +271,20 @@ def create_form_question(current_user):
         if form.data[0]['breeder_id'] != current_user['id']:
             return jsonify({"success": False, "error": "Unauthorized"}), 403
         
+        # Process options - ensure it's properly stored as a string if it exists
+        options = data.get('options')
+        if options is not None:
+            # If options is already a string, verify it's valid JSON
+            if isinstance(options, str):
+                try:
+                    json.loads(options)
+                except json.JSONDecodeError:
+                    # If not valid JSON, assume it's a string that needs to be converted
+                    options = json.dumps(options)
+            else:
+                # If not a string (e.g., a list or dict), convert to JSON string
+                options = json.dumps(options)
+        
         question_data = {
             "form_id": int(data['form_id']),
             "question_text": data['question_text'],
@@ -278,7 +292,7 @@ def create_form_question(current_user):
             "question_type": data['question_type'],
             "is_required": data.get('is_required', True),
             "order_position": data['order_position'],
-            "options": data.get('options'),
+            "options": options,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -309,13 +323,28 @@ def update_form_question(current_user, question_id):
             return jsonify({"success": False, "error": "Unauthorized"}), 403
         
         data = request.json
+        
+        # Process options - ensure it's properly stored as a string if it exists
+        options = data.get('options', question.data[0]['options'])
+        if options is not None:
+            # If options is already a string, verify it's valid JSON
+            if isinstance(options, str):
+                try:
+                    json.loads(options)
+                except json.JSONDecodeError:
+                    # If not valid JSON, assume it's a string that needs to be converted
+                    options = json.dumps(options)
+            else:
+                # If not a string (e.g., a list or dict), convert to JSON string
+                options = json.dumps(options)
+        
         question_data = {
             "question_text": data.get('question_text', question.data[0]['question_text']),
             "description": data.get('description', question.data[0]['description']),
             "question_type": data.get('question_type', question.data[0]['question_type']),
             "is_required": data.get('is_required', question.data[0]['is_required']),
             "order_position": data.get('order_position', question.data[0]['order_position']),
-            "options": data.get('options', question.data[0]['options']),
+            "options": options,
             "updated_at": datetime.utcnow().isoformat()
         }
         

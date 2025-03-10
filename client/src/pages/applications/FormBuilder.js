@@ -168,14 +168,26 @@ const FormBuilder = () => {
       const formData = {
         ...form,
         questions: questions.map((q, idx) => {
+          // Process options - ensure they are properly formatted for the API
+          let processedOptions = q.options;
+          if (processedOptions && Array.isArray(processedOptions)) {
+            processedOptions = JSON.stringify(processedOptions);
+          }
+          
           const questionData = {
             ...q,
-            order_position: idx
+            order_position: idx,
+            options: processedOptions
           };
           
           // Convert ID to integer if it exists
           if (q.id) {
             questionData.id = parseInt(q.id);
+          }
+          
+          // Remove tempId if present to avoid sending it to server
+          if (questionData.tempId) {
+            delete questionData.tempId;
           }
           
           return questionData;
@@ -191,7 +203,19 @@ const FormBuilder = () => {
         // Update existing form
         const questionsToCreate = questions.filter(q => !q.id);
         const questionsToUpdate = questions.filter(q => q.id && q.modified);
-        const questionsToDelete = [];
+        const existingQuestionIds = questions.filter(q => q.id).map(q => parseInt(q.id));
+        
+        // Get current questions to find deleted ones
+        const currentQuestionsResponse = await apiGet(`application-forms/${formId}`);
+        let questionsToDelete = [];
+        
+        if (currentQuestionsResponse.ok && currentQuestionsResponse.data && 
+            currentQuestionsResponse.data.questions) {
+          const currentQuestions = currentQuestionsResponse.data.questions;
+          questionsToDelete = currentQuestions.filter(q => 
+            !existingQuestionIds.includes(parseInt(q.id))
+          );
+        }
         
         // Update the form first
         response = await apiPut(`application-forms/${formId}`, {
@@ -203,13 +227,19 @@ const FormBuilder = () => {
         if (response.ok) {
           // Create new questions
           for (const question of questionsToCreate) {
+            // Process options - ensure they are properly formatted for the API
+            let processedOptions = question.options;
+            if (processedOptions && Array.isArray(processedOptions)) {
+              processedOptions = JSON.stringify(processedOptions);
+            }
+            
             const questionData = {
               form_id: formId,
               question_text: question.question_text,
               description: question.description || '',
               question_type: question.question_type,
               is_required: question.is_required,
-              options: question.options,
+              options: processedOptions,
               order_position: questions.indexOf(question)
             };
             
@@ -219,11 +249,28 @@ const FormBuilder = () => {
           
           // Update existing questions
           for (const question of questionsToUpdate) {
+            // Process options - ensure they are properly formatted for the API
+            let processedOptions = question.options;
+            if (processedOptions && Array.isArray(processedOptions)) {
+              processedOptions = JSON.stringify(processedOptions);
+            }
+            
             // Ensure ID is an integer
             const questionData = {
               ...question,
-              id: parseInt(question.id)
+              id: parseInt(question.id),
+              options: processedOptions
             };
+            
+            // Remove tempId if present to avoid sending it to server
+            if (questionData.tempId) {
+              delete questionData.tempId;
+            }
+            
+            // Remove the modified flag before sending to API
+            if (questionData.modified) {
+              delete questionData.modified;
+            }
             
             const updateResponse = await apiPut(`form-questions/${question.id}`, questionData);
             console.log('Question update response:', updateResponse);
@@ -247,8 +294,20 @@ const FormBuilder = () => {
           }
         }
       } else {
+        // Process options for all questions before sending to API
+        const processedFormData = {
+          ...formData,
+          questions: formData.questions.map(q => {
+            let processedOptions = q.options;
+            if (processedOptions && Array.isArray(processedOptions)) {
+              return { ...q, options: JSON.stringify(processedOptions) };
+            }
+            return q;
+          })
+        };
+        
         // Create new form with questions
-        response = await apiPost('application-forms', formData);
+        response = await apiPost('application-forms', processedFormData);
         console.log('Form creation response:', response);
       }
       
