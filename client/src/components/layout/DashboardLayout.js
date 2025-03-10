@@ -31,6 +31,8 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  Collapse,
+  ListSubheader,
 } from '@mui/material';
 
 // MUI icons
@@ -56,6 +58,12 @@ import {
   Vaccines as VaccinesIcon,
   Medication as MedicationIcon,
   HealthAndSafety as HealthRecordsIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Dashboard as DashboardIcon,
+  Description as DocumentIcon,
+  ContactMail as CRMIcon,
+  Settings as SettingsIcon2,
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -120,6 +128,21 @@ const DashboardLayout = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchTip, setShowSearchTip] = useState(false);
   
+  // State for collapsible menu sections
+  const [openMenu, setOpenMenu] = useState({
+    health: false,
+    breeding: false,
+    content: false,
+    crm: false
+  });
+  
+  const handleMenuToggle = (menu) => {
+    setOpenMenu({
+      ...openMenu,
+      [menu]: !openMenu[menu]
+    });
+  };
+  
   const isActive = (path) => location.pathname.startsWith(path);
   
   const handleDrawerToggle = () => {
@@ -175,19 +198,63 @@ const DashboardLayout = () => {
   };
   
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <HomeIcon /> },
-    { path: '/dashboard/dogs', label: 'Dogs', icon: <PetsIcon /> },
-    { path: '/dashboard/litters', label: 'Litters', icon: <PuppyIcon /> },
-    { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> },
-    { path: '/dashboard/calendar', label: 'Events', icon: <CalendarIcon /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+    
+    // BREEDING PROGRAM section
+    { 
+      id: 'breeding',
+      label: 'Breeding Program', 
+      icon: <PetsIcon />,
+      isExpandable: true,
+      children: [
+        { path: '/dashboard/dogs', label: 'Dogs', icon: <PetsIcon /> },
+        { path: '/dashboard/litters', label: 'Litters', icon: <PuppyIcon /> },
+        { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> }
+      ]
+    },
+    
+    // HEALTH MANAGEMENT section
+    { 
+      id: 'health',
+      label: 'Health Management', 
+      icon: <HealthIcon />, 
+      isExpandable: true,
+      children: [
+        { path: '/dashboard/health', label: 'Health Dashboard', icon: <HealthIcon /> },
+        { path: '/dashboard/health/vaccinations', label: 'Vaccinations', icon: <VaccinesIcon /> },
+        { path: '/dashboard/health/medications', label: 'Medications', icon: <MedicationIcon /> },
+        { path: '/dashboard/health/records', label: 'Health Records', icon: <HealthRecordsIcon /> }
+      ]
+    },
+    
+    // CALENDAR & MEDIA
+    { path: '/dashboard/calendar', label: 'Calendar', icon: <CalendarIcon /> },
     { path: '/dashboard/media', label: 'Media Library', icon: <MediaIcon /> },
-    { path: '/dashboard/health', label: 'Health Dashboard', icon: <HealthIcon /> },
-    { path: '/dashboard/health/vaccinations', label: 'Manage Vaccinations', icon: <VaccinesIcon /> },
-    { path: '/dashboard/health/medications', label: 'Manage Medications', icon: <MedicationIcon /> },
-    { path: '/dashboard/health/records', label: 'Manage Health Records', icon: <HealthRecordsIcon /> },
-    { path: '/dashboard/pages', label: 'Pages', icon: <PageIcon /> },
-    { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> },
-    { path: '/dashboard/profile', label: 'Profile', icon: <ProfileIcon /> },
+    
+    // WEBSITE & CRM section
+    { 
+      id: 'content',
+      label: 'Website & Content', 
+      icon: <DocumentIcon />, 
+      isExpandable: true,
+      children: [
+        { path: '/dashboard/pages', label: 'Web Pages', icon: <PageIcon /> }
+      ]
+    },
+    
+    // CRM section
+    { 
+      id: 'crm',
+      label: 'Customer Management', 
+      icon: <CRMIcon />, 
+      isExpandable: true,
+      children: [
+        { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> }
+      ]
+    },
+    
+    // ACCOUNT section
+    { path: '/dashboard/profile', label: 'My Account', icon: <ProfileIcon /> },
   ];
   
   const drawer = (
@@ -215,42 +282,116 @@ const DashboardLayout = () => {
       <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
       <List sx={{ px: 2, py: 1 }}>
         {navItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              component={Link}
-              to={item.path}
-              selected={isActive(item.path)}
-              sx={{
-                borderRadius: 1,
-                py: 1,
-                color: 'rgba(255, 255, 255, 0.8)',
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                  color: '#fff',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.24)',
+          item.isExpandable ? (
+            <React.Fragment key={item.id}>
+              <ListItem disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  onClick={() => handleMenuToggle(item.id)}
+                  sx={{
+                    borderRadius: 1,
+                    py: 1,
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    },
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                      minWidth: 40,
+                      color: 'rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.label} 
+                    primaryTypographyProps={{ fontSize: 14 }}
+                  />
+                  {openMenu[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </ListItemButton>
+              </ListItem>
+              <Collapse in={openMenu[item.id]} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {item.children.map((child) => (
+                    <ListItem key={child.path} disablePadding sx={{ pl: 4 }}>
+                      <ListItemButton
+                        component={Link}
+                        to={child.path}
+                        selected={isActive(child.path)}
+                        sx={{
+                          borderRadius: 1,
+                          py: 1,
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          '&.Mui-selected': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                            color: '#fff',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 255, 255, 0.24)',
+                            },
+                          },
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        }}
+                        onClick={() => isMobile && setMobileOpen(false)}
+                      >
+                        <ListItemIcon 
+                          sx={{ 
+                            minWidth: 40,
+                            color: isActive(child.path) ? '#fff' : 'rgba(255, 255, 255, 0.8)'
+                          }}
+                        >
+                          {child.icon}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary={child.label} 
+                          primaryTypographyProps={{ fontSize: 14 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              </Collapse>
+            </React.Fragment>
+          ) : (
+            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={isActive(item.path)}
+                sx={{
+                  borderRadius: 1,
+                  py: 1,
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                    color: '#fff',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.24)',
+                    },
                   },
-                },
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                },
-              }}
-              onClick={() => isMobile && setMobileOpen(false)}
-            >
-              <ListItemIcon 
-                sx={{ 
-                  minWidth: 40,
-                  color: isActive(item.path) ? '#fff' : 'rgba(255, 255, 255, 0.8)'
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  },
                 }}
+                onClick={() => isMobile && setMobileOpen(false)}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.label} 
-                primaryTypographyProps={{ fontSize: 14 }}
-              />
-            </ListItemButton>
-          </ListItem>
+                <ListItemIcon 
+                  sx={{ 
+                    minWidth: 40,
+                    color: isActive(item.path) ? '#fff' : 'rgba(255, 255, 255, 0.8)'
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label} 
+                  primaryTypographyProps={{ fontSize: 14 }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )
         ))}
       </List>
       <Box sx={{ flexGrow: 1 }} />
