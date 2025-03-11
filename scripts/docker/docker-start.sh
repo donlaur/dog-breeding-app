@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Get the project root directory (two levels up from this script)
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
+
 # Check if .env file exists, if not create one from example
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -34,14 +38,14 @@ show_help() {
 case "$1" in
   start)
     echo "Starting Docker containers in production mode..."
-    docker-compose up -d
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" up -d
     echo "Started! The application is now running at:"
     echo "  - Frontend: http://localhost:3000"
     echo "  - Backend API: http://localhost:5000/api"
     ;;
   dev)
     echo "Starting Docker containers in development mode with hot reload..."
-    docker-compose -f docker-compose.dev.yml up -d
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" up -d
     echo "Started in DEV mode! The application is now running at:"
     echo "  - Frontend: http://localhost:3000"
     echo "  - Backend API: http://localhost:5000/api"
@@ -49,35 +53,35 @@ case "$1" in
     ;;
   stop)
     echo "Stopping Docker containers..."
-    docker-compose down
-    docker-compose -f docker-compose.dev.yml down
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" down
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" down
     ;;
   restart)
     echo "Restarting Docker containers..."
     if [ "$2" == "dev" ]; then
-      docker-compose -f docker-compose.dev.yml down
-      docker-compose -f docker-compose.dev.yml up -d
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" down
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" up -d
       echo "Restarted in DEV mode!"
     else
-      docker-compose down
-      docker-compose up -d
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" down
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" up -d
       echo "Restarted in PRODUCTION mode!"
     fi
     ;;
   build)
     echo "Building Docker containers..."
-    docker-compose build
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" build
     ;;
   "build:dev")
     echo "Building development Docker containers..."
-    docker-compose -f docker-compose.dev.yml build
+    docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" build
     ;;
   logs)
     echo "Showing logs..."
     if [ "$2" == "dev" ]; then
-      docker-compose -f docker-compose.dev.yml logs -f
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" logs -f
     else
-      docker-compose logs -f
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" logs -f
     fi
     ;;
   clean)
@@ -85,8 +89,8 @@ case "$1" in
     read -p "Are you sure you want to continue? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-      docker-compose down -v --rmi all --remove-orphans
-      docker-compose -f docker-compose.dev.yml down -v --rmi all --remove-orphans
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.yml" down -v --rmi all --remove-orphans
+      docker-compose -f "$ROOT_DIR/docker/docker-compose.dev.yml" down -v --rmi all --remove-orphans
       echo "Clean-up complete."
     fi
     ;;

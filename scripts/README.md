@@ -1,39 +1,64 @@
-# Scripts Directory
+# Scripts
 
-This directory contains various scripts used for development, deployment, and maintenance of the dog breeding application.
+This directory contains various scripts used for development, deployment, and maintenance of the Breeder Management System.
 
 ## Directory Structure
 
-- `deploy/`: Contains scripts used for deploying the application
-  - `deploy_backend.sh`: Script for deploying the backend service
-  - `deploy_frontend.sh`: Script for deploying the frontend client
-  
-- `migrations/`: Contains database migration scripts and utilities
-  
-## Usage Guidelines
+- **docker/** - Scripts for managing Docker containers
+  - `docker-start.sh` - Main script for starting, stopping, and managing Docker containers
 
-### Deployment Scripts
+- **utils/** - Utility scripts for development and maintenance
+  - `restart-all.sh` - Restart all application components
+  - `restart-client.sh` - Restart only the client application
+  - `restart-server.sh` - Restart only the server application
 
-The deployment scripts in the `deploy/` directory should be run from the project root:
+- **migrations/** - Scripts for running database migrations
+  - `run-documents-migration.sh` - Run document management migrations
+  - `run-events-migration.sh` - Run event system migrations
+  - `run-photos-migration.sh` - Run photo management migrations
+  - `run-photos-rls-fix.sh` - Fix row-level security for photos
+  - `run-sql.sh` - General script for running SQL commands
+
+## Usage
+
+### Docker Scripts
 
 ```bash
-# To deploy the backend
-./scripts/deploy/deploy_backend.sh
+# Start in development mode
+./scripts/docker/docker-start.sh dev
 
-# To deploy the frontend
-./scripts/deploy/deploy_frontend.sh
+# Start in production mode
+./scripts/docker/docker-start.sh start
+
+# Stop all containers
+./scripts/docker/docker-start.sh stop
+
+# See all available commands
+./scripts/docker/docker-start.sh help
 ```
 
 ### Migration Scripts
 
-Migration scripts should be run according to the database migration documentation.
+```bash
+# Run the events migration
+./scripts/migrations/run-events-migration.sh
 
-## Security Notes
+# Run the photos migration
+./scripts/migrations/run-photos-migration.sh
 
-- Do not commit any script containing sensitive information such as:
-  - API keys
-  - Database credentials
-  - Personal identifiers
-  - Server details
-  
-- Scripts that generate logs should write to the `/logs` directory, which is properly gitignored
+# Run SQL with a specific file
+./scripts/migrations/run-sql.sh path/to/sql/file.sql
+```
+
+### Utility Scripts
+
+```bash
+# Restart all components
+./scripts/utils/restart-all.sh
+
+# Restart only the client
+./scripts/utils/restart-client.sh
+
+# Restart only the server
+./scripts/utils/restart-server.sh
+```

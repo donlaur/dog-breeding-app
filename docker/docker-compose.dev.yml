@@ -4,12 +4,12 @@ services:
   # React frontend - development version with hot reload
   client:
     build:
-      context: ./client
+      context: ../client
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     volumes:
-      - ./client:/app
+      - ../client:/app
       - /app/node_modules
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
@@ -24,12 +24,12 @@ services:
   # Flask backend API - development version with hot reload
   api:
     build:
-      context: ./server
+      context: ../server
       dockerfile: Dockerfile.dev
     ports:
       - "5000:5000"
     volumes:
-      - ./server:/app
+      - ../server:/app
     environment:
       - FLASK_APP=server/app.py
       - FLASK_DEBUG=1

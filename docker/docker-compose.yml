@@ -22,7 +22,7 @@ services:
   # Flask Backend
   api:
     build:
-      context: ./server
+      context: ../server
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
@@ -34,7 +34,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./server:/app
+      - ../server:/app
     networks:
       - app-network
     command: python -m server.app
@@ -48,7 +48,7 @@ services:
   # React Frontend
   client:
     build:
-      context: ./client
+      context: ../client
       dockerfile: Dockerfile
     ports:
       - "3000:80"
@@ -58,7 +58,7 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
     volumes:
-      - ./client:/app
+      - ../client:/app
       - /app/node_modules
     networks:
       - app-network

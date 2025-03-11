@@ -66,6 +66,24 @@ This application helps breeders track dogs, litters, puppies, health records, an
 
 ## Technical Architecture
 
+### Repository Structure
+
+The repository has been organized into a clean directory structure:
+
+```
+breeder-tools/dog-breeding-app/
+├── client/                     # Frontend React application
+├── server/                     # Backend Flask application
+├── config/                     # Configuration templates and examples
+├── database/                   # Database-related files and migrations
+├── docker/                     # Docker configuration files
+├── docs/                       # Documentation
+├── logs/                       # Application logs (not committed to git)
+├── scripts/                    # Utility scripts
+```
+
+See [REPOSITORY-STRUCTURE.md](client/REPOSITORY-STRUCTURE.md) for a complete overview of the directory structure.
+
 ### Backend (Python/Flask)
 
 - **Flask Application**: Structured using blueprints for organizing API endpoints
@@ -220,6 +238,23 @@ These environment variables configure the ports used by the client and server.
 For more details about port configuration and process management, see [PORT-CONFIG.md](client/PORT-CONFIG.md).
 
 ### Running the Application
+
+#### Using Docker (Recommended)
+
+The easiest way to run the application is using Docker:
+
+```bash
+# Start in development mode with hot reloading
+./scripts/docker/docker-start.sh dev
+
+# Start in production mode
+./scripts/docker/docker-start.sh start
+
+# View logs
+./scripts/docker/docker-start.sh logs
+```
+
+#### Using NPM Scripts
 
 We've added new scripts to manage port conflicts and process management:
 
