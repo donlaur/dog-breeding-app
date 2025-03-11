@@ -291,8 +291,6 @@ const ManageDogs = () => {
                       
                       <Typography 
                         variant="h6" 
-                        component={Link} 
-                        to={`/dashboard/dogs/${dog.id}`}
                         sx={{ textDecoration: 'none', color: 'inherit' }}
                       >
                         {getDogDisplayName(dog)}
