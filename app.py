@@ -9,6 +9,11 @@ are loaded automatically via the server's configuration.
 
 from server import create_app
 from flask_cors import CORS
+import os
+import sys
+
+# Add the current directory to the Python path to ensure imports work correctly
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
     app = create_app()
@@ -29,4 +34,4 @@ if __name__ == "__main__":
         print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
     
     print("\n=== Starting server... ===")
-    app.run(host='0.0.0.0', port=3001, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

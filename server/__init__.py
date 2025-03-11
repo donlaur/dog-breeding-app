@@ -6,6 +6,9 @@ from .database.supabase_db import SupabaseDatabase
 from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
 import json
+import os
+import sys
+import importlib
 
 def get_db():
     debug_log("Initializing database connection...")
@@ -31,14 +34,101 @@ def create_app(test_config=None):
     db = get_db()
     
     # Register blueprints
-    from .dogs import create_dogs_bp
-    from .litters import create_litters_bp
-    from .program import create_program_bp
-    from .heats import create_heats_bp
-    from .messages import create_messages_bp
-    from .breeds import breeds_bp
-    from .puppies import create_puppies_bp
-    # Import auth blueprint
+    try:
+        from .dogs import create_dogs_bp
+    except ImportError as e:
+        print(f"Warning: Could not import dogs blueprint: {e}")
+        def create_dogs_bp(db):
+            return Blueprint('dogs', __name__)
+    
+    try:
+        from .litters import create_litters_bp
+    except ImportError as e:
+        print(f"Warning: Could not import litters blueprint: {e}")
+        def create_litters_bp(db):
+            return Blueprint('litters', __name__)
+    
+    try:
+        from .program import create_program_bp
+    except ImportError as e:
+        print(f"Warning: Could not import program blueprint: {e}")
+        def create_program_bp(db):
+            return Blueprint('program', __name__)
+    
+    try:
+        from .heats import create_heats_bp
+    except ImportError as e:
+        print(f"Warning: Could not import heats blueprint: {e}")
+        def create_heats_bp(db):
+            return Blueprint('heats', __name__)
+    
+    try:
+        from .breeds import breeds_bp
+    except ImportError as e:
+        print(f"Warning: Could not import breeds blueprint: {e}")
+        breeds_bp = Blueprint('breeds', __name__)
+    
+    try:
+        from .puppies import create_puppies_bp
+    except ImportError as e:
+        print(f"Warning: Could not import puppies blueprint: {e}")
+        def create_puppies_bp(db):
+            return Blueprint('puppies', __name__)
+    
+    try:
+        from .messages import create_messages_bp
+    except ImportError as e:
+        print(f"Warning: Could not import messages blueprint: {e}")
+        def create_messages_bp(db):
+            return Blueprint('messages', __name__)
+    
+    try:
+        from .customers import create_customers_bp
+    except ImportError as e:
+        print(f"Warning: Could not import customers blueprint: {e}")
+        def create_customers_bp(db):
+            return Blueprint('customers', __name__)
+    
+    try:
+        from .health import create_health_bp
+    except ImportError as e:
+        print(f"Warning: Could not import health blueprint: {e}")
+        def create_health_bp():
+            return Blueprint('health', __name__)
+    
+    try:
+        from .photos import create_photos_bp
+    except ImportError as e:
+        print(f"Warning: Could not import photos blueprint: {e}")
+        def create_photos_bp(db):
+            return Blueprint('photos', __name__)
+    
+    try:
+        from .files import create_files_bp
+    except ImportError as e:
+        print(f"Warning: Could not import files blueprint: {e}")
+        def create_files_bp(db):
+            return Blueprint('files', __name__)
+    
+    try:
+        from .events import create_events_bp
+    except ImportError as e:
+        print(f"Warning: Could not import events blueprint: {e}")
+        def create_events_bp(db):
+            return Blueprint('events', __name__)
+    
+    try:
+        from .search import create_search_bp
+    except ImportError as e:
+        print(f"Warning: Could not import search blueprint: {e}")
+        def create_search_bp(db):
+            return Blueprint('search', __name__)
+    
+    try:
+        from .applications import applications_bp
+    except ImportError as e:
+        print(f"Warning: Could not import applications blueprint: {e}")
+        applications_bp = Blueprint('applications', __name__)
     
     # Create auth blueprint directly in __init__.py
     auth_bp = Blueprint("auth_bp", __name__)

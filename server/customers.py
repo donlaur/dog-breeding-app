@@ -6,7 +6,12 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 from server.supabase_client import supabase
 from server.middleware.auth import token_required
-from server.models import Customer
+import importlib.util
+import os
+spec = importlib.util.spec_from_file_location("models", os.path.join(os.path.dirname(__file__), "models.py"))
+models_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(models_module)
+Customer = models_module.Customer
 import json
 
 def create_customers_bp(db):

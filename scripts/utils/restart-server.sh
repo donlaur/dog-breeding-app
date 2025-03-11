@@ -1,13 +1,14 @@
 #!/bin/bash
 echo "Restarting Python server..."
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../../"  # Navigate to project root
 
-# Kill any existing server processes
-pkill -f "python.*server.app" || echo "No server processes to kill"
+# Kill any existing server processes on port 5000
+echo "Checking for processes on port 5000..."
+lsof -i:5000 -t | xargs kill -9 2>/dev/null || echo "No processes found on port 5000"
 
-# Activate the virtual environment and start the server
-source venv/bin/activate
-nohup python -m server.app > server.log 2>&1 &
+# Start the server using the root app.py
+echo "Starting server on port 5000..."
+nohup python app.py > server.log 2>&1 &
 
 echo "Python server restarted! (PID: $!)"
 echo "View logs with: tail -f server.log"
