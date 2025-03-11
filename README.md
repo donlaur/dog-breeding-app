@@ -72,14 +72,25 @@ The repository has been organized into a clean directory structure:
 
 ```
 breeder-tools/dog-breeding-app/
+├── app.py                      # Main Flask application entry point
 ├── client/                     # Frontend React application
 ├── server/                     # Backend Flask application
+│   ├── app.py                  # Server implementation
+│   ├── requirements.txt        # Python dependencies
+│   ├── tests/                  # Server tests
+│   └── config/                 # Server configuration
 ├── config/                     # Configuration templates and examples
 ├── database/                   # Database-related files and migrations
+│   ├── migrations/             # All database migrations
+│   └── scripts/                # Database management scripts
 ├── docker/                     # Docker configuration files
 ├── docs/                       # Documentation
 ├── logs/                       # Application logs (not committed to git)
 ├── scripts/                    # Utility scripts
+│   ├── docker/                 # Docker management scripts
+│   ├── migrations/             # Migration runner scripts
+│   └── utils/                  # Utility scripts
+└── start.sh                    # Convenience launcher script
 ```
 
 See [REPOSITORY-STRUCTURE.md](client/REPOSITORY-STRUCTURE.md) for a complete overview of the directory structure.
@@ -245,13 +256,19 @@ The easiest way to run the application is using Docker:
 
 ```bash
 # Start in development mode with hot reloading
-./scripts/docker/docker-start.sh dev
+./start.sh docker:dev
 
 # Start in production mode
-./scripts/docker/docker-start.sh start
+./start.sh docker:start
 
 # View logs
-./scripts/docker/docker-start.sh logs
+./start.sh docker:logs
+
+# Run client in development mode
+./start.sh client:dev
+
+# Run server directly
+./start.sh server
 ```
 
 #### Using NPM Scripts

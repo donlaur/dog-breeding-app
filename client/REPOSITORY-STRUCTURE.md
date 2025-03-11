@@ -6,11 +6,26 @@ This document describes the organization of the Breeder Management System reposi
 
 ```
 breeder-tools/dog-breeding-app/
+├── app.py                      # Main Flask application entry point
 ├── client/                     # Frontend React application
+│   ├── src/                    # React source code
+│   ├── public/                 # Static assets
+│   └── package.json            # NPM dependencies
 ├── server/                     # Backend Flask application
+│   ├── app.py                  # Server implementation
+│   ├── models/                 # Database models
+│   ├── routes/                 # API routes
+│   ├── tests/                  # Server tests
+│   ├── utils/                  # Utility functions
+│   ├── config/                 # Server configuration
+│   └── requirements.txt        # Python dependencies
 ├── config/                     # Configuration templates and examples
+│   ├── email-config-template.env  # Email configuration template
+│   └── logging.config.example.js  # Logging configuration example
 ├── database/                   # Database-related files and migrations
 │   ├── migrations/             # Database migration files
+│   │   ├── versions/           # Alembic migrations
+│   │   └── supabase/           # Supabase-specific migrations
 │   └── scripts/                # Database management scripts
 ├── docker/                     # Docker configuration files
 │   ├── docker-compose.yml      # Production Docker Compose configuration
@@ -19,11 +34,12 @@ breeder-tools/dog-breeding-app/
 ├── logs/                       # Application logs (not committed to git)
 ├── scripts/                    # Utility scripts
 │   ├── docker/                 # Docker-related scripts
+│   │   └── docker-start.sh     # Docker management script
 │   ├── migrations/             # Migration runner scripts
 │   └── utils/                  # Utility scripts
 ├── .env.example                # Example environment variables
 ├── README.md                   # Main project documentation
-└── requirements.txt            # Python dependencies
+└── start.sh                    # Convenience launcher script
 ```
 
 ## Key Components
@@ -79,19 +95,28 @@ Utility scripts are organized in the `scripts/` directory:
 
 ```bash
 # Start the application in development mode
-./scripts/docker/docker-start.sh dev
+./start.sh docker:dev
 
 # Start the application in production mode
-./scripts/docker/docker-start.sh start
+./start.sh docker:start
 
 # View logs
-./scripts/docker/docker-start.sh logs
+./start.sh docker:logs
+
+# Run client in development mode
+./start.sh client:dev
+
+# Run server directly
+./start.sh server
 ```
 
 ### Migration Scripts
 
 ```bash
-# Run database migrations
+# Run all database migrations
+./start.sh migrate
+
+# Run specific migrations
 ./scripts/migrations/run-events-migration.sh
 ./scripts/migrations/run-documents-migration.sh
 ```
@@ -105,5 +130,5 @@ Application logs are stored in the `logs/` directory. These files are not commit
 cat logs/server.log
 
 # View Docker logs
-./scripts/docker/docker-start.sh logs
+./start.sh docker:logs
 ```
