@@ -11,8 +11,10 @@ RUN npm ci
 # Copy the rest of the application code
 COPY . .
 
-# Expose port for development server
-EXPOSE 3000
+# Use environment variable for port
+ARG PORT=3000
+ENV PORT=$PORT
+EXPOSE $PORT
 
 # Start the development server with hot reload
 CMD ["npm", "start"] 

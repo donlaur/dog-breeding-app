@@ -4,7 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
-ENV REACT_APP_API_URL=http://api:5000/api
+ARG REACT_APP_API_PORT=5000
+ENV REACT_APP_API_PORT=$REACT_APP_API_PORT
+ENV REACT_APP_API_URL=http://api:${REACT_APP_API_PORT}/api
 RUN npm run build
 
 # Stage 2: Serve the app with Nginx
