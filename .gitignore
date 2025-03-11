@@ -48,8 +48,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
-# Backup files with " 2" in the name
-*\ 2.*
 
 # Flask-related
 instance/
