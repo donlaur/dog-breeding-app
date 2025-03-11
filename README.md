@@ -200,6 +200,48 @@ ADMIN_EMAILS=admin@example.com,another.admin@example.com
 
 The `ADMIN_EMAILS` variable is a comma-separated list of email addresses that will be granted admin privileges when they sign up.
 
+### Client Environment Variables
+
+Create a `.env` file in the client directory with the following variables:
+
+```
+# Port Configuration
+PORT=3000                          # Client development server port
+REACT_APP_API_PORT=5000            # API server port
+REACT_APP_API_URL=http://localhost:${REACT_APP_API_PORT}/api
+
+# App Configuration
+REACT_APP_DEFAULT_BREED_ID=1
+REACT_APP_SUPABASE_URL=https://your-project.supabase.co
+REACT_APP_DEBUG_MODE=true
+```
+
+These environment variables configure the ports used by the client and server. 
+For more details about port configuration and process management, see [PORT-CONFIG.md](client/PORT-CONFIG.md).
+
+### Running the Application
+
+We've added new scripts to manage port conflicts and process management:
+
+```bash
+# Start the development environment (auto-detects and resolves port conflicts)
+cd client
+npm run dev
+
+# Run tests with isolated ports
+npm run test:isolated
+
+# Traditional start method (may have port conflicts)
+npm start
+```
+
+The `npm run dev` script is recommended for development as it:
+1. Checks for processes using the configured ports (3000 for client, 5000 for API by default)
+2. Automatically kills any conflicting processes
+3. Starts both client and server applications with the correct environment
+
+This is especially useful when working with AI tools that may repeatedly start and stop the application.
+
 ### Database Setup
 
 The application will automatically create required tables on the first run. However, if you need to manually set up the database:
