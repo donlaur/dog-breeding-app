@@ -157,10 +157,10 @@ function startServer() {
     serverCmd = 'npm';
     serverArgs = ['start'];
   } else if (fs.existsSync(path.join(serverDir, 'app.py'))) {
-    serverCmd = 'python';
+    serverCmd = 'python3';
     serverArgs = ['app.py'];
   } else if (fs.existsSync(path.join(serverDir, 'main.py'))) {
-    serverCmd = 'python';
+    serverCmd = 'python3';
     serverArgs = ['main.py'];
   }
   
