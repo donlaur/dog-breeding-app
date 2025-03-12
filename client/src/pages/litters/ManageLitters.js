@@ -135,12 +135,12 @@ const ManageLitters = () => {
     let filtered = [...litters];
     
     // Apply dam filter if selected
-    if (selectedDam) {
+    if (selectedDam !== '') {
       filtered = filtered.filter(litter => litter.dam_id === selectedDam);
     }
     
     // Apply sire filter if selected
-    if (selectedSire) {
+    if (selectedSire !== '') {
       filtered = filtered.filter(litter => litter.sire_id === selectedSire);
     }
     
@@ -283,11 +283,17 @@ const ManageLitters = () => {
               <MenuItem value="">
                 <em>All Dams</em>
               </MenuItem>
-              {dams.map((dam) => (
-                <MenuItem key={dam.id} value={dam.id}>
-                  {dam.call_name || dam.name || `Dog #${dam.id}`}
+              {dams && dams.length > 0 ? (
+                dams.map((dam) => (
+                  <MenuItem key={dam.id} value={dam.id}>
+                    {dam.call_name || dam.name || `Dog #${dam.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No female dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
           </FormControl>
           
@@ -303,11 +309,17 @@ const ManageLitters = () => {
               <MenuItem value="">
                 <em>All Sires</em>
               </MenuItem>
-              {sires.map((sire) => (
-                <MenuItem key={sire.id} value={sire.id}>
-                  {sire.call_name || sire.name || `Dog #${sire.id}`}
+              {sires && sires.length > 0 ? (
+                sires.map((sire) => (
+                  <MenuItem key={sire.id} value={sire.id}>
+                    {sire.call_name || sire.name || `Dog #${sire.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No male dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
           </FormControl>
           
