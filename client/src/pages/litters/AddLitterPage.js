@@ -1,5 +1,5 @@
 // src/pages/litters/AddLitterPage.js
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
 import LitterForm from "./LitterForm";   // <-- must point to the new LitterForm
@@ -12,47 +12,51 @@ const AddLitterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { dogs, breeds, addLitter, refreshData } = useContext(DogContext);
+  const { dogs, breeds, addLitter, refreshData, refreshDogs, dogsLoading } = useContext(DogContext);
   const { notifyLitterAdded } = useNotifications();
+  const [dogsLoaded, setDogsLoaded] = useState(false);
 
-  const sireOptions = dogs
+  // Ensure dogs are loaded
+  useEffect(() => {
+    if (!dogs || dogs.length === 0) {
+      debugLog("No dogs found in context, refreshing dogs data...");
+      if (refreshDogs) {
+        refreshDogs(true);
+      }
+    } else {
+      debugLog("Dogs data available:", dogs.length, "dogs");
+      setDogsLoaded(true);
+    }
+  }, [dogs, refreshDogs]);
+
+  // Filter and sort dogs only when they're loaded
+  const sireOptions = dogsLoaded ? dogs
     .filter((d) => d.gender === "Male")
     .sort((a, b) => {
       const nameA = (a.call_name || a.name || '').toLowerCase();
       const nameB = (b.call_name || b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);
-    });
+    }) : [];
     
-  const damOptions = dogs
+  const damOptions = dogsLoaded ? dogs
     .filter((d) => d.gender === "Female")
     .sort((a, b) => {
       const nameA = (a.call_name || a.name || '').toLowerCase();
       const nameB = (b.call_name || b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);
-    });
+    }) : [];
 
   const handleSave = async (litterData) => {
     try {
       setLoading(true);
       
-      // Check if litterData is FormData (for file uploads) or regular JSON
-      const isFormData = litterData instanceof FormData;
-      
-      // Set the appropriate headers and body based on data type
-      const options = {
-        method: 'POST',
-        headers: isFormData ? {} : { 'Content-Type': 'application/json' },
-        body: isFormData ? litterData : JSON.stringify(litterData)
-      };
-      
-      const response = await fetch(`${API_URL}/litters/`, options);
+      const response = await apiPost('litters', litterData);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create litter');
+        throw new Error(response.error || 'Failed to create litter');
       }
       
-      const newLitter = await response.json();
+      const newLitter = response.data;
       addLitter(newLitter);
       
       // Get dam and sire info for notification
@@ -67,7 +71,7 @@ const AddLitterPage = () => {
       refreshData();
       navigate('/dashboard/litters');
     } catch (error) {
-      console.error('Error saving litter:', error);
+      debugError('Error saving litter:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -77,14 +81,22 @@ const AddLitterPage = () => {
   return (
     <div className="add-litter-container">
       <h2>Add a New Litter</h2>
+      
       {loading && <p>Loading...</p>}
-      {error && <p>Error: {error}</p>}
-      <LitterForm
-        onSave={handleSave}
-        breedOptions={breeds}       // pass breed array
-        sireOptions={sireOptions}   // pass male dogs
-        damOptions={damOptions}     // pass female dogs
-      />
+      {error && <p className="error-message">Error: {error}</p>}
+      
+      {dogsLoading || !dogsLoaded ? (
+        <div className="loading-container">
+          <p>Loading dogs data...</p>
+        </div>
+      ) : (
+        <LitterForm
+          onSave={handleSave}
+          breedOptions={breeds || []}
+          sireOptions={sireOptions}
+          damOptions={damOptions}
+        />
+      )}
     </div>
   );
 };
