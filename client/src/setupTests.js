@@ -1,18 +1,23 @@
 // Mock implementation of TextEncoder/TextDecoder
-class MockTextEncoder {
+global.TextEncoder = class TextEncoder {
   encode(str) {
-    return new Uint8Array([...str].map(c => c.charCodeAt(0)));
+    const buf = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      buf[i] = str.charCodeAt(i);
+    }
+    return buf;
   }
-}
+};
 
-class MockTextDecoder {
-  decode(arr) {
-    return String.fromCharCode(...arr);
+global.TextDecoder = class TextDecoder {
+  decode(buf) {
+    let result = '';
+    for (let i = 0; i < buf.length; i++) {
+      result += String.fromCharCode(buf[i]);
+    }
+    return result;
   }
-}
-
-global.TextEncoder = MockTextEncoder;
-global.TextDecoder = MockTextDecoder;
+};
 
 // Add fetch polyfill for Node environment
 require('whatwg-fetch');

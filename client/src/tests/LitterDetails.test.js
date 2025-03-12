@@ -174,4 +174,26 @@ describe('LitterDetails Component', () => {
       expect(screen.getByText('No puppies found for this litter')).toBeInTheDocument();
     });
   });
+
+  test('puppy links point to the correct route', async () => {
+    render(
+      <MemoryRouter initialEntries={['/litters/3']}>
+        <Routes>
+          <Route path="/litters/:id" element={<LitterDetails />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Wait for puppies to be displayed
+    await waitFor(() => {
+      // Find all the puppy detail links
+      const puppyLinks = screen.getAllByText('View Details');
+      
+      // Verify that each link points to the correct route
+      puppyLinks.forEach((link, index) => {
+        const puppyId = mockPuppies[index].id;
+        expect(link.closest('a')).toHaveAttribute('href', `/dashboard/puppies/${puppyId}`);
+      });
+    });
+  });
 });

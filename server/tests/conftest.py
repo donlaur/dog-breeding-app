@@ -5,6 +5,7 @@ import os
 import sys
 import pytest
 from unittest.mock import MagicMock, patch
+from typing import List, Dict, Any, Optional
 
 # Add the parent directory to sys.path to allow imports from server module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -23,37 +24,31 @@ class MockDatabase(DatabaseInterface):
         }
         self.next_id = {table: 1 for table in self.tables}
     
-    def find(self, table):
+    def get_all(self, table: str) -> List[Dict[str, Any]]:
+        """Retrieve all records from a table"""
+        return list(self.tables.get(table, {}).values())
+    
+    def get_by_id(self, table: str, id: int) -> Optional[Dict[str, Any]]:
+        """Retrieve a single record by ID"""
+        return self.tables.get(table, {}).get(id)
+    
+    def get_filtered(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Retrieve records matching filter criteria"""
+        return self.find_by_field_values(table, filters)
+    
+    def find(self, table: str) -> List[Dict[str, Any]]:
         """Find all records in a table."""
         return list(self.tables.get(table, {}).values())
     
-    def get(self, table, id):
-        """Get a record by ID."""
-        return self.tables.get(table, {}).get(id)
+    def find_by_field(self, table: str, field: str, value: Any) -> List[Dict[str, Any]]:
+        """Find records in a table by field value"""
+        results = []
+        for record in self.tables.get(table, {}).values():
+            if record.get(field) == value:
+                results.append(record)
+        return results
     
-    def create(self, table, data):
-        """Create a new record."""
-        id = self.next_id[table]
-        self.next_id[table] += 1
-        data["id"] = id
-        self.tables[table][id] = data
-        return data
-    
-    def update(self, table, id, data):
-        """Update a record."""
-        if id not in self.tables.get(table, {}):
-            return None
-        self.tables[table][id].update(data)
-        return self.tables[table][id]
-    
-    def delete(self, table, id):
-        """Delete a record."""
-        if id not in self.tables.get(table, {}):
-            return False
-        del self.tables[table][id]
-        return True
-    
-    def find_by_field_values(self, table, filters):
+    def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Find records by field values."""
         results = []
         for record in self.tables.get(table, {}).values():
@@ -65,6 +60,32 @@ class MockDatabase(DatabaseInterface):
             if match:
                 results.append(record)
         return results
+    
+    def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
+        """Get a record by ID."""
+        return self.tables.get(table, {}).get(id)
+    
+    def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new record."""
+        id = self.next_id[table]
+        self.next_id[table] += 1
+        data["id"] = id
+        self.tables[table][id] = data
+        return data
+    
+    def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a record."""
+        if id not in self.tables.get(table, {}):
+            return None
+        self.tables[table][id].update(data)
+        return self.tables[table][id]
+    
+    def delete(self, table: str, id: int) -> bool:
+        """Delete a record."""
+        if id not in self.tables.get(table, {}):
+            return False
+        del self.tables[table][id]
+        return True
 
 @pytest.fixture
 def mock_db():
