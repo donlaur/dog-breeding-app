@@ -686,127 +686,127 @@ function LitterDetail() {
           </Paper>
         </Grid>
       </Grid>
-    </Container>
-    
-    {/* Quick Add Puppies Dialog */}
-    <Dialog 
-      open={quickAddOpen} 
-      onClose={handleCloseQuickAdd}
-      fullWidth
-      maxWidth="md"
-    >
-      <DialogTitle>
-        Quick Add Puppies to Litter
-      </DialogTitle>
-      <DialogContent>
-        {quickAddError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {quickAddError}
-          </Alert>
-        )}
-        
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Quickly add multiple puppies to this litter. All puppies will use the litter's whelp date ({litter?.whelp_date || 'Unknown'}) as their birth date.
-        </Typography>
-        
-        <Box sx={{ mb: 2 }}>
-          <Grid container spacing={2} sx={{ mb: 1 }}>
-            <Grid item xs={4}>
-              <Typography variant="subtitle2">Name*</Typography>
-            </Grid>
-            <Grid item xs={3}>
-              <Typography variant="subtitle2">Gender*</Typography>
-            </Grid>
-            <Grid item xs={4}>
-              <Typography variant="subtitle2">Color</Typography>
-            </Grid>
-            <Grid item xs={1}>
-              <Typography variant="subtitle2">Actions</Typography>
-            </Grid>
-          </Grid>
+      
+      {/* Quick Add Puppies Dialog */}
+      <Dialog 
+        open={quickAddOpen} 
+        onClose={handleCloseQuickAdd}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          Quick Add Puppies to Litter
+        </DialogTitle>
+        <DialogContent>
+          {quickAddError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {quickAddError}
+            </Alert>
+          )}
           
-          <Divider sx={{ mb: 2 }} />
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Quickly add multiple puppies to this litter. All puppies will use the litter's whelp date ({litter?.whelp_date || 'Unknown'}) as their birth date.
+          </Typography>
           
-          {puppyRows.map((row, index) => (
-            <Grid container spacing={2} key={index} sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2 }}>
+            <Grid container spacing={2} sx={{ mb: 1 }}>
               <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Name"
-                  value={row.name}
-                  onChange={(e) => handlePuppyRowChange(index, 'name', e.target.value)}
-                  error={Boolean(row.error && row.error.includes('Name'))}
-                  helperText={row.error && row.error.includes('Name') ? row.error : ''}
-                  required
-                />
+                <Typography variant="subtitle2">Name*</Typography>
               </Grid>
               <Grid item xs={3}>
-                <FormControl 
-                  fullWidth 
-                  size="small"
-                  error={Boolean(row.error && row.error.includes('Gender'))}
-                >
-                  <InputLabel id={`gender-label-${index}`}>Gender</InputLabel>
-                  <Select
-                    labelId={`gender-label-${index}`}
-                    value={row.gender}
-                    label="Gender"
-                    onChange={(e) => handlePuppyRowChange(index, 'gender', e.target.value)}
-                    required
-                  >
-                    <MenuItem value="Male">Male</MenuItem>
-                    <MenuItem value="Female">Female</MenuItem>
-                  </Select>
-                  {row.error && row.error.includes('Gender') && (
-                    <FormHelperText>{row.error}</FormHelperText>
-                  )}
-                </FormControl>
+                <Typography variant="subtitle2">Gender*</Typography>
               </Grid>
               <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Color"
-                  value={row.color}
-                  onChange={(e) => handlePuppyRowChange(index, 'color', e.target.value)}
-                />
+                <Typography variant="subtitle2">Color</Typography>
               </Grid>
-              <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                <IconButton 
-                  size="small" 
-                  color="error" 
-                  onClick={() => handleRemoveRow(index)}
-                  disabled={puppyRows.length <= 1}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+              <Grid item xs={1}>
+                <Typography variant="subtitle2">Actions</Typography>
               </Grid>
             </Grid>
-          ))}
-          
+            
+            <Divider sx={{ mb: 2 }} />
+            
+            {puppyRows.map((row, index) => (
+              <Grid container spacing={2} key={index} sx={{ mb: 2 }}>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Name"
+                    value={row.name}
+                    onChange={(e) => handlePuppyRowChange(index, 'name', e.target.value)}
+                    error={Boolean(row.error && row.error.includes('Name'))}
+                    helperText={row.error && row.error.includes('Name') ? row.error : ''}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={3}>
+                  <FormControl 
+                    fullWidth 
+                    size="small"
+                    error={Boolean(row.error && row.error.includes('Gender'))}
+                  >
+                    <InputLabel id={`gender-label-${index}`}>Gender</InputLabel>
+                    <Select
+                      labelId={`gender-label-${index}`}
+                      value={row.gender}
+                      label="Gender"
+                      onChange={(e) => handlePuppyRowChange(index, 'gender', e.target.value)}
+                      required
+                    >
+                      <MenuItem value="Male">Male</MenuItem>
+                      <MenuItem value="Female">Female</MenuItem>
+                    </Select>
+                    {row.error && row.error.includes('Gender') && (
+                      <FormHelperText>{row.error}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Color"
+                    value={row.color}
+                    onChange={(e) => handlePuppyRowChange(index, 'color', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IconButton 
+                    size="small" 
+                    color="error" 
+                    onClick={() => handleRemoveRow(index)}
+                    disabled={puppyRows.length <= 1}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Grid>
+              </Grid>
+            ))}
+            
+            <Button 
+              variant="outlined" 
+              startIcon={<AddIcon />} 
+              onClick={handleAddRow}
+              sx={{ mt: 1 }}
+            >
+              Add Row
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseQuickAdd}>Cancel</Button>
           <Button 
-            variant="outlined" 
-            startIcon={<AddIcon />} 
-            onClick={handleAddRow}
-            sx={{ mt: 1 }}
+            onClick={handleQuickAddSubmit} 
+            variant="contained" 
+            color="primary"
+            disabled={quickAddLoading}
           >
-            Add Row
+            {quickAddLoading ? 'Adding...' : 'Add Puppies'}
           </Button>
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCloseQuickAdd}>Cancel</Button>
-        <Button 
-          onClick={handleQuickAddSubmit} 
-          variant="contained" 
-          color="primary"
-          disabled={quickAddLoading}
-        >
-          {quickAddLoading ? 'Adding...' : 'Add Puppies'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 }
 
