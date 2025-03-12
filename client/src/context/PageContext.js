@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
-import { useApi } from '../hooks/useApi';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
+import { API_URL, debugLog, debugError } from '../config';
 
 // Create context
 export const PageContext = createContext();
@@ -9,7 +10,6 @@ export const PageProvider = ({ children }) => {
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { get, post, put, remove } = useApi();
   
   // Cache to prevent repeated API calls
   const pageCache = useRef({
@@ -22,57 +22,76 @@ export const PageProvider = ({ children }) => {
   // Fetch all pages with caching
   const fetchPages = async (forceRefresh = false) => {
     try {
-      // Check if we should use cached pages list
       const now = Date.now();
-      const CACHE_TTL = 300000; // 5 minutes
+      const cacheAge = now - pageCache.current.timestamp;
+      const CACHE_DURATION = 300000; // 5 minutes
       const shouldUseCache = !forceRefresh && 
-                             pages.length > 0 && 
-                             (now - pageCache.current.timestamp < CACHE_TTL);
+                            pageCache.current.timestamp > 0 && 
+                            cacheAge < CACHE_DURATION && 
+                            pages.length > 0;
       
       if (shouldUseCache) {
-        console.log('Using cached pages list');
+        debugLog('Using cached pages list');
         return pages;
       }
       
       setLoading(true);
       setError(null);
-      console.log('Fetching all pages from API');
-      const response = await get('/pages');
+      debugLog('Fetching all pages from API');
       
-      if (response && Array.isArray(response)) {
-        console.log('Fetched pages from API:', response.length);
-        setPages(response);
+      try {
+        const response = await apiGet('pages');
         
-        // Update cache timestamp and cache each page by ID and slug
-        pageCache.current.timestamp = now;
+        // If the API returns an error (like 404), use an empty array
+        if (!response.ok) {
+          debugLog('Pages API not available, using empty array');
+          setPages([]);
+          setLoading(false);
+          return [];
+        }
         
-        // Cache individual pages
-        response.forEach(page => {
-          if (page.id) {
-            pageCache.current.byId[page.id] = {
-              data: page,
-              timestamp: now
-            };
-          }
+        const fetchedPages = response.data || response;
+        
+        if (fetchedPages && Array.isArray(fetchedPages)) {
+          debugLog('Fetched pages from API:', fetchedPages.length);
+          setPages(fetchedPages);
           
-          if (page.slug) {
-            pageCache.current.bySlug[page.slug] = {
-              data: page,
-              timestamp: now
-            };
-          }
-        });
-        
-        return response;
-      } else {
-        console.log('No pages found or invalid response format:', response);
-        setPages([]);
-        return [];
+          // Update cache timestamp and cache each page by ID and slug
+          pageCache.current.timestamp = now;
+          
+          // Cache individual pages
+          fetchedPages.forEach(page => {
+            if (page.id) {
+              pageCache.current.byId[page.id] = {
+                data: page,
+                timestamp: now
+              };
+            }
+            
+            if (page.slug) {
+              pageCache.current.bySlug[page.slug] = {
+                data: page,
+                timestamp: now
+              };
+            }
+          });
+          
+          return fetchedPages;
+        } else {
+          debugLog('No pages found or invalid response format:', fetchedPages);
+          setPages([]);
+          return [];
+        }
+      } catch (error) {
+        debugError('Error fetching pages:', error);
+        // Provide fallback data when the API endpoint is not available
+        const fallbackPages = [];
+        setPages(fallbackPages);
+        return fallbackPages;
       }
-    } catch (err) {
-      console.error('Error fetching pages:', err);
-      setError('Failed to load pages. Please try again later.');
-      setPages([]);
+    } catch (error) {
+      debugError('Error in fetchPages:', error);
+      setError(error.message);
       return [];
     } finally {
       setLoading(false);
@@ -82,7 +101,7 @@ export const PageProvider = ({ children }) => {
   // Fetch a page by ID, with caching
   const fetchPageById = async (id) => {
     if (!id) {
-      console.error('ID parameter is required');
+      debugError('ID parameter is required');
       return null;
     }
     
@@ -92,36 +111,37 @@ export const PageProvider = ({ children }) => {
     const CACHE_TTL = 300000; // 5 minutes
     
     if (cacheEntry && (now - cacheEntry.timestamp < CACHE_TTL)) {
-      console.log(`Using cached page data for ID "${id}"`);
+      debugLog(`Using cached page data for ID "${id}"`);
       return cacheEntry.data;
     }
     
     try {
       setLoading(true);
-      console.log(`Fetching page with ID: "${id}"`);
-      const response = await get(`/pages/${id}`);
+      debugLog(`Fetching page with ID: "${id}"`);
+      const response = await apiGet(`pages/${id}`);
+      const fetchedPage = response.data || response;
       
-      if (response && response.id) {
-        console.log(`Found page "${response.title}" with ID ${response.id}`);
+      if (fetchedPage && fetchedPage.id) {
+        debugLog(`Found page "${fetchedPage.title}" with ID ${fetchedPage.id}`);
         
         // Cache the result
         pageCache.current.byId[id] = {
-          data: response,
+          data: fetchedPage,
           timestamp: now
         };
         
         // Also cache by slug
-        if (response.slug) {
-          pageCache.current.bySlug[response.slug] = {
-            data: response,
+        if (fetchedPage.slug) {
+          pageCache.current.bySlug[fetchedPage.slug] = {
+            data: fetchedPage,
             timestamp: now
           };
         }
         
-        return response;
+        return fetchedPage;
       }
       
-      console.log(`No page found with ID "${id}"`);
+      debugLog(`No page found with ID "${id}"`);
       
       // Cache negative result to prevent repeated requests
       pageCache.current.byId[id] = {
@@ -131,7 +151,7 @@ export const PageProvider = ({ children }) => {
       
       return null;
     } catch (err) {
-      console.error('Error fetching page by ID:', err);
+      debugError('Error fetching page by ID:', err);
       return null;
     } finally {
       setLoading(false);
@@ -141,7 +161,7 @@ export const PageProvider = ({ children }) => {
   // Fetch a page by slug, with caching
   const fetchPageBySlug = async (slug) => {
     if (!slug) {
-      console.error('Slug parameter is required');
+      debugError('Slug parameter is required');
       return null;
     }
     
@@ -151,25 +171,25 @@ export const PageProvider = ({ children }) => {
     const CACHE_TTL = 300000; // 5 minutes
     
     if (cacheEntry && (now - cacheEntry.timestamp < CACHE_TTL)) {
-      console.log(`Using cached page data for slug "${slug}"`);
+      debugLog(`Using cached page data for slug "${slug}"`);
       return cacheEntry.data;
     }
     
     try {
       setLoading(true);
-      console.log(`Fetching page with slug: "${slug}"`);
+      debugLog(`Fetching page with slug: "${slug}"`);
       let response;
       
       try {
-        response = await get(`/pages/slug/${slug}`);
+        response = await apiGet(`pages/slug/${slug}`);
       } catch (fetchError) {
-        console.error(`API error fetching page with slug "${slug}":`, fetchError);
-        console.log('Continuing with null response to handle fallback cases');
+        debugError(`API error fetching page with slug "${slug}":`, fetchError);
+        debugLog('Continuing with null response to handle fallback cases');
         response = null;
       }
       
       if (response && response.id) {
-        console.log(`Found page "${response.title}" with ID ${response.id}`);
+        debugLog(`Found page "${response.title}" with ID ${response.id}`);
         
         // Cache the result
         pageCache.current.bySlug[slug] = {
@@ -186,7 +206,7 @@ export const PageProvider = ({ children }) => {
         return response;
       }
       
-      console.log(`No page found with slug "${slug}"`);
+      debugLog(`No page found with slug "${slug}"`);
       
       // Map of standard slugs to template types and titles
       const templateMap = {
@@ -212,11 +232,11 @@ export const PageProvider = ({ children }) => {
         
         // First try to find an existing page with this template
         if (pages && pages.length > 0) {
-          console.log(`Looking for any page with ${templateInfo.template} template as fallback`);
+          debugLog(`Looking for any page with ${templateInfo.template} template as fallback`);
           const existingPage = pages.find(p => p.template === templateInfo.template && p.status === 'published');
           
           if (existingPage) {
-            console.log(`Found alternative ${templateInfo.template} page with slug "${existingPage.slug}"`);
+            debugLog(`Found alternative ${templateInfo.template} page with slug "${existingPage.slug}"`);
             
             // Cache this result
             pageCache.current.bySlug[slug] = {
@@ -229,7 +249,7 @@ export const PageProvider = ({ children }) => {
         }
         
         // Create and cache a fallback page
-        console.log(`Creating fallback page for ${templateInfo.template} template`);
+        debugLog(`Creating fallback page for ${templateInfo.template} template`);
         return cacheFallbackPage(slug, templateInfo.template, templateInfo.title);
       }
       
@@ -258,7 +278,7 @@ export const PageProvider = ({ children }) => {
       
       return null;
     } catch (err) {
-      console.error('Error in fetchPageBySlug function:', err);
+      debugError('Error in fetchPageBySlug function:', err);
       // Return null instead of throwing, to let PublicPage handle fallback
       return null;
     } finally {
@@ -270,34 +290,36 @@ export const PageProvider = ({ children }) => {
   const createPage = async (pageData) => {
     try {
       setLoading(true);
-      const response = await post('/pages', pageData);
-      if (response && response.id) {
+      const response = await apiPost('pages', pageData);
+      const createdPage = response.data || response;
+      
+      if (createdPage && createdPage.id) {
         // Update pages list in state
-        setPages([...pages, response]);
+        setPages([...pages, createdPage]);
         
         // Update cache
         const now = Date.now();
         
-        if (response.id) {
-          pageCache.current.byId[response.id] = {
-            data: response,
+        if (createdPage.id) {
+          pageCache.current.byId[createdPage.id] = {
+            data: createdPage,
             timestamp: now
           };
         }
         
-        if (response.slug) {
-          pageCache.current.bySlug[response.slug] = {
-            data: response,
+        if (createdPage.slug) {
+          pageCache.current.bySlug[createdPage.slug] = {
+            data: createdPage,
             timestamp: now
           };
         }
         
-        return response;
+        return createdPage;
       } else {
         throw new Error('Failed to create page');
       }
     } catch (err) {
-      console.error('Error creating page:', err);
+      debugError('Error creating page:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -308,11 +330,13 @@ export const PageProvider = ({ children }) => {
   const updatePage = async (id, pageData) => {
     try {
       setLoading(true);
-      const response = await put(`/pages/${id}`, pageData);
-      if (response && response.id) {
+      const response = await apiPut(`pages/${id}`, pageData);
+      const updatedPage = response.data || response;
+      
+      if (updatedPage && updatedPage.id) {
         // Update pages list in state
         const updatedPages = pages.map(page => 
-          page.id === parseInt(id) ? response : page
+          page.id === parseInt(id) ? updatedPage : page
         );
         setPages(updatedPages);
         
@@ -324,30 +348,30 @@ export const PageProvider = ({ children }) => {
         const oldSlug = oldCacheEntry?.data?.slug;
         
         // Cache the updated page by ID
-        pageCache.current.byId[response.id] = {
-          data: response,
+        pageCache.current.byId[updatedPage.id] = {
+          data: updatedPage,
           timestamp: now
         };
         
         // Update slug cache
-        if (response.slug) {
-          pageCache.current.bySlug[response.slug] = {
-            data: response,
+        if (updatedPage.slug) {
+          pageCache.current.bySlug[updatedPage.slug] = {
+            data: updatedPage,
             timestamp: now
           };
           
           // If slug changed, remove the old slug entry
-          if (oldSlug && oldSlug !== response.slug) {
+          if (oldSlug && oldSlug !== updatedPage.slug) {
             delete pageCache.current.bySlug[oldSlug];
           }
         }
         
-        return response;
+        return updatedPage;
       } else {
         throw new Error('Failed to update page');
       }
     } catch (err) {
-      console.error('Error updating page:', err);
+      debugError('Error updating page:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -363,7 +387,7 @@ export const PageProvider = ({ children }) => {
       const pageToDelete = pageCache.current.byId[id]?.data;
       const slugToDelete = pageToDelete?.slug;
       
-      await remove(`/pages/${id}`);
+      await apiDelete(`pages/${id}`);
       
       // Update pages list in state
       const filteredPages = pages.filter(page => page.id !== parseInt(id));
@@ -380,7 +404,7 @@ export const PageProvider = ({ children }) => {
       
       return true;
     } catch (err) {
-      console.error('Error deleting page:', err);
+      debugError('Error deleting page:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -412,13 +436,13 @@ export const PageProvider = ({ children }) => {
       timestamp: now
     };
     
-    console.log(`Created and cached fallback page for slug "${slug}" with template "${templateType}"`);
+    debugLog(`Created and cached fallback page for slug "${slug}" with template "${templateType}"`);
     return fallbackPage;
   };
   
   // Function to clear the entire cache (useful for debugging or forced refreshes)
   const clearCache = () => {
-    console.log('Clearing page cache');
+    debugLog('Clearing page cache');
     pageCache.current = {
       byId: {},
       bySlug: {},

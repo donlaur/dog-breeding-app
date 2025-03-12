@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { useDog } from './DogContext';
 import { formatISO } from 'date-fns';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet } from '../utils/apiUtils';
 
 export const HealthContext = createContext();
 
@@ -36,27 +38,13 @@ export const HealthProvider = ({ children }) => {
     }
     
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-        ...(options.headers || {})
-      };
+      // Use apiGet utility function instead of direct fetch
+      const response = await apiGet(`health/${endpoint}`, options);
       
-      const response = await fetch(`/api/health/${endpoint}`, {
-        ...options,
-        headers
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
-      }
-      
-      return data;
+      // Return the response data
+      return response;
     } catch (error) {
-      console.error(`Error fetching from /api/health/${endpoint}:`, error);
+      debugError(`Error in fetchWithAuth(${endpoint}):`, error);
       throw error;
     }
   }, [isAuthenticated]);
@@ -67,8 +55,23 @@ export const HealthProvider = ({ children }) => {
       setIsLoading(true);
       try {
         const response = await fetchWithAuth('dashboard');
-        if (response.success) {
+        
+        // Check if response exists and has data
+        if (response && response.data) {
           setDashboardData(response.data);
+        } else {
+          // Provide fallback data when the response is invalid
+          debugLog('Invalid dashboard response, using fallback data');
+          setDashboardData({
+            recentHealthRecords: [],
+            upcomingVaccinations: [],
+            healthStats: {
+              totalRecords: 0,
+              vaccinations: 0,
+              medications: 0,
+              conditions: 0
+            }
+          });
         }
       } catch (error) {
         console.error('Error fetching health dashboard:', error);

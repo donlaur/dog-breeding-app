@@ -17,8 +17,8 @@ export const DogProvider = ({ children }) => {
   
   // Debug effect to log whenever puppies state changes
   useEffect(() => {
-    console.log('Puppies state changed:', puppies);
-    console.log('Puppies count in state:', puppies.length);
+    debugLog('Puppies state changed:', puppies);
+    debugLog('Puppies count in state:', puppies.length);
   }, [puppies]);
   const [error, setError] = useState(null);
   const [dataTimestamp, setDataTimestamp] = useState(null);
@@ -32,7 +32,7 @@ export const DogProvider = ({ children }) => {
   });
   
   // Add a ref to track if initial load has happened
-  const initialLoadComplete = useRef(false);
+  const initialLoadRef = useRef(false);
   
   // Track retry attempts to prevent infinite retries
   const retryAttempts = useRef(0);
@@ -117,7 +117,7 @@ export const DogProvider = ({ children }) => {
           }
           
           // Mark initial load as complete
-          initialLoadComplete.current = true;
+          initialLoadRef.current = true;
         } else {
           console.log('Cache expired, will load fresh data');
           // Clear expired cache
@@ -169,33 +169,17 @@ export const DogProvider = ({ children }) => {
     return (Date.now() - dataTimestamp) < CACHE_EXPIRATION;
   };
 
-  // Function to reload all data - significantly modified for better error handling
-  const refreshData = useCallback(async (force = false) => {
-    // Don't retry if we've reached the maximum retry attempts
-    if (retryAttempts.current >= MAX_RETRIES && !force) {
-      console.log(`Max retry attempts (${MAX_RETRIES}) reached, giving up`);
+  // Modify refreshData to use separate functions for each data type and accept options
+  const refreshData = useCallback(async (forceRefresh = false, options = {}) => {
+    // Default options
+    const { includeLitters = false } = options;
+    
+    // If already loading, don't start another request
+    if (loading && !forceRefresh) {
+      debugLog('Already loading data, skipping refresh');
       return;
     }
     
-    // Prevent duplicate calls if a request is already in progress
-    if (pendingRequests.current.dogs || pendingRequests.current.litters) {
-      console.log("Data fetch already in progress, skipping duplicate request");
-      return;
-    }
-    
-    // Skip if not forced and we've already loaded once with valid cache
-    if (!force && initialLoadComplete.current && isCacheValid()) {
-      console.log("Using cached data, skipping fetch");
-      return;
-    }
-
-    // This is a retry attempt
-    if (initialLoadComplete.current) {
-      retryAttempts.current += 1;
-      console.log(`Retry attempt ${retryAttempts.current} of ${MAX_RETRIES}`);
-    }
-    
-    console.log("DogProvider: Loading initial data");
     setLoading(true);
     setError(null);
     
@@ -203,8 +187,14 @@ export const DogProvider = ({ children }) => {
     try {
       // Create promises but don't await them yet - specify exact endpoints without trailing slashes
       pendingRequests.current.dogs = apiGet('dogs');
-      pendingRequests.current.litters = apiGet('litters');
-      pendingRequests.current.puppies = apiGet('puppies'); // No trailing slash
+      
+      // Only fetch litters if specifically requested
+      if (includeLitters) {
+        debugLog('Including litters in data refresh');
+        pendingRequests.current.litters = apiGet('litters');
+      } else {
+        debugLog('Skipping litters in data refresh');
+      }
       
       // Handle dogs
       let dogsData = [];
@@ -214,60 +204,32 @@ export const DogProvider = ({ children }) => {
           dogsData = dogsResponse.data || [];
           setDogs(dogsData);
         } else {
-          console.error('Failed to load dogs:', dogsResponse?.error || 'Unknown error');
+          debugError('Failed to load dogs:', dogsResponse?.error || 'Unknown error');
         }
       } catch (err) {
-        console.error('Error fetching dogs:', err);
+        debugError('Error fetching dogs:', err);
       }
       
-      // Handle litters - continue even if dogs failed
-      try {
-        const littersResponse = await pendingRequests.current.litters;
-        if (littersResponse && littersResponse.ok) {
-          setLitters(littersResponse.data || []);
-        } else {
-          console.error('Failed to load litters:', littersResponse?.error || 'Unknown error');
-          // If litters fail, just set empty array and continue
+      // Handle litters - only if requested
+      if (includeLitters && pendingRequests.current.litters) {
+        try {
+          const littersResponse = await pendingRequests.current.litters;
+          if (littersResponse && littersResponse.ok) {
+            setLitters(littersResponse.data || []);
+          } else {
+            debugError('Failed to load litters:', littersResponse?.error || 'Unknown error');
+            // If litters fail, just set empty array and continue
+            setLitters([]);
+          }
+        } catch (err) {
+          debugError('Error fetching litters:', err);
           setLitters([]);
         }
-      } catch (err) {
-        console.error('Error fetching litters:', err);
-        setLitters([]);
-      }
-      
-      // Handle puppies - continue even if previous requests failed
-      try {
-        console.log('FETCHING PUPPIES FROM API...');
-        const puppiesResponse = await pendingRequests.current.puppies;
-        
-        if (puppiesResponse && puppiesResponse.ok) {
-          const puppiesData = puppiesResponse.data || [];
-          console.log('SUCCESS: Puppies API response with', puppiesData.length, 'puppies');
-          
-          // Directly create a new array from the response data
-          const puppiesArray = [...puppiesData];
-          console.log('Created new puppies array with', puppiesArray.length, 'items');
-          
-          // Update state with the new array
-          setPuppies(puppiesArray);
-          
-          // For debugging, manually dispatch an event 
-          window.dispatchEvent(new CustomEvent('puppies_loaded', { 
-            detail: { count: puppiesArray.length, data: puppiesArray }
-          }));
-        } else {
-          console.error('Failed to load puppies:', puppiesResponse?.error || 'Unknown error', puppiesResponse);
-          // If puppies fail, just set empty array and continue
-          setPuppies([]);
-        }
-      } catch (err) {
-        console.error('Error fetching puppies:', err);
-        setPuppies([]);
       }
 
       // If we got here, consider the data load complete even if some requests failed
       // This prevents infinite retries when some endpoints aren't available
-      initialLoadComplete.current = true;
+      initialLoadRef.current = true;
       const timestamp = Date.now();
       setDataTimestamp(timestamp);
       
@@ -279,7 +241,7 @@ export const DogProvider = ({ children }) => {
         retryAttempts.current = 0;
       }
     } catch (err) {
-      console.error('Global error in refreshData:', err);
+      debugError('Global error in refreshData:', err);
       setError('Failed to load data. Please try again.');
     } finally {
       // Clear loading state and pending requests regardless of success/failure
@@ -291,20 +253,78 @@ export const DogProvider = ({ children }) => {
         puppies: null
       };
     }
-  }, []);
-  
+  }, []); // No dependencies to prevent recreation on each render
+
+  // Add a separate function to load puppies only when needed
+  const loadPuppies = useCallback(async (forceRefresh = false) => {
+    // Check if we already have puppies data and not forcing refresh
+    if (puppies.length > 0 && !forceRefresh) {
+      debugLog('Using existing puppies data');
+      return puppies;
+    }
+    
+    // Check if there's already a pending request
+    if (pendingRequests.current.puppies) {
+      debugLog('Puppies request already in progress');
+      try {
+        const response = await pendingRequests.current.puppies;
+        return response.data || [];
+      } catch (err) {
+        debugError('Error in pending puppies request:', err);
+        return [];
+      }
+    }
+    
+    debugLog('FETCHING PUPPIES FROM API...');
+    try {
+      pendingRequests.current.puppies = apiGet('puppies');
+      const puppiesResponse = await pendingRequests.current.puppies;
+      
+      if (puppiesResponse && puppiesResponse.ok) {
+        const puppiesData = puppiesResponse.data || [];
+        debugLog('SUCCESS: Puppies API response with', puppiesData.length, 'puppies');
+        
+        // Update state with the new array
+        setPuppies(puppiesData);
+        
+        // Update localStorage cache
+        localStorage.setItem(STORAGE_KEYS.PUPPIES, JSON.stringify(puppiesData));
+        
+        return puppiesData;
+      } else {
+        debugError('Failed to load puppies:', puppiesResponse?.error || 'Unknown error');
+        return [];
+      }
+    } catch (err) {
+      debugError('Error fetching puppies:', err);
+      return [];
+    } finally {
+      pendingRequests.current.puppies = null;
+    }
+  }, [puppies]);
+
   // Load data on initial mount - only once, but always force a refresh
   useEffect(() => {
     const loadInitialData = async () => {
+      // Skip if we've already loaded data to prevent multiple calls
+      if (initialLoadRef.current) {
+        debugLog('Initial data already loaded, skipping');
+        return;
+      }
+      
+      // Mark as loaded before making the request
+      initialLoadRef.current = true;
+      
       // Slight delay to prevent UI flash
       await new Promise(resolve => setTimeout(resolve, 100));
-      // Force refresh data always, bypassing cache
-      refreshData(true);
-      console.log("Forced data refresh on component mount");
+      
+      // Force refresh data always, bypassing cache - only load dogs initially
+      refreshData(true, { includeLitters: false });
+      debugLog("Forced data refresh on component mount - dogs only");
     };
     
     loadInitialData();
-  }, [refreshData]);
+  }, []); // Empty dependency array - only run once on mount
   
   // Get a specific dog by ID
   const getDog = async (dogId) => {
@@ -483,83 +503,16 @@ export const DogProvider = ({ children }) => {
     setLitters(prev => prev.filter(litter => litter.id !== litterId));
   };
 
-  // Update the refreshDogs function to prevent re-render loops by using a dedicated loading state
-  const refreshDogs = async () => {
-    // Only proceed if we're not already loading dogs
-    if (dogsLoading) {
-      return;
-    }
-    
-    setDogsLoading(true);
-    setError(null); // Clear any previous errors
-    
-    try {
-      const response = await fetch(`${API_URL}/dogs`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error || errorData.message || `HTTP error ${response.status}`);
-        } catch (e) {
-          // If parsing failed, use the status text
-          throw new Error(response.statusText || `HTTP error ${response.status}`);
-        }
-      }
-      
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setDogs(data);
-      } else {
-        debugError('Unexpected dogs response format:', data);
-        throw new Error('Unexpected response format');
-      }
-    } catch (error) {
-      debugError('Error refreshing dogs:', error);
-      setError(error.message || 'Failed to load dogs');
-    } finally {
-      setDogsLoading(false);
-    }
-  };
-
-  // Similarly update the refreshLitters function
-  const refreshLitters = async () => {
-    // Only proceed if we're not already loading litters
-    if (littersLoading) {
-      return;
-    }
-    
-    setLittersLoading(true);
-    setError(null); // Clear any previous errors
-    
-    try {
-      const response = await fetch(`${API_URL}/litters`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error || errorData.message || `HTTP error ${response.status}`);
-        } catch (e) {
-          // If parsing failed, use the status text
-          throw new Error(response.statusText || `HTTP error ${response.status}`);
-        }
-      }
-      
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setLitters(data);
-      } else {
-        debugError('Unexpected litters response format:', data);
-        throw new Error('Unexpected response format');
-      }
-    } catch (error) {
-      debugError('Error refreshing litters:', error);
-      setError(error.message || 'Failed to load litters');
-    } finally {
-      setLittersLoading(false);
-    }
-  };
+  // Add specific refresh functions for different data types
+  const refreshDogs = useCallback((forceRefresh = false, options = {}) => {
+    debugLog('Refreshing dogs with options:', options);
+    return refreshData(forceRefresh, options);
+  }, [refreshData]);
+  
+  const refreshLitters = useCallback((forceRefresh = false) => {
+    debugLog('Refreshing litters');
+    return refreshData(forceRefresh, { includeLitters: true });
+  }, [refreshData]);
 
   // Update the useEffect to only fetch data on mount, not on every render
   useEffect(() => {
@@ -664,6 +617,7 @@ export const DogProvider = ({ children }) => {
     error,
     dataTimestamp,
     refreshData,
+    loadPuppies,
     getDog,
     getLitter,
     getPuppiesForLitter,

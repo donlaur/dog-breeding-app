@@ -100,10 +100,21 @@ export const apiRequest = async (endpoint, options = {}) => {
  * @param {Object} options - Additional fetch options
  * @return {Promise<Object>} - Response data or error
  */
-export const apiGet = async (endpoint) => {
+export const apiGet = async (endpoint, options = {}) => {
+  // Check if this endpoint is known to be missing (from our apiErrorFix.js)
+  if (window.missingEndpoints && window.missingEndpoints.has(endpoint)) {
+    debugLog(`Skipping call to known missing endpoint: ${endpoint}`);
+    return {
+      ok: false, 
+      status: 404,
+      error: 'API endpoint not available',
+      data: null
+    };
+  }
+  
   try {
     const url = formatApiUrl(endpoint);
-    console.log(`Making API GET request to: ${url}`);
+    debugLog(`Making API GET request to: ${url}`);
     
     // Get token for authorization
     const token = localStorage.getItem('token');
@@ -112,18 +123,40 @@ export const apiGet = async (endpoint) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
-      }
+      },
+      ...options
     });
     
     if (!response.ok) {
-      console.error(`API GET Error (${url}): ${response.status}`);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      debugError(`API GET Error (/${endpoint}): ${response.status}`);
+      
+      // If endpoint not found, add it to the missing endpoints list
+      if (response.status === 404 && window.missingEndpoints) {
+        window.missingEndpoints.add(endpoint);
+        debugLog(`Added ${endpoint} to missing endpoints list`);
+      }
+      
+      return { 
+        ok: false, 
+        status: response.status,
+        error: `HTTP error! status: ${response.status}`, 
+        data: null 
+      };
     }
     
-    const data = await response.json();
-    return { ok: true, data: data };
+    try {
+      const data = await response.json();
+      return { ok: true, status: response.status, data: data, error: null };
+    } catch (parseError) {
+      debugError(`API Error parsing JSON (/${endpoint}):`, parseError);
+      return { 
+        ok: false, 
+        error: 'Invalid JSON response', 
+        data: null 
+      };
+    }
   } catch (error) {
-    console.error(`API Error (${endpoint}):`, error);
+    debugError(`API Error (${endpoint}):`, error);
     return { 
       ok: false, 
       error: error.message || 'Network request failed', 
