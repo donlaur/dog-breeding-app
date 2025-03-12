@@ -121,6 +121,7 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"Error in find_by_field_values operation for table {table}, filters {filters}: {str(e)}")
             return []
     
+    @retry_on_disconnect()
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
         """Get a single record by ID"""
         try:
@@ -132,6 +133,7 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"Error in get operation for table {table}, id {id}: {str(e)}")
             return None
     
+    @retry_on_disconnect()
     def create(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new record"""
         try:
@@ -154,6 +156,7 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"SUPABASE ERROR - Traceback: {traceback.format_exc()}")
             raise DatabaseError(f"Failed to create record: {str(e)}")
     
+    @retry_on_disconnect()
     def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update a record by ID"""
         try:
@@ -185,4 +188,3 @@ class SupabaseDatabase(DatabaseInterface):
         except Exception as e:
             print(f"Error in delete operation for table {table}, id {id}: {str(e)}")
             return False
-    
