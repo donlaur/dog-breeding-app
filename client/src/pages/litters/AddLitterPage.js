@@ -15,8 +15,21 @@ const AddLitterPage = () => {
   const { dogs, breeds, addLitter, refreshData } = useContext(DogContext);
   const { notifyLitterAdded } = useNotifications();
 
-  const sireOptions = dogs.filter((d) => d.gender === "Male");
-  const damOptions = dogs.filter((d) => d.gender === "Female");
+  const sireOptions = dogs
+    .filter((d) => d.gender === "Male")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+  const damOptions = dogs
+    .filter((d) => d.gender === "Female")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
   const handleSave = async (litterData) => {
     try {

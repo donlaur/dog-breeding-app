@@ -79,9 +79,22 @@ const EditLitterPage = () => {
     }
   }, [litter, breeds]);
   
-  // Filter dogs by gender for sire and dam options
-  const sireOptions = dogsLoaded ? dogs.filter((d) => d.gender === "Male") : [];
-  const damOptions = dogsLoaded ? dogs.filter((d) => d.gender === "Female") : [];
+  // Filter dogs by gender for sire and dam options and sort by call_name
+  const sireOptions = dogsLoaded ? dogs
+    .filter((d) => d.gender === "Male")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }) : [];
+    
+  const damOptions = dogsLoaded ? dogs
+    .filter((d) => d.gender === "Female")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }) : [];
   
   // Debug logging
   console.log("Available breeds:", breeds);

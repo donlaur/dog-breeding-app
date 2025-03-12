@@ -104,14 +104,28 @@ const ManageLitters = () => {
       try {
         const response = await apiGet('dogs');
         if (response && response.ok) {
-          const data = response.data || [];
+          const dogs = response.data || [];
           
-          // Filter for male and female dogs
-          const males = data.filter(dog => dog.gender === 'Male');
-          const females = data.filter(dog => dog.gender === 'Female');
+          // Filter and sort dams (females) by call_name
+          const sortedDams = dogs
+            .filter(dog => dog.gender === 'Female')
+            .sort((a, b) => {
+              const nameA = (a.call_name || a.name || '').toLowerCase();
+              const nameB = (b.call_name || b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
           
-          setSires(males);
-          setDams(females);
+          // Filter and sort sires (males) by call_name
+          const sortedSires = dogs
+            .filter(dog => dog.gender === 'Male')
+            .sort((a, b) => {
+              const nameA = (a.call_name || a.name || '').toLowerCase();
+              const nameB = (b.call_name || b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
+          
+          setDams(sortedDams);
+          setSires(sortedSires);
         } else {
           debugError("Error fetching dogs:", response?.error);
         }

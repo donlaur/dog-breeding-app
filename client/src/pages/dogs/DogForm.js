@@ -130,8 +130,22 @@ function DogForm() {
 
   // Optional sire/dam options - exclude current dog from potential parents
   const currentDogId = id ? parseInt(id, 10) : null;
-  const sireOptions = dogs.filter((d) => d.gender === "Male" && d.id !== currentDogId);
-  const damOptions = dogs.filter((d) => d.gender === "Female" && d.id !== currentDogId);
+  
+  const sireOptions = dogs
+    .filter((d) => d.gender === "Male" && d.id !== currentDogId)
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+  const damOptions = dogs
+    .filter((d) => d.gender === "Female" && d.id !== currentDogId)
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
   const handleChange = (e) => {
     // For select fields with IDs, ensure they're properly formatted
