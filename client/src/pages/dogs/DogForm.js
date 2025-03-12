@@ -17,7 +17,8 @@ import {
   Avatar,
   IconButton,
   Typography,
-  Breadcrumbs
+  Breadcrumbs,
+  Select
 } from '@mui/material';
 import { PhotoCamera, ArrowBack } from '@mui/icons-material';
 import { showSuccess, showError } from '../../utils/notifications';
@@ -101,7 +102,13 @@ function DogForm() {
       })
       .then((data) => {
         debugLog("Dog data received for editing:", data);
-        setDog(data);
+        // Ensure IDs are properly formatted
+        const formattedData = {
+          ...data,
+          sire_id: data.sire_id ? parseInt(data.sire_id, 10) : '',
+          dam_id: data.dam_id ? parseInt(data.dam_id, 10) : ''
+        };
+        setDog(formattedData);
         setLoading(false);
       })
       .catch((err) => {
@@ -119,12 +126,19 @@ function DogForm() {
     return <p>Dog not found or error loading data.</p>;
   }
 
-  // Optional sire/dam options
-  const sireOptions = dogs.filter((d) => d.gender === "Male");
-  const damOptions = dogs.filter((d) => d.gender === "Female");
+  // Optional sire/dam options - exclude current dog from potential parents
+  const currentDogId = id ? parseInt(id, 10) : null;
+  const sireOptions = dogs.filter((d) => d.gender === "Male" && d.id !== currentDogId);
+  const damOptions = dogs.filter((d) => d.gender === "Female" && d.id !== currentDogId);
 
   const handleChange = (e) => {
-    setDog({ ...dog, [e.target.name]: e.target.value });
+    // For select fields with IDs, ensure they're properly formatted
+    if (e.target.name === 'sire_id' || e.target.name === 'dam_id') {
+      const value = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+      setDog({ ...dog, [e.target.name]: value });
+    } else {
+      setDog({ ...dog, [e.target.name]: e.target.value });
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -294,33 +308,35 @@ function DogForm() {
           </RadioGroup>
         </FormControl>
 
-        <TextField
-          fullWidth
-          label="Sire (Father)"
-          name="sire_id"
-          value={dog.sire_id}
-          onChange={handleChange}
-          margin="normal"
-        >
-          <MenuItem value="">None</MenuItem>
-          {sireOptions.map((sire) => (
-            <MenuItem key={sire.id} value={sire.id}>{sire.registered_name}</MenuItem>
-          ))}
-        </TextField>
+        <FormControl fullWidth margin="normal">
+          <FormLabel>Sire (Father)</FormLabel>
+          <Select
+            name="sire_id"
+            value={dog.sire_id || ''}
+            onChange={handleChange}
+            displayEmpty
+          >
+            <MenuItem value="">None</MenuItem>
+            {sireOptions.map((sire) => (
+              <MenuItem key={sire.id} value={sire.id}>{sire.call_name || sire.registered_name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-        <TextField
-          fullWidth
-          label="Dam (Mother)"
-          name="dam_id"
-          value={dog.dam_id}
-          onChange={handleChange}
-          margin="normal"
-        >
-          <MenuItem value="">None</MenuItem>
-          {damOptions.map((dam) => (
-            <MenuItem key={dam.id} value={dam.id}>{dam.registered_name}</MenuItem>
-          ))}
-        </TextField>
+        <FormControl fullWidth margin="normal">
+          <FormLabel>Dam (Mother)</FormLabel>
+          <Select
+            name="dam_id"
+            value={dog.dam_id || ''}
+            onChange={handleChange}
+            displayEmpty
+          >
+            <MenuItem value="">None</MenuItem>
+            {damOptions.map((dam) => (
+              <MenuItem key={dam.id} value={dam.id}>{dam.call_name || dam.registered_name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         <TextField
           fullWidth
