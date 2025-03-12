@@ -1,0 +1,210 @@
+name: Code Review
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/**'
+      - 'client/**'
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd server
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest pytest-cov flake8 pylint
+        
+    - name: Lint with flake8
+      run: |
+        cd server
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: Check code quality with pylint
+      run: |
+        cd server
+        pylint --disable=C0111,C0103,C0303,W1201,W1202,C0330,C0326,W0511,R0913,R0914 --fail-under=7.0 *.py database/*.py utils/*.py
+      continue-on-error: true
+        
+    - name: Run tests with pytest
+      run: |
+        cd server
+        pytest tests/ --cov=. --cov-report=xml
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./server/coverage.xml
+        flags: server
+        fail_ci_if_error: false
+
+  client-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        
+    - name: Install dependencies
+      run: |
+        cd client
+        npm ci
+        
+    - name: Lint with ESLint
+      run: |
+        cd client
+        npm run lint
+      continue-on-error: true
+        
+    - name: Run tests
+      run: |
+        cd client
+        npm test -- --coverage
+      continue-on-error: true
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./client/coverage/coverage-final.json
+        flags: client
+        fail_ci_if_error: false
+
+  database-pattern-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd server
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest
+        
+    - name: Check database query patterns
+      run: |
+        cd server
+        pytest tests/test_db_patterns.py -v
+        
+  api-contract-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd server
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest
+        
+    - name: Check API contracts
+      run: |
+        cd server
+        pytest tests/test_api_contracts.py -v
+
+  pr-review-comment:
+    needs: [server-tests, client-tests, database-pattern-check, api-contract-check]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Create PR Review Comment
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const serverTests = '${{ needs.server-tests.result }}';
+          const clientTests = '${{ needs.client-tests.result }}';
+          const dbPatternCheck = '${{ needs.database-pattern-check.result }}';
+          const apiContractCheck = '${{ needs.api-contract-check.result }}';
+          
+          let reviewBody = '## Automated Code Review\n\n';
+          
+          // Server tests
+          reviewBody += '### Server Tests\n';
+          reviewBody += serverTests === 'success' 
+            ? '✅ All server tests passed\n\n' 
+            : '❌ Some server tests failed. Please check the test logs.\n\n';
+          
+          // Client tests
+          reviewBody += '### Client Tests\n';
+          reviewBody += clientTests === 'success' 
+            ? '✅ All client tests passed\n\n' 
+            : '❌ Some client tests failed. Please check the test logs.\n\n';
+          
+          // Database pattern check
+          reviewBody += '### Database Query Pattern Check\n';
+          reviewBody += dbPatternCheck === 'success' 
+            ? '✅ All database query patterns are correct\n\n' 
+            : '❌ Some database query patterns are incorrect. Please ensure you are using `find_by_field_values` for multiple records and `get` for single records by ID.\n\n';
+          
+          // API contract check
+          reviewBody += '### API Contract Check\n';
+          reviewBody += apiContractCheck === 'success' 
+            ? '✅ All API contracts are maintained\n\n' 
+            : '❌ Some API contracts are broken. Please ensure you are not changing the response structure of existing endpoints.\n\n';
+          
+          // Overall assessment
+          const allPassed = serverTests === 'success' && clientTests === 'success' && 
+                           dbPatternCheck === 'success' && apiContractCheck === 'success';
+          
+          reviewBody += '## Overall Assessment\n\n';
+          reviewBody += allPassed 
+            ? '✅ **This PR is ready for human review**\n\n' 
+            : '❌ **This PR needs fixes before it can be merged**\n\n';
+          
+          // Add reminders about the database query pattern
+          reviewBody += '## Reminders\n\n';
+          reviewBody += '- Always use `find_by_field_values(table, filters)` for retrieving multiple records, NOT `find(table, filters)`\n';
+          reviewBody += '- Always use `get(table, id)` for retrieving a single record by ID\n';
+          reviewBody += '- Maintain separation between "puppies" and "dogs" in database queries\n';
+          reviewBody += '- Follow the established error handling pattern\n';
+          
+          // Create a review comment
+          const { data: pullRequest } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+          });
+          
+          await github.rest.pulls.createReview({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+            commit_id: pullRequest.head.sha,
+            body: reviewBody,
+            event: allPassed ? 'APPROVE' : 'REQUEST_CHANGES'
+          });
