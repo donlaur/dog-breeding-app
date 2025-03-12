@@ -456,7 +456,7 @@ const DogDetails = () => {
           variant="outlined" 
           startIcon={<EditIcon />}
           component={Link}
-          to={`/dashboard/dogs/edit/${dog.id}`}
+          to={`/dashboard/dogs/${dog.id}/edit`}
         >
           Edit
         </Button>
