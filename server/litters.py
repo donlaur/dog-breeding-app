@@ -11,7 +11,7 @@ def create_litters_bp(db):
     def get_all_litters():
         """Get all litters"""
         try:
-litters = db.find_by_field_values("litters")
+            litters = db.find_by_field_values("litters")
             
             # Add CORS headers
             response = jsonify(litters)
