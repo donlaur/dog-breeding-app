@@ -2,7 +2,7 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://localhost:${REACT_APP_API_PORT}",
+  "proxy": "http://localhost:5000",
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
     "@emotion/react": "^11.14.0",

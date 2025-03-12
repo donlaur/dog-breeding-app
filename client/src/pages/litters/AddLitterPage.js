@@ -5,6 +5,7 @@ import { API_URL, debugLog, debugError } from "../../config";
 import LitterForm from "./LitterForm";   // <-- must point to the new LitterForm
 import "../../styles/AddLitterPage.css";
 import DogContext from "../../context/DogContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { apiPost } from '../../utils/apiUtils';
 
 const AddLitterPage = () => {
@@ -12,6 +13,7 @@ const AddLitterPage = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { dogs, breeds, addLitter, refreshData } = useContext(DogContext);
+  const { notifyLitterAdded } = useNotifications();
 
   const sireOptions = dogs.filter((d) => d.gender === "Male");
   const damOptions = dogs.filter((d) => d.gender === "Female");
@@ -39,6 +41,16 @@ const AddLitterPage = () => {
       
       const newLitter = await response.json();
       addLitter(newLitter);
+      
+      // Get dam and sire info for notification
+      const dam = dogs.find(dog => dog.id === parseInt(newLitter.dam_id));
+      const sire = dogs.find(dog => dog.id === parseInt(newLitter.sire_id));
+      
+      // Trigger notification
+      if (dam) {
+        notifyLitterAdded(newLitter.id, dam.call_name, newLitter.sire_id, sire);
+      }
+      
       refreshData();
       navigate('/dashboard/litters');
     } catch (error) {

@@ -63,7 +63,7 @@ def create_pages_blueprint(db):
                     pages = db.find_by_field("pages", "status", status)
                 else:
                     # Otherwise just get all pages
-                    pages = db.find("pages")
+pages = db.find_by_field_values("pages")
                 
                 # Sort pages by menu_order (would need to be done client-side or with a custom query)
                 pages.sort(key=lambda p: p.get("menu_order", 0))

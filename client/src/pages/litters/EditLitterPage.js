@@ -35,6 +35,7 @@ const EditLitterPage = () => {
   // Update local breeds when contextBreeds changes
   useEffect(() => {
     if (contextBreeds) {
+      // Use the context breeds as the source of truth
       setBreeds(contextBreeds);
     } else {
       // If contextBreeds is undefined, try to fetch them
@@ -42,17 +43,26 @@ const EditLitterPage = () => {
         console.log("Attempting to refresh breeds...");
         refreshBreeds();
       }
-      
-      // Use an empty array as fallback
-      setBreeds([]);
-      
-      // For workaround, if we don't have breeds yet, create a minimal array with the needed breed_id
-      if (litter && litter.breed_id) {
-        console.log("Creating fallback breed option for ID:", litter.breed_id);
-        setBreeds([{ id: litter.breed_id, name: `Breed ${litter.breed_id}` }]);
-      }
     }
-  }, [contextBreeds, litter, refreshBreeds]);
+  }, [contextBreeds, refreshBreeds]);
+
+  // Handle breed information from litter data separately to avoid loops
+  useEffect(() => {
+    if (!litter) return;
+    
+    // If we have breed_info from the API and it's not in our breeds array
+    if (litter.breed_info && breeds.length > 0 && !breeds.some(b => b.id === litter.breed_info.id)) {
+      console.log("Adding breed_info from API response to breeds array:", litter.breed_info);
+      // Add the breed info to our breeds array
+      setBreeds(prevBreeds => [
+        ...prevBreeds,
+        { 
+          id: litter.breed_info.id, 
+          name: litter.breed_info.name 
+        }
+      ]);
+    }
+  }, [litter, breeds]);
   
   // Filter dogs by gender for sire and dam options
   const sireOptions = dogs.filter((d) => d.gender === "Male");
@@ -89,6 +99,12 @@ const EditLitterPage = () => {
       if (data.dam_id) data.dam_id = Number(data.dam_id);
       if (data.sire_id) data.sire_id = Number(data.sire_id);
       
+      // If we have breed_info from the API and breeds array is empty, try to refresh breeds
+      if (data.breed_info && (!breeds || breeds.length === 0) && refreshBreeds) {
+        console.log("Refreshing breeds from API because we have breed_info");
+        refreshBreeds();
+      }
+      
       setLitter(data);
     } catch (error) {
       console.error("Error in fetchLitterData:", error);
@@ -123,6 +139,14 @@ const EditLitterPage = () => {
       
       // Clean up the data before sending to API
       const dataToSend = { ...updatedLitter };
+      
+      // Remove any fields that don't exist in the database schema
+      delete dataToSend.dam_name;
+      delete dataToSend.sire_name;
+      delete dataToSend.breed_name;
+      delete dataToSend.dam_info;
+      delete dataToSend.sire_info;
+      delete dataToSend.breed_info;
       
       // Ensure ID fields are properly formatted
       ['breed_id', 'dam_id', 'sire_id'].forEach(field => {

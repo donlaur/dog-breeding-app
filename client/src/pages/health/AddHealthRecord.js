@@ -8,11 +8,13 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useHealth } from '../../context/HealthContext';
 import { useDog } from '../../context/DogContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 const AddHealthRecord = () => {
   const navigate = useNavigate();
   const { addHealthRecord } = useHealth();
   const { dogs, puppies } = useDog();
+  const { notifyHealthRecordAdded } = useNotifications();
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -110,8 +112,21 @@ const AddHealthRecord = () => {
       delete healthRecordData.animal_type;
       delete healthRecordData.animal_id;
       
-      await addHealthRecord(healthRecordData);
+      const newRecord = await addHealthRecord(healthRecordData);
       setSuccessMessage('Health record added successfully!');
+      
+      // Create notification
+      if (formData.animal_type === 'dog') {
+        const dog = dogs.find(d => d.id === parseInt(formData.animal_id));
+        if (dog) {
+          notifyHealthRecordAdded(newRecord.id, dog.id, dog.call_name, formData.record_type);
+        }
+      } else if (formData.animal_type === 'puppy') {
+        const puppy = puppies.find(p => p.id === parseInt(formData.animal_id));
+        if (puppy) {
+          notifyHealthRecordAdded(newRecord.id, null, puppy.name, formData.record_type, puppy.id);
+        }
+      }
       
       // Navigate after a brief delay to show success message
       setTimeout(() => {

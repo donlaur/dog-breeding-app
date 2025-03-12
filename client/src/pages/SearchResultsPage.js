@@ -24,6 +24,8 @@ import ChildCareIcon from '@mui/icons-material/ChildCare';
 import PregnantWomanIcon from '@mui/icons-material/PregnantWoman';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { getPhotoUrl } from '../utils/photoUtils';
+import { apiGet } from '../utils/apiUtils';
+import { API_URL, debugLog, debugError } from '../config';
 
 function SearchResultsPage() {
   const location = useLocation();
@@ -52,14 +54,14 @@ function SearchResultsPage() {
     
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) {
+      const response = await apiGet(`search?q=${encodeURIComponent(searchQuery)}`);
+      if (response && response.ok) {
+        setSearchResults(response.data);
+      } else {
         throw new Error('Search request failed');
       }
-      const data = await response.json();
-      setSearchResults(data);
     } catch (error) {
-      console.error('Error performing search:', error);
+      debugError('Error performing search:', error);
     } finally {
       setIsLoading(false);
     }

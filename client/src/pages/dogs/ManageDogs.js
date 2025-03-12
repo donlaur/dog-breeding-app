@@ -1,5 +1,5 @@
 // src/pages/dogs/ManageDogs.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, debugLog, debugError } from "../../config";
 import { 
@@ -60,14 +60,17 @@ const ManageDogs = () => {
   const [sortedDogs, setSortedDogs] = useState([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [dogsLoading, setDogsLoading] = useState(false);
+  const hasAttemptedLoad = useRef(false);
 
-  // Load dogs on component mount
+  // Load dogs on component mount - only once
   useEffect(() => {
-    // Only refresh dogs once when the component mounts if no data
-    if (dogs.length === 0 && !loading) {
-      refreshDogs();
+    // Only refresh dogs once when the component mounts if no data and we haven't tried loading yet
+    if (dogs.length === 0 && !loading && !hasAttemptedLoad.current) {
+      hasAttemptedLoad.current = true;
+      debugLog('ManageDogs: Initial data load');
+      refreshDogs(false, { includeLitters: false }); // Explicitly don't include litters
     }
-  }, []); // Empty dependency array means this only runs once on component mount
+  }, [dogs.length, loading, refreshDogs]); // Only depends on these values
 
   // Apply filtering and sorting whenever dogs or filter changes
   useEffect(() => {

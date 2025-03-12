@@ -1,8 +1,9 @@
 // src/components/layout/DashboardLayout.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import GlobalSearchShortcut from '../GlobalSearchShortcut';
+import { useNotifications } from '../../context/NotificationContext';
 
 // MUI components
 import {
@@ -128,75 +129,7 @@ const DashboardLayout = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchTip, setShowSearchTip] = useState(false);
   
-  // State for collapsible menu sections
-  const [openMenu, setOpenMenu] = useState({
-    health: false,
-    breeding: false,
-    content: false,
-    crm: false
-  });
-  
-  const handleMenuToggle = (menu) => {
-    setOpenMenu({
-      ...openMenu,
-      [menu]: !openMenu[menu]
-    });
-  };
-  
-  const isActive = (path) => location.pathname.startsWith(path);
-  
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-  
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-  
-  const handleLogout = () => {
-    handleMenuClose();
-    logout();
-    navigate('/login');
-  };
-  
-  const handleSearchChange = (event) => {
-    setSearchQuery(event.target.value);
-  };
-  
-  const handleSearchSubmit = (event) => {
-    if (event.key === 'Enter' && searchQuery.trim()) {
-      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      // Show search tip if it's the user's first search
-      if (!localStorage.getItem('searchTipShown')) {
-        localStorage.setItem('searchTipShown', 'true');
-        setShowSearchTip(true);
-        // Hide the tip after 5 seconds
-        setTimeout(() => setShowSearchTip(false), 5000);
-      }
-    }
-  };
-  
-  const handleSearchClick = () => {
-    if (searchQuery.trim()) {
-      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      // Show search tip if it's the user's first search
-      if (!localStorage.getItem('searchTipShown')) {
-        localStorage.setItem('searchTipShown', 'true');
-        setShowSearchTip(true);
-        // Hide the tip after 5 seconds
-        setTimeout(() => setShowSearchTip(false), 5000);
-      }
-    }
-  };
-  
-  const handleCloseTip = () => {
-    setShowSearchTip(false);
-  };
-  
+  // Define navItems first before any functions that use it
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     
@@ -256,6 +189,134 @@ const DashboardLayout = () => {
     // ACCOUNT section
     { path: '/dashboard/profile', label: 'My Account', icon: <ProfileIcon /> },
   ];
+  
+  // State for collapsible menu sections
+  const [openMenu, setOpenMenu] = useState({
+    health: false,
+    breeding: false,
+    content: false,
+    crm: false
+  });
+  
+  // Check if any child route of a menu section is active
+  const isMenuSectionActive = (menuId) => {
+    if (!menuId || !navItems) return false;
+    
+    // Find the menu section
+    const menuSection = navItems.find(item => item.id === menuId);
+    if (!menuSection || !menuSection.children) return false;
+    
+    // Check if any child route is active
+    return menuSection.children.some(child => isActive(child.path));
+  };
+  
+  // Effect to automatically expand menu sections when their children are active
+  useEffect(() => {
+    const newOpenState = { ...openMenu };
+    
+    // Check each menu section
+    navItems?.forEach(item => {
+      if (item.isExpandable && item.id) {
+        // If any child is active, expand the menu
+        if (isMenuSectionActive(item.id)) {
+          newOpenState[item.id] = true;
+        }
+      }
+    });
+    
+    // Update state only if changes are needed
+    if (JSON.stringify(newOpenState) !== JSON.stringify(openMenu)) {
+      setOpenMenu(newOpenState);
+    }
+  }, [location.pathname, navItems]);
+  
+  const handleMenuToggle = (menu) => {
+    setOpenMenu({
+      ...openMenu,
+      [menu]: !openMenu[menu]
+    });
+  };
+  
+  const isActive = (path) => {
+    // For exact matches like Dashboard
+    if (path === '/dashboard' && location.pathname === '/dashboard') {
+      return true;
+    }
+    
+    // For nested routes, make sure we don't highlight parent paths incorrectly
+    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health-records
+    if (path === '/dashboard') {
+      return false; // Don't highlight dashboard for other pages
+    }
+    
+    // For child routes, check if the current path starts with the menu path
+    // and either ends there or continues with a slash
+    if (location.pathname.startsWith(path)) {
+      // If path is exactly the same, it's active
+      if (location.pathname === path) {
+        return true;
+      }
+      
+      // If path continues with a slash, it's a child route
+      if (location.pathname.charAt(path.length) === '/') {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+  
+  const handleProfileMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+  
+  const handleLogout = () => {
+    handleMenuClose();
+    logout();
+    navigate('/login');
+  };
+  
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+  
+  const handleSearchSubmit = (event) => {
+    if (event.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      // Show search tip if it's the user's first search
+      if (!localStorage.getItem('searchTipShown')) {
+        localStorage.setItem('searchTipShown', 'true');
+        setShowSearchTip(true);
+        // Hide the tip after 5 seconds
+        setTimeout(() => setShowSearchTip(false), 5000);
+      }
+    }
+  };
+  
+  const handleSearchClick = () => {
+    if (searchQuery.trim()) {
+      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      // Show search tip if it's the user's first search
+      if (!localStorage.getItem('searchTipShown')) {
+        localStorage.setItem('searchTipShown', 'true');
+        setShowSearchTip(true);
+        // Hide the tip after 5 seconds
+        setTimeout(() => setShowSearchTip(false), 5000);
+      }
+    }
+  };
+  
+  const handleCloseTip = () => {
+    setShowSearchTip(false);
+  };
   
   const drawer = (
     <>
@@ -422,6 +483,8 @@ const DashboardLayout = () => {
     </>
   );
 
+  const { unreadCount } = useNotifications();
+
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -511,7 +574,7 @@ const DashboardLayout = () => {
                 component={Link}
                 to="/dashboard/notifications"
               >
-                <Badge badgeContent={3} color="error">
+                <Badge badgeContent={unreadCount} color="error">
                   <NotificationsIcon />
                 </Badge>
               </IconButton>

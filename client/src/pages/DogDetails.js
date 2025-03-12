@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDog } from '../context/DogContext';
 import { formatDate, formatAge } from '../utils/dateUtils';
 import { API_URL, debugLog, debugError } from '../config';
+import { apiGet } from '../utils/apiUtils';
 import {
   Box,
   Container,
@@ -42,7 +43,7 @@ import {
   CalendarToday as CalendarIcon,
   Add as AddIcon
 } from '@mui/icons-material';
-import { apiGet, formatApiUrl } from '../utils/apiUtils';
+import { formatApiUrl } from '../utils/apiUtils';
 import { showError } from '../utils/notifications';
 
 function DogDetails() {
@@ -405,17 +406,16 @@ function DogDetails() {
           try {
             // Only fetch puppies for litters that have puppies
             if (litter.num_puppies > 0) {
-              const puppiesResponse = await fetch(`${API_URL}/litters/${litter.id}/puppies`);
+              const puppiesResponse = await apiGet(`litters/${litter.id}/puppies`);
               
-              if (puppiesResponse.ok) {
-                const puppiesData = await puppiesResponse.json();
-                return { ...litter, puppies: puppiesData || [] };
+              if (puppiesResponse && puppiesResponse.ok) {
+                return { ...litter, puppies: puppiesResponse.data || [] };
               }
             }
             // Return litter with empty puppies array if fetch failed or no puppies
             return { ...litter, puppies: [] };
           } catch (error) {
-            console.error(`Error fetching puppies for litter ${litter.id}:`, error);
+            debugError(`Error fetching puppies for litter ${litter.id}:`, error);
             return { ...litter, puppies: [] };
           }
         })

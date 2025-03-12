@@ -88,6 +88,7 @@ class SupabaseDatabase(DatabaseInterface):
             raise DatabaseError(str(e))
     
     # Implementation for the newer interface methods
+    @retry_on_disconnect(max_retries=5, delay=2)
     def find(self, table: str) -> List[Dict[str, Any]]:
         """Find all records in a table"""
         try:
@@ -97,6 +98,7 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"Error in find operation for table {table}: {str(e)}")
             return []
     
+    @retry_on_disconnect(max_retries=5, delay=2)
     def find_by_field(self, table: str, field: str, value: Any) -> List[Dict[str, Any]]:
         """Find records in a table by field value"""
         try:
@@ -106,6 +108,7 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"Error in find_by_field operation for table {table}, field {field}: {str(e)}")
             return []
     
+    @retry_on_disconnect(max_retries=5, delay=2)
     def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Find records in a table by multiple field values (AND condition)"""
         try:
@@ -116,12 +119,13 @@ class SupabaseDatabase(DatabaseInterface):
                 query = query.eq(field, value)
             
             response = query.execute()
+            debug_log(f"Found {len(response.data)} records in {table} with filters {filters}")
             return response.data
         except Exception as e:
-            print(f"Error in find_by_field_values operation for table {table}, filters {filters}: {str(e)}")
+            debug_log(f"Error in find_by_field_values operation for table {table}, filters {filters}: {str(e)}")
             return []
     
-    @retry_on_disconnect()
+    @retry_on_disconnect(max_retries=5, delay=2)
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
         """Get a single record by ID"""
         try:
@@ -146,45 +150,39 @@ class SupabaseDatabase(DatabaseInterface):
             print(f"SUPABASE DEBUG - Clean data for insert: {clean_data}")
             
             response = self.supabase.table(table).insert(clean_data).execute()
-            if response.data and len(response.data) > 0:
-                print(f"SUPABASE DEBUG - Successfully created record: {response.data[0]}")
-                return response.data[0]
-            raise DatabaseError("Failed to create record, empty response")
+            
+            if not response.data or len(response.data) == 0:
+                raise DatabaseError(f"Failed to create record in {table}")
+                
+            print(f"SUPABASE DEBUG - Created record: {response.data[0]}")
+            return response.data[0]
         except Exception as e:
-            print(f"SUPABASE ERROR - Error in create operation for table {table}: {str(e)}")
-            import traceback
-            print(f"SUPABASE ERROR - Traceback: {traceback.format_exc()}")
-            raise DatabaseError(f"Failed to create record: {str(e)}")
+            print(f"Error in create operation for table {table}: {str(e)}")
+            raise DatabaseError(str(e))
     
     @retry_on_disconnect()
     def update(self, table: str, id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update a record by ID"""
         try:
-            print(f"Updating {table} with ID {id}: {data}")
-            
-            # Clean data for update
-            clean_data = {k: v for k, v in data.items()}
+            # Clean data by removing None values
+            clean_data = {k: v for k, v in data.items() if v is not None}
             
             response = self.supabase.table(table).update(clean_data).eq("id", id).execute()
             
-            if response.data and len(response.data) > 0:
-                return response.data[0]
-            
-            # If no data returned but no error, get the updated record
-            check_response = self.supabase.table(table).select("*").eq("id", id).execute()
-            if check_response.data and len(check_response.data) > 0:
-                return check_response.data[0]
+            if not response.data or len(response.data) == 0:
+                raise DatabaseError(f"Failed to update record in {table} with id {id}")
                 
-            raise DatabaseError(f"Failed to update record in table {table} with ID {id}, empty response")
+            return response.data[0]
         except Exception as e:
             print(f"Error in update operation for table {table}, id {id}: {str(e)}")
-            raise DatabaseError(f"Failed to update record: {str(e)}")
+            raise DatabaseError(str(e))
     
+    @retry_on_disconnect()
     def delete(self, table: str, id: int) -> bool:
         """Delete a record by ID"""
         try:
             response = self.supabase.table(table).delete().eq("id", id).execute()
-            return len(response.data) > 0
+            return True
         except Exception as e:
             print(f"Error in delete operation for table {table}, id {id}: {str(e)}")
             return False

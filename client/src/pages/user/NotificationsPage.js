@@ -28,50 +28,7 @@ import PetsIcon from '@mui/icons-material/Pets';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import EmailIcon from '@mui/icons-material/Email';
 import EventIcon from '@mui/icons-material/Event';
-
-// Sample notification data (in a real app, this would come from an API)
-const sampleNotifications = [
-  {
-    id: 1,
-    type: 'dog',
-    title: 'New Health Record Added',
-    message: 'A new health record was added for Luna.',
-    date: '2023-06-10T14:30:00Z',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'puppy',
-    title: 'Puppy Status Updated',
-    message: 'Max was marked as "Reserved".',
-    date: '2023-06-09T10:15:00Z',
-    read: true
-  },
-  {
-    id: 3,
-    type: 'message',
-    title: 'New Customer Message',
-    message: 'Sarah Johnson sent a message about puppy availability.',
-    date: '2023-06-08T16:45:00Z',
-    read: false
-  },
-  {
-    id: 4,
-    type: 'event',
-    title: 'Upcoming Vet Appointment',
-    message: 'Reminder: Bella has a vet appointment on June 15th at 2:00 PM.',
-    date: '2023-06-07T09:20:00Z',
-    read: true
-  },
-  {
-    id: 5,
-    type: 'dog',
-    title: 'Heat Cycle Started',
-    message: 'Daisy\'s heat cycle was recorded to have started today.',
-    date: '2023-06-06T11:30:00Z',
-    read: false
-  }
-];
+import { useNotifications } from '../../context/NotificationContext';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -92,7 +49,17 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 function NotificationsPage() {
-  const [notifications, setNotifications] = useState(sampleNotifications);
+  const { 
+    notifications, 
+    unreadCount, 
+    loading, 
+    error,
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification, 
+    clearAllNotifications 
+  } = useNotifications();
+  
   const [tabValue, setTabValue] = useState(0);
   const [settings, setSettings] = useState({
     emailNotifications: true,
@@ -133,18 +100,12 @@ function NotificationsPage() {
     });
   };
 
-  const markAsRead = (id) => {
-    setNotifications(
-      notifications.map(notification => 
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
+  const handleMarkAsRead = (id) => {
+    markAsRead(id);
   };
 
-  const markAllAsRead = () => {
-    setNotifications(
-      notifications.map(notification => ({ ...notification, read: true }))
-    );
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
     
     setSnackbar({
       open: true,
@@ -153,14 +114,12 @@ function NotificationsPage() {
     });
   };
 
-  const deleteNotification = (id) => {
-    setNotifications(
-      notifications.filter(notification => notification.id !== id)
-    );
+  const handleDeleteNotification = (id) => {
+    deleteNotification(id);
   };
 
-  const clearAllNotifications = () => {
-    setNotifications([]);
+  const handleClearAllNotifications = () => {
+    clearAllNotifications();
     
     setSnackbar({
       open: true,
@@ -184,18 +143,14 @@ function NotificationsPage() {
     }
   };
 
-  const getUnreadCount = () => {
-    return notifications.filter(notification => !notification.read).length;
-  };
-
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
         <NotificationsIcon sx={{ mr: 1 }} /> 
         Notifications
-        {getUnreadCount() > 0 && (
+        {unreadCount > 0 && (
           <Badge 
-            badgeContent={getUnreadCount()} 
+            badgeContent={unreadCount} 
             color="error"
             sx={{ ml: 2 }}
           />
@@ -218,14 +173,14 @@ function NotificationsPage() {
             <>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, px: 2 }}>
                 <Button 
-                  onClick={markAllAsRead}
+                  onClick={handleMarkAllAsRead}
                   startIcon={<MarkEmailReadIcon />}
                   sx={{ mr: 1 }}
                 >
                   Mark All as Read
                 </Button>
                 <Button 
-                  onClick={clearAllNotifications}
+                  onClick={handleClearAllNotifications}
                   startIcon={<DeleteOutlineIcon />}
                   color="error"
                 >
@@ -286,7 +241,7 @@ function NotificationsPage() {
                           <IconButton 
                             edge="end" 
                             aria-label="mark as read"
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={() => handleMarkAsRead(notification.id)}
                             sx={{ mr: 1 }}
                           >
                             <MarkEmailReadIcon />
@@ -295,7 +250,7 @@ function NotificationsPage() {
                         <IconButton 
                           edge="end" 
                           aria-label="delete"
-                          onClick={() => deleteNotification(notification.id)}
+                          onClick={() => handleDeleteNotification(notification.id)}
                         >
                           <DeleteOutlineIcon />
                         </IconButton>

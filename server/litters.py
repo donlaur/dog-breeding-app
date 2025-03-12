@@ -11,7 +11,7 @@ def create_litters_bp(db):
     def get_all_litters():
         """Get all litters"""
         try:
-            litters = db.find("litters")
+litters = db.find_by_field_values("litters")
             
             # Add CORS headers
             response = jsonify(litters)
@@ -29,23 +29,45 @@ def create_litters_bp(db):
             if not litter:
                 return jsonify({"error": f"Litter with ID {litter_id} not found"}), 404
             
-            # Get dam and sire names if IDs are present
+            # Create a response object that includes the litter data
+            response_data = {**litter}
+            
+            # Get dam and sire information if IDs are present
             if litter.get('dam_id'):
                 dam = db.get("dogs", litter['dam_id'])
                 if dam:
-                    litter['dam_name'] = dam.get('call_name', 'Unknown')
+                    # Add dam information as separate fields instead of using dam_name
+                    response_data['dam_info'] = {
+                        'id': dam.get('id'),
+                        'call_name': dam.get('call_name', 'Unknown')
+                    }
             
             if litter.get('sire_id'):
                 sire = db.get("dogs", litter['sire_id'])
                 if sire:
-                    litter['sire_name'] = sire.get('call_name', 'Unknown')
+                    # Add sire information as separate fields instead of using sire_name
+                    response_data['sire_info'] = {
+                        'id': sire.get('id'),
+                        'call_name': sire.get('call_name', 'Unknown')
+                    }
+            
+            # Get breed information if breed_id is present
+            if litter.get('breed_id'):
+                breed = db.get("dog_breeds", litter['breed_id'])
+                if breed:
+                    # Add breed information as a separate field
+                    response_data['breed_info'] = {
+                        'id': breed.get('id'),
+                        'name': breed.get('name', 'Unknown Breed')
+                    }
             
             # Add CORS headers
-            response = jsonify(litter)
+            response = jsonify(response_data)
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response
             
         except Exception as e:
+            debug_log(f"Error in get_litter: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @litters_bp.route("/", methods=["POST"])

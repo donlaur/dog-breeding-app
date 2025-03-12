@@ -33,6 +33,7 @@ import { useDog } from '../../context/DogContext';
 import { API_URL, debugLog, debugError } from '../../config';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiGet, apiDelete } from '../../utils/apiUtils';
 
 const ManageLitters = () => {
   const { litters, loading, error, refreshLitters } = useDog();
@@ -40,17 +41,7 @@ const ManageLitters = () => {
   const [sires, setSires] = useState([]);
   const [dams, setDams] = useState([]);
   const [errorBreeds, setErrorBreeds] = useState(null);
-  
-  // Debug litters data
-  useEffect(() => {
-    if (litters && litters.length > 0) {
-      console.log("Litters data received:", litters);
-      // Check each litter's sire_id and dam_id
-      litters.forEach(litter => {
-        console.log(`Litter ${litter.id} - sire_id: ${litter.sire_id}, dam_id: ${litter.dam_id}, num_puppies: ${litter.num_puppies || litter.puppy_count}`);
-      });
-    }
-  }, [litters]);
+  const [localLoading, setLocalLoading] = useState(false);
   
   // State for confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -59,26 +50,36 @@ const ManageLitters = () => {
 
   const navigate = useNavigate();
 
+  // Refresh litters data when component mounts
   useEffect(() => {
-    // Only refresh if we don't have any litters and aren't currently loading
-    if (!loading && (!litters || litters.length === 0)) {
-      refreshLitters();
-    }
+    debugLog("ManageLitters: Initial data load");
+    refreshLitters(true);
+    
+    // Set up an interval to periodically refresh litters data (every 30 seconds)
+    const intervalId = setInterval(() => {
+      refreshLitters(true); // Force refresh to ensure we always get fresh data
+    }, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
   }, []); // Empty dependency array - only run on mount
 
   useEffect(() => {
     const fetchBreeds = async () => {
+      setLocalLoading(true);
       try {
-        const response = await fetch(`${API_URL}/breeds`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await apiGet('breeds');
+        if (response && response.ok) {
+          setBreeds(response.data || []);
+        } else {
+          debugError("Error fetching breeds:", response?.error);
+          setErrorBreeds("Failed to load breeds. Please try again later.");
         }
-        const data = await response.json();
-        debugLog("Fetched breeds:", data);
-        setBreeds(data);
       } catch (error) {
-        debugError("Error fetching breeds:", error);
+        debugError("Exception fetching breeds:", error);
         setErrorBreeds("Failed to load breeds. Please try again later.");
+      } finally {
+        setLocalLoading(false);
       }
     };
 
@@ -87,30 +88,25 @@ const ManageLitters = () => {
 
   useEffect(() => {
     const fetchDogs = async () => {
+      setLocalLoading(true);
       try {
-        const response = await fetch(`${API_URL}/dogs`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await apiGet('dogs');
+        if (response && response.ok) {
+          const data = response.data || [];
+          
+          // Filter for male and female dogs
+          const males = data.filter(dog => dog.gender === 'Male');
+          const females = data.filter(dog => dog.gender === 'Female');
+          
+          setSires(males);
+          setDams(females);
+        } else {
+          debugError("Error fetching dogs:", response?.error);
         }
-        const data = await response.json();
-        
-        console.log("All dogs fetched for litter page:", data);
-        
-        // Filter for male and female dogs and debug
-        const males = data.filter(dog => dog.gender === 'Male');
-        const females = data.filter(dog => dog.gender === 'Female');
-        
-        console.log("Filtered males:", males);
-        console.log("Filtered females:", females);
-        
-        setSires(males);
-        setDams(females);
-        
-        // Log the dog IDs as numbers for easier comparison with litter data
-        console.log("Male dog IDs:", males.map(dog => dog.id));
-        console.log("Female dog IDs:", females.map(dog => dog.id));
       } catch (error) {
-        debugError("Error fetching dogs:", error);
+        debugError("Exception fetching dogs:", error);
+      } finally {
+        setLocalLoading(false);
       }
     };
 
@@ -118,7 +114,7 @@ const ManageLitters = () => {
   }, []);
 
   const handleRefresh = () => {
-    refreshLitters();
+    refreshLitters(true); // Force refresh
   };
 
   // Function to handle deleting a litter
@@ -134,17 +130,14 @@ const ManageLitters = () => {
     try {
       setDeleteLoading(true);
       
-      const response = await fetch(`${API_URL}/litters/${litterToDelete.id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`litters/${litterToDelete.id}`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (response && response.ok) {
+        showSuccess(`Successfully deleted litter "${litterToDelete.litter_name}"`);
+        refreshLitters(true); // Force refresh after deletion
+      } else {
+        throw new Error(response?.error || "Unknown error");
       }
-      
-      showSuccess(`Successfully deleted litter "${litterToDelete.litter_name}"`);
-      refreshLitters(); // Refresh litters list
       
     } catch (error) {
       debugError("Error deleting litter:", error);
@@ -186,237 +179,174 @@ const ManageLitters = () => {
     return breed ? breed.name : 'Unknown';
   };
 
-  // Render sire/dam info
-  const getDogName = (dogId, isSire = true) => {
-    if (!dogId) return 'Unknown';
-    
-    // Log details for debugging
-    console.log(`Getting ${isSire ? 'sire' : 'dam'} name for dog ID: ${dogId}`);
-    console.log(`Available ${isSire ? 'sires' : 'dams'}: `, isSire ? sires : dams);
-    
-    const dogList = isSire ? sires : dams;
-    const dog = dogList.find(d => d.id === dogId);
-    
-    if (dog) {
-      // Use call_name as primary, fallback to name
-      return dog.call_name || dog.name || `Dog #${dogId}`;
-    }
-    
-    return `Dog #${dogId}`;
-  };
-  
-  // Content for empty state
-  const emptyContent = (
-    <Box sx={{ textAlign: 'center', py: 4 }}>
-      <PetsIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        No Litters Found
-      </Typography>
-      <Typography variant="body1" color="text.secondary" paragraph>
-        You haven't added any litters yet.
-      </Typography>
-      <Button
-        variant="contained"
-        color="primary"
-        component={Link}
-        to="/dashboard/litters/add"
-        startIcon={<AddIcon />}
-      >
-        Add Your First Litter
-      </Button>
-    </Box>
-  );
-
-  // Add a helper function to validate litter links at the top of the component
-  const validateLitterId = (litter, action = 'viewing') => {
-    if (!litter || !litter.id) {
-      debugError(`⚠️ Attempted ${action} litter with missing/invalid ID:`, litter);
-      showError(`Cannot ${action} litter: Invalid litter ID`);
-      return false;
-    }
-    return true;
-  };
-
-  // Helper function to get the litter's display name
-  const getLitterDisplayName = (litter) => {
-    if (!litter) return 'Unknown Litter';
-    
-    // Try to find a name field
-    for (const prop of Object.keys(litter)) {
-      if (
-        prop.toLowerCase().includes('name') || 
-        prop.toLowerCase() === 'title' ||
-        prop.toLowerCase() === 'label'
-      ) {
-        return litter[prop] || `Litter #${litter.id}`;
-      }
-    }
-    
-    // If no name field is found, use ID
-    return `Litter #${litter.id}`;
-  };
-
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" component="h1">
-            Manage Litters
-          </Typography>
-          <Box>
-            <Button
-              variant="outlined"
-              sx={{ mr: 2 }}
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              Refresh
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              component={Link}
-              to="/dashboard/litters/add"
-              startIcon={<AddIcon />}
-            >
-              Add Litter
-            </Button>
-          </Box>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Manage Litters
+        </Typography>
+        <Box>
+          <Button 
+            variant="outlined" 
+            startIcon={<PetsIcon />} 
+            onClick={handleRefresh}
+            sx={{ mr: 2 }}
+          >
+            Refresh
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />} 
+            component={Link} 
+            to="/dashboard/litters/add"
+          >
+            Add Litter
+          </Button>
         </Box>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress />
-          </Box>
-        ) : litters && litters.length > 0 ? (
-          <Grid container spacing={3}>
-            {litters.map((litter) => (
-              <Grid item xs={12} md={6} key={litter.id}>
-                <Card>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography 
-                        variant="h6" 
-                        onClick={() => {
-                          console.log('Litter title clicked:', litter);
-                          console.log('Litter ID:', litter.id);
-                          console.log('Navigating to URL:', `/dashboard/litters/${litter.id}`);
-                          navigate(`/dashboard/litters/${litter.id}`);
-                        }}
-                        style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
-                      >
-                        {getLitterDisplayName(litter)}
-                      </Typography>
-                      <Chip 
-                        label={litter.status} 
-                        color={getStatusColor(litter.status)}
-                        size="small"
-                      />
-                    </Box>
-                    
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Breed: {getBreedName(litter.breed_id)}
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-                      {/* Always show Sire field, even if empty */}
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <MaleIcon sx={{ color: 'primary.main', mr: 0.5, fontSize: 16 }} />
-                        <Typography variant="body2">
-                          Sire: {
-                            litter.sire && (litter.sire.call_name || litter.sire.name) ? 
-                              (litter.sire.call_name || litter.sire.name) : 
-                              (litter.sire_id ? getDogName(litter.sire_id, true) : 'Not specified')
-                          }
-                        </Typography>
-                      </Box>
-                      
-                      {/* Always show Dam field, even if empty */}
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <FemaleIcon sx={{ color: 'secondary.main', mr: 0.5, fontSize: 16 }} />
-                        <Typography variant="body2">
-                          Dam: {
-                            litter.dam && (litter.dam.call_name || litter.dam.name) ? 
-                              (litter.dam.call_name || litter.dam.name) : 
-                              (litter.dam_id ? getDogName(litter.dam_id, false) : 'Not specified')
-                          }
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                      {litter.whelp_date && (
-                        <Typography variant="body2" color="text.secondary">
-                          Born: {formatDate(litter.whelp_date)}
-                        </Typography>
-                      )}
-                      
-                      {litter.expected_date && !litter.whelp_date && (
-                        <Typography variant="body2" color="text.secondary">
-                          Expected: {formatDate(litter.expected_date)}
-                        </Typography>
-                      )}
-                      
-                      {/* Show number of puppies using either puppy_count or num_puppies field */}
-                      {(litter.puppy_count || litter.num_puppies) && (
-                        <Typography variant="body2" color="text.secondary">
-                          Puppies: {litter.puppy_count || litter.num_puppies || 0}
-                        </Typography>
-                      )}
-                    </Box>
-                    
-                    <Divider sx={{ my: 1 }} />
-                    
-                    <CardActions sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          console.log('View button clicked for litter:', litter);
-                          console.log('Litter ID:', litter.id);
-                          console.log('Navigating to URL:', `/dashboard/litters/${litter.id}`);
-                          navigate(`/dashboard/litters/${litter.id}`);
-                        }}
-                      >
-                        View
-                      </Button>
-                      <Button size="small" component={Link} to={`/dashboard/litters/edit/${litter.id}`}>
-                        Edit
-                      </Button>
-                      <Tooltip title="Delete Litter">
-                        <IconButton 
-                          color="error" 
-                          size="small"
-                          onClick={() => handleDeleteClick(litter)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </CardActions>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          emptyContent
-        )}
       </Box>
       
-      {/* Confirmation dialog for deletion */}
-      <ConfirmationDialog
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+      
+      {(loading || localLoading) ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : litters && litters.length > 0 ? (
+        <Grid container spacing={3}>
+          {litters.map(litter => (
+            <Grid item xs={12} sm={6} md={4} key={litter.id}>
+              <Card 
+                sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: 6,
+                  }
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h5" component="h2">
+                      {litter.litter_name || `Litter #${litter.id}`}
+                    </Typography>
+                    <Chip 
+                      label={litter.status || 'Unknown'} 
+                      color={getStatusColor(litter.status)}
+                      size="small"
+                    />
+                  </Box>
+                  
+                  <Divider sx={{ mb: 2 }} />
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Breed:</strong> {getBreedName(litter.breed_id)}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <MaleIcon color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="body2">
+                      <strong>Sire:</strong> {litter.sire_name || 'Unknown'}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <FemaleIcon color="secondary" sx={{ mr: 1 }} />
+                    <Typography variant="body2">
+                      <strong>Dam:</strong> {litter.dam_name || 'Unknown'}
+                    </Typography>
+                  </Box>
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Date of Birth:</strong> {litter.date_of_birth ? formatDate(litter.date_of_birth) : 'Not yet born'}
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Expected Date:</strong> {litter.expected_date ? formatDate(litter.expected_date) : 'Unknown'}
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Puppies:</strong> {litter.num_puppies || litter.puppy_count || 0}
+                  </Typography>
+                  
+                  {litter.notes && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      <strong>Notes:</strong> {litter.notes}
+                    </Typography>
+                  )}
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+                  <Button 
+                    size="small" 
+                    variant="outlined"
+                    component={Link}
+                    to={`/dashboard/litters/${litter.id}`}
+                  >
+                    View Details
+                  </Button>
+                  <Box>
+                    <Tooltip title="Edit Litter">
+                      <IconButton 
+                        size="small"
+                        component={Link}
+                        to={`/dashboard/litters/edit/${litter.id}`}
+                        sx={{ mr: 1 }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete Litter">
+                      <IconButton 
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(litter)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>
+            No litters found
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            You haven't added any litters yet. Click the "Add Litter" button to create your first litter.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />} 
+            component={Link} 
+            to="/dashboard/litters/add"
+            sx={{ mt: 2 }}
+          >
+            Add Litter
+          </Button>
+        </Paper>
+      )}
+      
+      <ConfirmationDialog 
         open={deleteDialogOpen}
-        onClose={handleCloseDeleteDialog}
-        onConfirm={handleConfirmDelete}
         title="Delete Litter"
-        message={`Are you sure you want to delete the litter "${litterToDelete?.litter_name}"? This action cannot be undone and will remove all associated puppies.`}
-        confirmButtonText={deleteLoading ? "Deleting..." : "Delete Litter"}
-        severity="error"
+        content={`Are you sure you want to delete the litter "${litterToDelete?.litter_name || `#${litterToDelete?.id}`}"? This action cannot be undone.`}
+        confirmButtonText="Delete"
+        cancelButtonText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCloseDeleteDialog}
+        loading={deleteLoading}
       />
     </Container>
   );

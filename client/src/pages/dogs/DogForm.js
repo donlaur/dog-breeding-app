@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
+import { useNotifications } from "../../context/NotificationContext";
 import "../../styles/DogForm.css";
 import { 
   Box, 
@@ -40,25 +41,26 @@ const normalizeNumericField = (value) => {
 
 function DogForm() {
   const { dogs, updateDog, addDog, breeds, refreshData } = useContext(DogContext);
+  const { notifyDogStatusUpdate } = useNotifications();
   const navigate = useNavigate();
   const { id } = useParams();
   const editingDog = dogs.find((dog) => dog.id === parseInt(id));
   const [dog, setDog] = useState({
-    registered_name: '',
-    call_name: '',
-    breed_id: DEFAULT_BREED_ID,  // Always set to default
-    breed: BREED_NAME,           // Add breed name for display
-    gender: 'Female',
-    birth_date: '',
-    status: 'Active',
-    cover_photo: '',
-    color: '',
-    weight: '',
-    microchip: '',
-    notes: '',
-    sire_id: '',
-    dam_id: '',
-    litter_id: '', // For adult dogs, remains empty
+    registered_name: "",
+    call_name: "",
+    breed_id: DEFAULT_BREED_ID,  
+    breed: BREED_NAME,           
+    gender: "",
+    birth_date: "",
+    status: "Active",
+    cover_photo: "",
+    color: "",
+    weight: "",
+    microchip: "",
+    notes: "",
+    sire_id: "",
+    dam_id: "",
+    litter_id: "", 
     cover_photo_file: null,
     cover_photo_preview: null,
     is_adult: false
@@ -73,7 +75,7 @@ function DogForm() {
         call_name: "",
         breed_id: DEFAULT_BREED_ID,
         breed: BREED_NAME,
-        gender: "Female",
+        gender: "",
         birth_date: "",
         status: "Active",
         cover_photo: "",
@@ -160,6 +162,12 @@ function DogForm() {
         await updateDog(parseInt(id), dog);
         debugLog("Dog updated successfully");
         showSuccess("Dog updated successfully!");
+        
+        // Check if status was updated and notify
+        const originalDog = dogs.find(d => d.id === parseInt(id));
+        if (originalDog && originalDog.status !== dog.status) {
+          notifyDogStatusUpdate(parseInt(id), dog.call_name, dog.status);
+        }
       } else {
         await addDog(dog);
         debugLog("Dog added successfully");

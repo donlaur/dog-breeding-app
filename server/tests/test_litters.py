@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 def test_get_litter_puppies_success(client, mock_db):
     """Test successful retrieval of puppies for a litter."""
     # Get the first litter from the mock database
-    litters = mock_db.find("litters")
+litters = mock_db.find_by_field_values("litters")
     assert len(litters) > 0
     litter_id = litters[0]["id"]
     

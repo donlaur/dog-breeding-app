@@ -74,7 +74,7 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             debug_log("Fetching all dogs...")
             
             # Use the abstracted db interface
-            dogs = db.find("dogs")
+dogs = db.find_by_field_values("dogs")
             
             debug_log(f"Found {len(dogs)} dogs")
             

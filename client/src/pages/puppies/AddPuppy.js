@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { apiGet, apiPost, addPuppyToLitter } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
+import { useNotifications } from '../../context/NotificationContext';
 
 function AddPuppy() {
   const { litterId } = useParams();
@@ -34,6 +35,7 @@ function AddPuppy() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const { notifyPuppyStatusUpdate } = useNotifications();
   
   // Form state
   const [puppy, setPuppy] = useState({
@@ -145,6 +147,16 @@ function AddPuppy() {
       
       if (response.ok) {
         showSuccess("Puppy added successfully!");
+        
+        // Create notification for new puppy
+        if (response.data && response.data.id) {
+          notifyPuppyStatusUpdate(
+            response.data.id,
+            cleanData.name,
+            'Added to litter',
+            litterId
+          );
+        }
         
         // Navigate after a short delay to allow viewing the success message
         setTimeout(() => {

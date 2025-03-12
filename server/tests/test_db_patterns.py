@@ -169,7 +169,7 @@ def test_puppies_dogs_separation():
     # Test function that simulates an incorrect implementation
     def get_litter_puppies_incorrect(db, litter_id):
         # Incorrectly queries the dogs table
-        return db.find_by_field_values("dogs", {"litter_id": litter_id})
+return db.find_by_field_values("puppies", {"litter_id": litter_id})
     
     # Call the function
     get_litter_puppies_incorrect(mock_db, 1)

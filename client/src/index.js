@@ -8,10 +8,14 @@ import '@fortawesome/fontawesome-free/css/all.min.css';  // Import FontAwesome
 import App from './App';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme';
+import { installApiErrorFix } from './utils/apiErrorFix';
+
+// Install API error fix to prevent repeated calls to missing endpoints
+installApiErrorFix();
 
 // Component to initialize data
 const DataInitializer = ({ children }) => {
-  const { refreshData } = useDog();
+  const { refreshDogs } = useDog();
   const initialized = useRef(false);
   
   useEffect(() => {
@@ -20,9 +24,9 @@ const DataInitializer = ({ children }) => {
       console.log("DataInitializer: Loading initial data");
       initialized.current = true;
       // This will be skipped if already loading or loaded in DogProvider
-      refreshData();
+      refreshDogs(true, { includeLitters: true });
     }
-  }, [refreshData]);
+  }, [refreshDogs]);
   
   return children;
 };
