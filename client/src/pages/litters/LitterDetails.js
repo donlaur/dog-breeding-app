@@ -101,8 +101,10 @@ function LitterDetail() {
     setLoading(true);
     
     try {
+      // Add cache-busting parameter to prevent stale data
+      const timestamp = new Date().getTime();
       // Use the apiUtils function to get litter data
-      const response = await getLitter(id);
+      const response = await apiGet(`litters/${id}?_=${timestamp}`);
       
       if (!response.ok) {
         throw new Error(response.error || 'Failed to fetch litter details');
@@ -112,8 +114,12 @@ function LitterDetail() {
         throw new Error('Litter not found');
       }
       
-      setLitter(response.data);
+      // Debug the response data
       debugLog("Retrieved litter data:", response.data);
+      debugLog("Sire name from API:", response.data.sire_name);
+      debugLog("Sire info from API:", response.data.sire_info);
+      
+      setLitter(response.data);
       
       // Now fetch puppies
       fetchPuppies(id);
@@ -161,11 +167,16 @@ function LitterDetail() {
   };
 
   const handleAddPuppy = () => {
-    navigate(`/dashboard/litters/${id}/add-puppy`);
+    navigate(`/dashboard/litters/${id}/puppies/add`);
   };
 
   const handleManagePuppies = () => {
     navigate(`/dashboard/litters/${id}/puppies`);
+  };
+
+  const handleRefresh = () => {
+    debugLog("Manually refreshing litter details");
+    fetchLitterDetails();
   };
 
   if (loading) {
@@ -234,15 +245,43 @@ function LitterDetail() {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Button
-        variant="outlined"
-        startIcon={<ArrowBackIcon />}
-        component={Link}
-        to="/dashboard/litters"
-        sx={{ mb: 3 }}
-      >
-        Back to Litters
-      </Button>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Button 
+          component={Link} 
+          to="/dashboard/litters" 
+          startIcon={<ArrowBackIcon />}
+          sx={{ mr: 2 }}
+        >
+          Back to Litters
+        </Button>
+        <Box>
+          <Button 
+            variant="outlined" 
+            color="primary" 
+            startIcon={<PetsIcon />} 
+            onClick={handleRefresh}
+            sx={{ mr: 2 }}
+          >
+            Refresh Data
+          </Button>
+          <Button 
+            variant="outlined" 
+            startIcon={<EditIcon />} 
+            onClick={handleEditLitter}
+            sx={{ mr: 2 }}
+          >
+            Edit Litter
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="error" 
+            startIcon={<DeleteIcon />} 
+            onClick={handleDeleteLitter}
+          >
+            Delete Litter
+          </Button>
+        </Box>
+      </Box>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -262,14 +301,6 @@ function LitterDetail() {
             sx={{ mr: 2 }}
           >
             Edit Litter
-          </Button>
-          <Button 
-            variant="outlined" 
-            color="error" 
-            startIcon={<DeleteIcon />} 
-            onClick={handleDeleteLitter}
-          >
-            Delete Litter
           </Button>
         </Box>
       </Box>
@@ -291,7 +322,7 @@ function LitterDetail() {
                 <TableBody>
                   <TableRow>
                     <TableCell component="th" scope="row">Whelp Date</TableCell>
-                    <TableCell>{litter.date_of_birth ? formatDate(litter.date_of_birth) : 'Not yet born'}</TableCell>
+                    <TableCell>{litter.whelp_date ? formatDate(litter.whelp_date) : 'Not yet born'}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell component="th" scope="row">Total Puppies</TableCell>
@@ -469,9 +500,9 @@ function LitterDetail() {
                           )}
                           {puppy.gender}
                         </Typography>
-                        {puppy.date_of_birth && (
+                        {puppy.birth_date && (
                           <Typography variant="body2" color="text.secondary">
-                            Age: {formatAge(puppy.date_of_birth)}
+                            Age: {formatAge(puppy.birth_date)}
                           </Typography>
                         )}
                         <Button 
