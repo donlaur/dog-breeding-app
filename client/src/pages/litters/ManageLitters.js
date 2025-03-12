@@ -17,7 +17,12 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  CardActions
+  CardActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Stack
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -26,7 +31,9 @@ import {
   Female as FemaleIcon,
   Male as MaleIcon,
   Warning as WarningIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { formatDate } from '../../utils/dateUtils';
 import { useDog } from '../../context/DogContext';
@@ -42,6 +49,11 @@ const ManageLitters = () => {
   const [dams, setDams] = useState([]);
   const [errorBreeds, setErrorBreeds] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
+  
+  // Filter states
+  const [selectedDam, setSelectedDam] = useState('');
+  const [selectedSire, setSelectedSire] = useState('');
+  const [filteredLitters, setFilteredLitters] = useState([]);
   
   // State for confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -113,8 +125,35 @@ const ManageLitters = () => {
     fetchDogs();
   }, []);
 
+  // Apply filters when litters or filter selections change
+  useEffect(() => {
+    if (!litters) {
+      setFilteredLitters([]);
+      return;
+    }
+    
+    let filtered = [...litters];
+    
+    // Apply dam filter if selected
+    if (selectedDam) {
+      filtered = filtered.filter(litter => litter.dam_id === selectedDam);
+    }
+    
+    // Apply sire filter if selected
+    if (selectedSire) {
+      filtered = filtered.filter(litter => litter.sire_id === selectedSire);
+    }
+    
+    setFilteredLitters(filtered);
+  }, [litters, selectedDam, selectedSire]);
+
   const handleRefresh = () => {
-    refreshLitters(true); // Force refresh
+    refreshLitters(true);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedDam('');
+    setSelectedSire('');
   };
 
   // Function to handle deleting a litter
@@ -206,6 +245,71 @@ const ManageLitters = () => {
         </Box>
       </Box>
       
+      {/* Filter controls */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <FilterListIcon sx={{ mr: 1 }} />
+            <Typography variant="subtitle1">Filter Litters</Typography>
+          </Box>
+          
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="dam-filter-label">Dam (Mother)</InputLabel>
+            <Select
+              labelId="dam-filter-label"
+              id="dam-filter"
+              value={selectedDam}
+              label="Dam (Mother)"
+              onChange={(e) => setSelectedDam(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>All Dams</em>
+              </MenuItem>
+              {dams.map((dam) => (
+                <MenuItem key={dam.id} value={dam.id}>
+                  {dam.call_name || dam.name || `Dog #${dam.id}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="sire-filter-label">Sire (Father)</InputLabel>
+            <Select
+              labelId="sire-filter-label"
+              id="sire-filter"
+              value={selectedSire}
+              label="Sire (Father)"
+              onChange={(e) => setSelectedSire(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>All Sires</em>
+              </MenuItem>
+              {sires.map((sire) => (
+                <MenuItem key={sire.id} value={sire.id}>
+                  {sire.call_name || sire.name || `Dog #${sire.id}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <Button 
+            variant="outlined" 
+            startIcon={<ClearIcon />} 
+            onClick={handleClearFilters}
+            disabled={!selectedDam && !selectedSire}
+          >
+            Clear Filters
+          </Button>
+          
+          {(selectedDam || selectedSire) && (
+            <Typography variant="body2" color="text.secondary">
+              Showing {filteredLitters.length} of {litters.length} litters
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
+      
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -216,9 +320,9 @@ const ManageLitters = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
-      ) : litters && litters.length > 0 ? (
+      ) : filteredLitters && filteredLitters.length > 0 ? (
         <Grid container spacing={3}>
-          {litters.map(litter => (
+          {filteredLitters.map(litter => (
             <Grid item xs={12} sm={6} md={4} key={litter.id}>
               <Card 
                 sx={{ 
@@ -265,7 +369,7 @@ const ManageLitters = () => {
                   </Box>
                   
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Date of Birth:</strong> {litter.date_of_birth ? formatDate(litter.date_of_birth) : 'Not yet born'}
+                    <strong>Date of Birth:</strong> {litter.whelp_date ? formatDate(litter.whelp_date) : 'Not yet born'}
                   </Typography>
                   
                   <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -318,23 +422,34 @@ const ManageLitters = () => {
           ))}
         </Grid>
       ) : (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>
-            No litters found
-          </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            You haven't added any litters yet. Click the "Add Litter" button to create your first litter.
-          </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            startIcon={<AddIcon />} 
-            component={Link} 
-            to="/dashboard/litters/add"
-            sx={{ mt: 2 }}
-          >
-            Add Litter
-          </Button>
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          {selectedDam || selectedSire ? (
+            <>
+              <Typography variant="h6" gutterBottom>No Matching Litters</Typography>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                No litters found with the selected filters.
+              </Typography>
+              <Button variant="outlined" startIcon={<ClearIcon />} onClick={handleClearFilters}>
+                Clear Filters
+              </Button>
+            </>
+          ) : (
+            <>
+              <Typography variant="h6" gutterBottom>No Litters Found</Typography>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                You haven't added any litters yet.
+              </Typography>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                startIcon={<AddIcon />} 
+                component={Link} 
+                to="/dashboard/litters/add"
+              >
+                Add Your First Litter
+              </Button>
+            </>
+          )}
         </Paper>
       )}
       
