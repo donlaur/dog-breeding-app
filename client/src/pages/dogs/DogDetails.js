@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { API_URL } from '../../config';
 import { 
   Typography, 
   TableContainer, 
@@ -36,12 +35,15 @@ import MedicationIcon from '@mui/icons-material/Medication';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PrintIcon from '@mui/icons-material/Print';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { TableCell } from '@mui/material';
 import PhotoGallery from '../../components/PhotoGallery';
 import { useHealth } from '../../context/HealthContext';
 import HealthAnalytics from '../../components/health/HealthAnalytics';
 import HealthReportPrinter from '../../components/health/HealthReportPrinter';
 import { useReactToPrint } from 'react-to-print';
+import { apiGet } from '../../utils/apiUtils';
+import { getPhotoUrl, DEFAULT_DOG_IMAGE, handleImageError } from '../../utils/photoUtils';
 
 // TabPanel component for tab content
 function TabPanel(props) {
@@ -70,6 +72,7 @@ const DogDetails = () => {
   const { id: dogId } = useParams(); // Extract 'id' from URL params
   const [dog, setDog] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [siredLitters, setSiredLitters] = useState([]);
   const [damLitters, setDamLitters] = useState([]);
   const [heatCycles, setHeatCycles] = useState([]);
@@ -81,9 +84,9 @@ const DogDetails = () => {
   // Filter health data specific to this dog
   const dogHealthData = React.useMemo(() => {
     return {
-      healthRecords: healthRecords.filter(r => r.dog_id === dogId),
-      vaccinations: vaccinations.filter(v => v.dog_id === dogId),
-      medicationRecords: medicationRecords.filter(m => m.dog_id === dogId)
+      healthRecords: healthRecords.filter(r => r && r.dog_id && r.dog_id.toString() === dogId.toString()),
+      vaccinations: vaccinations.filter(v => v && v.dog_id && v.dog_id.toString() === dogId.toString()),
+      medicationRecords: medicationRecords.filter(m => m && m.dog_id && m.dog_id.toString() === dogId.toString())
     };
   }, [healthRecords, vaccinations, medicationRecords, dogId]);
 
@@ -93,67 +96,127 @@ const DogDetails = () => {
   });
 
   useEffect(() => {
-    // Fetch dog details
+    console.log('DogDetails component mounted, dogId:', dogId);
     fetchDogDetails();
+    
+    // Add cleanup function
+    return () => {
+      console.log('DogDetails component unmounting');
+    };
   }, [dogId]);
 
   const fetchDogDetails = async () => {
     if (!dogId) return;
     
     setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/dogs/${dogId}`);
-      if (!response.ok) {
-        console.error(`Error fetching dog details: ${response.status}`);
-        return;
+    setError(null); // Clear any previous errors
+    let retries = 0;
+    const maxRetries = 3;
+    
+    while (retries < maxRetries) {
+      try {
+        console.log(`Attempting to fetch dog details for ID: ${dogId} (Attempt ${retries + 1}/${maxRetries})`);
+        
+        const result = await apiGet(`dogs/${dogId}`);
+        console.log('API response:', result);
+        
+        // Extract the actual dog data - the API might wrap it in a data property
+        const dogData = result.data ? result.data : result;
+        
+        console.log('Dog data extracted:', dogData);
+        
+        // Set the dog data directly
+        setDog(dogData);
+        
+        // After setting dog data, fetch related information
+        if (dogData && dogData.gender) {
+          // Use the ID from the URL params for consistency
+          fetchLitters(dogId, dogData.gender);
+        }
+        
+        // If successful, exit the retry loop
+        break;
+      } catch (error) {
+        console.error(`Error fetching dog details (Attempt ${retries + 1}/${maxRetries}):`, error);
+        retries++;
+        
+        if (retries >= maxRetries) {
+          console.error('Max retries reached. Could not fetch dog details.');
+          setError(`Could not load dog details: ${error.message}. Please try again later.`);
+        } else {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, retries), 5000);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      const data = await response.json();
-      setDog(data);
-      
-      // After setting dog data, fetch related information
-      if (data && data.gender) {
-        fetchLitters(data.id, data.gender);
-      }
-    } catch (error) {
-      console.error('Error fetching dog details:', error);
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const fetchLitters = async (dogId, gender) => {
     if (!dogId) return;
     
     setLoadingLitters(true);
-    try {
-      // Use the correct endpoints for sire and dam litters
-      const endpoint = gender === 'male' 
-        ? `${API_URL}/litters/sire/${dogId}` 
-        : `${API_URL}/litters/dam/${dogId}`;
-      
-      console.log(`Fetching ${gender === 'male' ? 'sired' : 'dam'} litters from: ${endpoint}`);
-      
-      const response = await fetch(endpoint);
-      
-      if (!response.ok) {
-        console.error(`Error fetching litters: ${response.status}`);
-        return;
+    let retries = 0;
+    const maxRetries = 3;
+    
+    // Ensure gender value is capitalized correctly
+    const normalizedGender = gender ? 
+      gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : 
+      'Unknown';
+    
+    console.log(`Fetching litters for dog ID: ${dogId}, Gender: ${normalizedGender}`);
+    
+    while (retries < maxRetries) {
+      try {
+        // Use the correct endpoints for sire and dam litters
+        const endpoint = normalizedGender === 'Male' 
+          ? `litters/sire/${dogId}` 
+          : `litters/dam/${dogId}`;
+        
+        console.log(`Fetching ${normalizedGender === 'Male' ? 'sired' : 'dam'} litters from: ${endpoint} (Attempt ${retries + 1}/${maxRetries})`);
+        
+        const result = await apiGet(endpoint);
+        console.log(`Litter API response:`, result);
+        
+        // Handle both direct array returns and {data: [...]} format
+        const litterData = Array.isArray(result) ? result : 
+                           (result && result.data && Array.isArray(result.data)) ? result.data : [];
+        
+        console.log(`Found ${litterData.length} ${normalizedGender === 'Male' ? 'sired' : 'dam'} litters`, litterData);
+        
+        if (normalizedGender === 'Male') {
+          setSiredLitters(litterData);
+        } else {
+          setDamLitters(litterData);
+        }
+        
+        // If successful, exit the retry loop
+        break;
+      } catch (error) {
+        console.error(`Error fetching litters (Attempt ${retries + 1}/${maxRetries}):`, error);
+        retries++;
+        
+        if (retries >= maxRetries) {
+          console.error('Max retries reached. Could not fetch litters.');
+          // Set empty arrays to avoid undefined errors
+          if (normalizedGender === 'Male') {
+            setSiredLitters([]);
+          } else {
+            setDamLitters([]);
+          }
+        } else {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, retries), 5000);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      const data = await response.json();
-      console.log(`Found ${data.length} ${gender === 'male' ? 'sired' : 'dam'} litters`, data);
-      
-      if (gender === 'male') {
-        setSiredLitters(data);
-      } else {
-        setDamLitters(data);
-      }
-    } catch (error) {
-      console.error(`Error fetching litters:`, error);
-    } finally {
-      setLoadingLitters(false);
     }
+    
+    setLoadingLitters(false);
   };
 
   const handleTabChange = (event, newValue) => {
@@ -162,6 +225,10 @@ const DogDetails = () => {
 
   const handleGoBack = () => {
     navigate(-1);
+  };
+
+  const handleRetry = () => {
+    fetchDogDetails();
   };
 
   // Health-related helper functions
@@ -328,6 +395,37 @@ const DogDetails = () => {
     );
   };
 
+  // If there's an error, show an error message with a retry button
+  if (error) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h5" color="error" gutterBottom>
+          Error Loading Dog Details
+        </Typography>
+        <Typography variant="body1" paragraph>
+          {error}
+        </Typography>
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleRetry}
+            startIcon={<RefreshIcon />}
+          >
+            Retry
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={handleGoBack}
+            startIcon={<ArrowBackIcon />}
+          >
+            Go Back
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -376,19 +474,20 @@ const DogDetails = () => {
             <CardMedia
               component="img"
               height="250"
-              image={dog.cover_photo || 'https://via.placeholder.com/300x200?text=No+Photo'}
+              image={getPhotoUrl(dog.cover_photo, 'DOG')}
               alt={dog.call_name || 'Dog'}
               sx={{ objectFit: 'cover' }}
+              onError={e => handleImageError('DOG')(e)}
             />
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Typography variant="h5" component="div" sx={{ flexGrow: 1 }}>
-                  {dog.call_name}
+                  {dog.call_name || 'Unknown Dog'}
                 </Typography>
                 <Chip 
-                  icon={dog.gender === 'male' ? <MaleIcon /> : <FemaleIcon />}
-                  label={dog.gender}
-                  color={dog.gender === 'male' ? 'primary' : 'secondary'}
+                  icon={dog.gender?.toLowerCase() === 'male' ? <MaleIcon /> : <FemaleIcon />}
+                  label={dog.gender || 'Unknown'}
+                  color={dog.gender?.toLowerCase() === 'male' ? 'primary' : 'secondary'}
                   size="small"
                 />
               </Box>
@@ -504,6 +603,7 @@ const DogDetails = () => {
                 <Typography variant="subtitle1" gutterBottom>
                   Health Alerts for {dog.call_name}
                 </Typography>
+                {/* Use the existing DogSpecificHealthAlerts component defined at the bottom of this file */}
                 <DogSpecificHealthAlerts dogId={dog.id} />
               </Box>
               
@@ -545,14 +645,14 @@ const DogDetails = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <PetsIcon sx={{ mr: 1 }} />
                 <Typography variant="h6">
-                  {dog.gender === 'male' ? 'Sired Litters' : 'Dam Litters'}
+                  {dog.gender?.toLowerCase() === 'male' ? 'Sired Litters' : 'Dam Litters'}
                 </Typography>
                 <Button 
                   variant="outlined" 
                   size="small" 
                   sx={{ ml: 'auto' }}
                   component={Link}
-                  to={`/dashboard/litters/new?${dog.gender === 'male' ? 'sire_id' : 'dam_id'}=${dog.id}`}
+                  to={`/dashboard/litters/new?${dog.gender?.toLowerCase() === 'male' ? 'sire_id' : 'dam_id'}=${dog.id}`}
                   startIcon={<AddIcon />}
                 >
                   New Litter
@@ -563,7 +663,7 @@ const DogDetails = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress size={24} />
                 </Box>
-              ) : dog.gender === 'male' && siredLitters.length > 0 ? (
+              ) : dog.gender?.toLowerCase() === 'male' && siredLitters && siredLitters.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
@@ -607,7 +707,7 @@ const DogDetails = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              ) : dog.gender === 'female' && damLitters.length > 0 ? (
+              ) : dog.gender?.toLowerCase() === 'female' && damLitters && damLitters.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
@@ -653,11 +753,11 @@ const DogDetails = () => {
                 </TableContainer>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
-                  No litters {dog.gender === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
+                  No litters {dog.gender?.toLowerCase() === 'male' ? 'sired by this dog' : 'recorded for this dam'} yet.
                 </Typography>
               )}
               
-              {dog.gender === 'female' && (
+              {dog.gender?.toLowerCase() === 'female' && (
                 <>
                   <Divider sx={{ my: 3 }} />
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -675,7 +775,7 @@ const DogDetails = () => {
                   </Box>
                   
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
-                    {heatCycles.length > 0 
+                    {heatCycles && heatCycles.length > 0 
                       ? `${heatCycles.length} heat cycles recorded.` 
                       : 'No heat cycles recorded for this dog.'}
                   </Typography>
@@ -713,7 +813,7 @@ const DogDetails = () => {
         {dog && dog.id && (
           <PhotoGallery 
             entityType="dog" 
-            entityId={dog.id} 
+            entityId={dog.id.toString()} 
             maxPhotos={25}
             gridCols={{ xs: 12, sm: 6, md: 4, lg: 3 }}
           />
@@ -734,6 +834,22 @@ const DogHealthReport = React.forwardRef(({ dog, dogHealthData }, ref) => {
     <Box ref={ref} sx={{ p: 4, maxWidth: '800px', margin: '0 auto' }}>
       <Box sx={{ textAlign: 'center', mb: 4 }}>
         <Typography variant="h4" gutterBottom>Health Report</Typography>
+        {dog.cover_photo && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <img 
+              src={getPhotoUrl(dog.cover_photo, 'DOG')} 
+              alt={dog.call_name} 
+              style={{ 
+                width: '150px', 
+                height: '150px', 
+                objectFit: 'cover', 
+                borderRadius: '75px',
+                border: '3px solid #f5f5f5'
+              }}
+              onError={handleImageError('DOG')}
+            />
+          </Box>
+        )}
         <Typography variant="h5">{dog.call_name}</Typography>
         {dog.registered_name && (
           <Typography variant="subtitle1" color="text.secondary" gutterBottom>
@@ -862,14 +978,14 @@ const DogSpecificHealthAlerts = ({ dogId }) => {
     
     // Check upcoming vaccinations
     if (dashboardData.upcoming_vaccinations && dashboardData.upcoming_vaccinations.items) {
-      const dogVaxAlerts = dashboardData.upcoming_vaccinations.items
-        .filter(vax => vax.dog_id === dogId)
+      const dogVaxAlerts = (dashboardData.upcoming_vaccinations.items || [])
+        .filter(vax => vax && vax.dog_id === dogId)
         .map(vax => ({
           id: `vax-${vax.id}`,
           type: 'vaccination',
           severity: 'warning',
-          title: `${vax.vaccine_name} vaccination due`,
-          description: `${vax.vaccine_name} vaccination is due on ${new Date(vax.next_due_date).toLocaleDateString()}`,
+          title: `${vax.vaccine_name || 'Unknown'} vaccination due`,
+          description: `${vax.vaccine_name || 'Unknown'} vaccination is due on ${vax.next_due_date ? new Date(vax.next_due_date).toLocaleDateString() : 'unknown date'}`,
           date: vax.next_due_date
         }));
       
@@ -878,14 +994,14 @@ const DogSpecificHealthAlerts = ({ dogId }) => {
     
     // Check active medications
     if (dashboardData.active_medications && dashboardData.active_medications.items) {
-      const dogMedAlerts = dashboardData.active_medications.items
-        .filter(med => med.dog_id === dogId)
+      const dogMedAlerts = (dashboardData.active_medications.items || [])
+        .filter(med => med && med.dog_id === dogId)
         .map(med => ({
           id: `med-${med.id}`,
           type: 'medication',
           severity: 'info',
-          title: `${med.medication_name} administration`,
-          description: `${med.medication_name} (${med.dosage}) - ${med.frequency}`,
+          title: `${med.medication_name || 'Unknown'} administration`,
+          description: `${med.medication_name || 'Unknown'} ${med.dosage ? `(${med.dosage})` : ''} ${med.frequency ? `- ${med.frequency}` : ''}`,
           date: med.end_date
         }));
       
@@ -894,14 +1010,14 @@ const DogSpecificHealthAlerts = ({ dogId }) => {
     
     // Check active health conditions
     if (dashboardData.active_conditions && dashboardData.active_conditions.items) {
-      const dogConditionAlerts = dashboardData.active_conditions.items
-        .filter(condition => condition.dog_id === dogId)
+      const dogConditionAlerts = (dashboardData.active_conditions.items || [])
+        .filter(condition => condition && condition.dog_id === dogId)
         .map(condition => ({
           id: `condition-${condition.id}`,
           type: 'condition',
           severity: condition.is_critical ? 'error' : 'warning',
-          title: `${condition.condition_name}`,
-          description: `Ongoing health condition: ${condition.condition_name}${condition.notes ? ` - ${condition.notes}` : ''}`,
+          title: `${condition.condition_name || 'Unknown condition'}`,
+          description: `Ongoing health condition: ${condition.condition_name || 'Unknown'}${condition.notes ? ` - ${condition.notes}` : ''}`,
           date: condition.diagnosis_date
         }));
       
@@ -911,7 +1027,7 @@ const DogSpecificHealthAlerts = ({ dogId }) => {
     setDogAlerts(filteredAlerts);
   }, [dashboardData, dogId]);
   
-  if (dogAlerts.length === 0) {
+  if (!dogAlerts || dogAlerts.length === 0) {
     return (
       <Alert severity="success" sx={{ mt: 1, mb: 2 }}>
         No health alerts for this dog.
@@ -924,7 +1040,7 @@ const DogSpecificHealthAlerts = ({ dogId }) => {
       {dogAlerts.map(alert => (
         <Alert 
           key={alert.id} 
-          severity={alert.severity}
+          severity={alert.severity || 'info'}
           variant="outlined"
           sx={{ mb: 1 }}
         >

@@ -6,13 +6,28 @@ import { useDog } from '../../context/DogContext';
 
 /**
  * HealthAnalytics component to display health trends and statistics
+ * @param {Object} props - Component properties
+ * @param {string} [props.dogId] - Optional dog ID to filter records
  */
-const HealthAnalytics = () => {
+const HealthAnalytics = ({ dogId }) => {
   const { healthRecords = [], vaccinations = [], medicationRecords = [], weightRecords = [] } = useHealth();
   const { dogs = [], puppies = [] } = useDog();
   const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState('recordTypes');
   const [timeFrame, setTimeFrame] = useState('6months');
+  
+  // Filter records for specific dog if dogId is provided
+  const filteredHealthRecords = dogId 
+    ? healthRecords.filter(record => record.dog_id === dogId)
+    : healthRecords;
+  
+  const filteredVaccinations = dogId 
+    ? vaccinations.filter(vax => vax.dog_id === dogId)
+    : vaccinations;
+  
+  const filteredMedicationRecords = dogId 
+    ? medicationRecords.filter(med => med.dog_id === dogId)
+    : medicationRecords;
 
   // Process health data based on selected chart type and time frame
   useEffect(() => {
@@ -20,7 +35,7 @@ const HealthAnalytics = () => {
       if (chartType === 'recordTypes') {
         // Create chart data for record types distribution
         const types = {};
-        healthRecords.forEach(record => {
+        filteredHealthRecords.forEach(record => {
           const type = record.record_type || 'unknown';
           types[type] = (types[type] || 0) + 1;
         });
@@ -32,19 +47,35 @@ const HealthAnalytics = () => {
         
         setChartData(data);
       } else if (chartType === 'vaccinationStatus') {
-        // Calculate vaccination status for all animals
-        const totalAnimals = dogs.length + puppies.length;
-        const fullyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'complete').length +
-                                puppies.filter(puppy => puppy && puppy.vaccination_status === 'complete').length;
-        const partiallyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'partial').length +
-                                    puppies.filter(puppy => puppy && puppy.vaccination_status === 'partial').length;
-        const notVaccinated = totalAnimals - fullyVaccinated - partiallyVaccinated;
-        
-        setChartData([
-          { name: 'Fully Vaccinated', count: fullyVaccinated },
-          { name: 'Partially Vaccinated', count: partiallyVaccinated },
-          { name: 'Not Vaccinated', count: notVaccinated }
-        ]);
+        if (dogId) {
+          // For a specific dog, just count its vaccinations
+          const vaccinationTypes = {};
+          filteredVaccinations.forEach(vax => {
+            const type = vax.vaccine_name || 'Unknown';
+            vaccinationTypes[type] = (vaccinationTypes[type] || 0) + 1;
+          });
+          
+          const data = Object.keys(vaccinationTypes).map(key => ({
+            name: key,
+            count: vaccinationTypes[key]
+          }));
+          
+          setChartData(data);
+        } else {
+          // Calculate vaccination status for all animals
+          const totalAnimals = dogs.length + puppies.length;
+          const fullyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'complete').length +
+                                  puppies.filter(puppy => puppy && puppy.vaccination_status === 'complete').length;
+          const partiallyVaccinated = dogs.filter(dog => dog && dog.vaccination_status === 'partial').length +
+                                      puppies.filter(puppy => puppy && puppy.vaccination_status === 'partial').length;
+          const notVaccinated = totalAnimals - fullyVaccinated - partiallyVaccinated;
+          
+          setChartData([
+            { name: 'Fully Vaccinated', count: fullyVaccinated },
+            { name: 'Partially Vaccinated', count: partiallyVaccinated },
+            { name: 'Not Vaccinated', count: notVaccinated }
+          ]);
+        }
       } else if (chartType === 'healthIncidents') {
         // Count health incidents by month
         const now = new Date();
@@ -63,7 +94,7 @@ const HealthAnalytics = () => {
         }
         
         // Count records by month
-        healthRecords.forEach(record => {
+        filteredHealthRecords.forEach(record => {
           if (!record || !record.record_date) return;
           
           try {
@@ -95,7 +126,7 @@ const HealthAnalytics = () => {
     };
     
     processData();
-  }, [chartType, timeFrame, healthRecords, vaccinations, dogs, puppies]);
+  }, [chartType, timeFrame, filteredHealthRecords, filteredVaccinations, filteredMedicationRecords, dogs, puppies, dogId]);
 
   return (
     <Paper sx={{ p: 3, mb: 3 }}>

@@ -32,7 +32,7 @@ import {
   ZoomIn as ZoomInIcon
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { API_URL } from '../config';
+import { apiGet, apiPost, apiDelete, apiPut } from '../utils/apiUtils';
 
 const PhotoGallery = ({ 
   entityType, 
@@ -69,17 +69,19 @@ const PhotoGallery = ({
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_URL}/photos/${entityType}/${entityId}`);
+      const result = await apiGet(`photos/${entityType}/${entityId}`);
+      console.log('Photo API response:', result);
       
-      if (!response.ok) {
-        throw new Error(`Error fetching photos: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setPhotos(data);
+      // Handle both direct array returns and {data: [...]} format
+      const photoData = Array.isArray(result) ? result : 
+                      (result && result.data && Array.isArray(result.data)) ? result.data : [];
+                      
+      console.log('Processed photo data:', photoData);
+      setPhotos(photoData);
     } catch (err) {
       console.error('Error fetching photos:', err);
       setError(err.message || 'Failed to fetch photos');
+      setPhotos([]);
     } finally {
       setLoading(false);
     }
@@ -128,38 +130,20 @@ const PhotoGallery = ({
       formData.append('entity_id', entityId);
       formData.append('caption', caption);
       formData.append('is_cover', isCover);
-      formData.append('order', photos.length); // Add as last photo in order
+      formData.append('order', photoArray.length); // Add as last photo in order
       
-      const response = await fetch(`${API_URL}/photos/`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        let errorMessage = `Upload failed (${response.status})`;
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch (jsonError) {
-          console.error('Error parsing error response:', jsonError);
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const newPhoto = await response.json();
+      const newPhoto = await apiPost('photos/', formData, true); // true for formData
       
       // Update the photos array
       if (isCover) {
         // If this is the new cover, update all other photos to not be cover
-        const updatedPhotos = photos.map(photo => ({
+        const updatedPhotos = photoArray.map(photo => ({
           ...photo,
           is_cover: false
         }));
         setPhotos([...updatedPhotos, newPhoto]);
       } else {
-        setPhotos([...photos, newPhoto]);
+        setPhotos([...photoArray, newPhoto]);
       }
       
       // Close dialog and reset
@@ -189,40 +173,48 @@ const PhotoGallery = ({
     }
     
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to delete photo (${response.status})`);
-      }
+      await apiDelete(`photos/${photoId}`);
       
       // Remove the photo from state
       const deletedPhoto = photos.find(p => p.id === photoId);
-      setPhotos(photos.filter(p => p.id !== photoId));
+      const updatedPhotos = photos.filter(p => p.id !== photoId);
+      
+      // If we deleted the cover photo, set the first remaining photo as cover
+      if (deletedPhoto && deletedPhoto.is_cover && updatedPhotos.length > 0) {
+        const newCoverPhoto = { ...updatedPhotos[0], is_cover: true };
+        
+        // Update the new cover photo in the database
+        await apiPut(`photos/${newCoverPhoto.id}`, {
+          is_cover: true
+        });
+        
+        // Update local state
+        setPhotos(updatedPhotos.map(p => 
+          p.id === newCoverPhoto.id ? newCoverPhoto : p
+        ));
+      } else {
+        setPhotos(updatedPhotos);
+      }
       
       // Notify parent component
-      onPhotoChange(null, deletedPhoto);
+      onPhotoChange(null);
       
       // Show success message
       setSuccessMessage('Photo deleted successfully');
       setSuccessSnackbarOpen(true);
     } catch (err) {
       console.error('Error deleting photo:', err);
-      setError(err.message || 'Failed to delete photo');
+      setError('Failed to delete photo: ' + err.message);
       setErrorSnackbarOpen(true);
     }
   };
 
   const handleSetCover = async (photoId) => {
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}/set-cover`, {
-        method: 'POST'
+      // Update the photo in the database
+      await apiPut(`photos/${photoId}`, {
+        is_cover: true
       });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to set cover photo (${response.status})`);
-      }
       
       // Update local state
       const updatedPhotos = photos.map(photo => ({
@@ -232,121 +224,170 @@ const PhotoGallery = ({
       
       setPhotos(updatedPhotos);
       
-      // Get the new cover photo
-      const coverPhoto = updatedPhotos.find(p => p.id === photoId);
-      
-      // Check if the image file exists by attempting to load it
-      const img = new Image();
-      img.onload = () => {
-        console.log('Cover photo file verified as accessible');
-      };
-      img.onerror = () => {
-        console.warn('Warning: The cover photo URL appears to be invalid or inaccessible. This may cause display issues.');
-        setError('Warning: The new cover photo may not display correctly due to file access issues.');
-        setErrorSnackbarOpen(true);
-      };
-      img.src = coverPhoto.url;
-      
       // Notify parent component
-      onPhotoChange(coverPhoto);
+      const newCoverPhoto = updatedPhotos.find(p => p.id === photoId);
+      onPhotoChange(newCoverPhoto);
       
       // Show success message
       setSuccessMessage('Cover photo updated');
       setSuccessSnackbarOpen(true);
     } catch (err) {
       console.error('Error setting cover photo:', err);
-      setError(err.message || 'Failed to set cover photo');
+      setError('Failed to set cover photo: ' + err.message);
       setErrorSnackbarOpen(true);
     }
   };
 
-  const openZoomDialog = (photo) => {
+  const handleUpdateCaption = async (photoId, newCaption) => {
+    try {
+      // Update the photo in the database
+      await apiPut(`photos/${photoId}`, {
+        caption: newCaption
+      });
+      
+      // Update local state
+      const updatedPhotos = photos.map(photo => 
+        photo.id === photoId ? { ...photo, caption: newCaption } : photo
+      );
+      
+      setPhotos(updatedPhotos);
+      
+      // Show success message
+      setSuccessMessage('Caption updated');
+      setSuccessSnackbarOpen(true);
+    } catch (err) {
+      console.error('Error updating caption:', err);
+      setError('Failed to update caption: ' + err.message);
+      setErrorSnackbarOpen(true);
+    }
+  };
+
+  const handleZoomPhoto = (photo) => {
     setCurrentZoomPhoto(photo);
     setZoomDialogOpen(true);
   };
 
+  const handleZoomClose = () => {
+    setZoomDialogOpen(false);
+    setCurrentZoomPhoto(null);
+  };
+
   const handleNextPhoto = () => {
+    if (!currentZoomPhoto) return;
+    
     const currentIndex = photos.findIndex(p => p.id === currentZoomPhoto.id);
-    const nextIndex = (currentIndex + 1) % photos.length;
-    setCurrentZoomPhoto(photos[nextIndex]);
+    if (currentIndex < photos.length - 1) {
+      setCurrentZoomPhoto(photos[currentIndex + 1]);
+    }
   };
 
-  const handlePreviousPhoto = () => {
+  const handlePrevPhoto = () => {
+    if (!currentZoomPhoto) return;
+    
     const currentIndex = photos.findIndex(p => p.id === currentZoomPhoto.id);
-    const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
-    setCurrentZoomPhoto(photos[prevIndex]);
+    if (currentIndex > 0) {
+      setCurrentZoomPhoto(photos[currentIndex - 1]);
+    }
   };
 
-  const handleDragEnd = async (result) => {
+  const onDragEnd = async (result) => {
     // Dropped outside the list
     if (!result.destination) {
       return;
     }
-
+    
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+    
+    // If position didn't change
+    if (sourceIndex === destinationIndex) {
+      return;
+    }
+    
     // Reorder the photos array
-    const items = Array.from(photos);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    // Update state
-    setPhotos(items);
-
-    // Save the new order to the server
+    const reorderedPhotos = Array.from(photos);
+    const [removed] = reorderedPhotos.splice(sourceIndex, 1);
+    reorderedPhotos.splice(destinationIndex, 0, removed);
+    
+    // Update the order property for each photo
+    const updatedPhotos = reorderedPhotos.map((photo, index) => ({
+      ...photo,
+      order: index
+    }));
+    
+    // Update state immediately for responsive UI
+    setPhotos(updatedPhotos);
+    
     try {
-      const photoIds = items.map(photo => photo.id);
-      const response = await fetch(`${API_URL}/photos/${entityType}/${entityId}/reorder`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ photo_ids: photoIds })
+      // Update the order in the database for the moved photo
+      await apiPut(`photos/${removed.id}`, {
+        order: destinationIndex
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to reorder photos (${response.status})`);
-      }
-
+      
       // Show success message
       setSuccessMessage('Photo order updated');
       setSuccessSnackbarOpen(true);
     } catch (err) {
-      console.error('Error reordering photos:', err);
-      setError(err.message || 'Failed to reorder photos');
+      console.error('Error updating photo order:', err);
+      setError('Failed to update photo order: ' + err.message);
       setErrorSnackbarOpen(true);
       
-      // Refetch photos to reset to server state
-      fetchPhotos();
+      // Revert to original order on error
+      setPhotos(photos);
     }
   };
 
+  const handleCloseErrorSnackbar = () => {
+    setErrorSnackbarOpen(false);
+  };
+
+  const handleCloseSuccessSnackbar = () => {
+    setSuccessSnackbarOpen(false);
+  };
+
+  // Render loading state
+  if (loading && !photos.length) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Render error state
+  if (error && !photos.length) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        Error fetching photos: {error}
+      </Alert>
+    );
+  }
+
+  // Make sure photos is an array and sort by order
+  const photoArray = Array.isArray(photos) ? photos : [];
+  const sortedPhotos = [...photoArray].sort((a, b) => (a.order || 0) - (b.order || 0));
+  
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box sx={{ mb: 4 }}>
+      {/* Photo Gallery */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" component="h3">
-          Photos
+          Photos {photoArray.length > 0 && `(${photoArray.length})`}
         </Typography>
         
-        {!readOnly && (
-          <Button 
-            variant="contained" 
+        {!readOnly && photoArray.length < maxPhotos && (
+          <Button
+            variant="contained"
             startIcon={<CloudUploadIcon />}
             onClick={handleUploadDialogOpen}
-            disabled={photos.length >= maxPhotos}
+            size="small"
           >
             Add Photo
           </Button>
         )}
       </Box>
       
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      ) : photos.length === 0 ? (
+      {photoArray.length === 0 ? (
         <Paper 
           elevation={0} 
           sx={{ 
@@ -357,7 +398,7 @@ const PhotoGallery = ({
             borderColor: 'divider'
           }}
         >
-          <Typography color="text.secondary" mb={2}>
+          <Typography color="textSecondary" gutterBottom>
             No photos available
           </Typography>
           
@@ -366,13 +407,15 @@ const PhotoGallery = ({
               variant="outlined"
               startIcon={<CloudUploadIcon />}
               onClick={handleUploadDialogOpen}
+              size="small"
+              sx={{ mt: 1 }}
             >
               Upload First Photo
             </Button>
           )}
         </Paper>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd} disabled={readOnly}>
+        <DragDropContext onDragEnd={onDragEnd} disabled={readOnly}>
           <Droppable droppableId="photo-gallery" direction="horizontal">
             {(provided) => (
               <Grid 
@@ -381,7 +424,7 @@ const PhotoGallery = ({
                 {...provided.droppableProps}
                 ref={provided.innerRef}
               >
-                {photos.map((photo, index) => (
+                {sortedPhotos.map((photo, index) => (
                   <Draggable 
                     key={photo.id.toString()} 
                     draggableId={photo.id.toString()} 
@@ -396,80 +439,88 @@ const PhotoGallery = ({
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <Card>
-                          <Box sx={{ position: 'relative' }}>
-                            <CardMedia
-                              component="img"
-                              height="200"
-                              image={photo.url}
-                              alt={photo.caption || `Photo ${index + 1}`}
+                        <Card 
+                          sx={{ 
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative',
+                            ...(photo.is_cover && {
+                              border: '2px solid',
+                              borderColor: 'primary.main'
+                            })
+                          }}
+                        >
+                          {photo.is_cover && (
+                            <Box 
                               sx={{ 
-                                cursor: 'pointer',
-                                objectFit: 'cover'
+                                position: 'absolute', 
+                                top: 8, 
+                                left: 8, 
+                                zIndex: 1,
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                borderRadius: '4px',
+                                px: 1,
+                                py: 0.5,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
                               }}
-                              onClick={() => openZoomDialog(photo)}
-                            />
-                            {photo.is_cover && (
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  left: 8,
-                                  bgcolor: 'primary.main',
-                                  color: 'white',
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: 1,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                Cover
-                              </Box>
-                            )}
-                            <IconButton
-                              sx={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                bgcolor: 'rgba(0, 0, 0, 0.5)',
-                                color: 'white',
-                                '&:hover': {
-                                  bgcolor: 'rgba(0, 0, 0, 0.7)'
-                                }
-                              }}
-                              onClick={() => openZoomDialog(photo)}
                             >
-                              <ZoomInIcon />
-                            </IconButton>
-                          </Box>
-                          
-                          {photo.caption && (
-                            <CardContent sx={{ py: 1 }}>
-                              <Typography variant="body2" noWrap>
-                                {photo.caption}
-                              </Typography>
-                            </CardContent>
+                              Cover
+                            </Box>
                           )}
                           
+                          <CardMedia
+                            component="img"
+                            image={photo.url}
+                            alt={photo.caption || `Photo ${index + 1}`}
+                            sx={{ 
+                              height: 200,
+                              objectFit: 'cover',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleZoomPhoto(photo)}
+                          />
+                          
+                          <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {photo.caption || `Photo ${index + 1}`}
+                            </Typography>
+                          </CardContent>
+                          
                           {!readOnly && (
-                            <CardActions sx={{ justifyContent: 'space-between' }}>
-                              <Tooltip title={photo.is_cover ? "Current cover photo" : "Set as cover"}>
-                                <IconButton 
-                                  color={photo.is_cover ? "primary" : "default"}
-                                  onClick={() => !photo.is_cover && handleSetCover(photo.id)}
-                                  disabled={photo.is_cover}
-                                >
-                                  {photo.is_cover ? <StarIcon /> : <StarBorderIcon />}
-                                </IconButton>
-                              </Tooltip>
+                            <CardActions sx={{ pt: 0 }}>
+                              {!photo.is_cover && (
+                                <Tooltip title="Set as cover">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleSetCover(photo.id)}
+                                    aria-label="set as cover"
+                                  >
+                                    <StarBorderIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               
                               <Tooltip title="Delete photo">
                                 <IconButton 
-                                  color="error"
+                                  size="small" 
                                   onClick={() => handleDeletePhoto(photo.id)}
+                                  aria-label="delete photo"
+                                  color="error"
                                 >
-                                  <DeleteIcon />
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              
+                              <Tooltip title="View larger">
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => handleZoomPhoto(photo)}
+                                  aria-label="view larger"
+                                >
+                                  <ZoomInIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                             </CardActions>
@@ -487,95 +538,72 @@ const PhotoGallery = ({
       )}
       
       {/* Upload Dialog */}
-      <Dialog 
-        open={uploadDialogOpen} 
-        onClose={handleUploadDialogClose}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={uploadDialogOpen} onClose={handleUploadDialogClose} maxWidth="sm" fullWidth>
         <DialogTitle>Upload Photo</DialogTitle>
         <DialogContent>
+          <Box sx={{ mb: 2, mt: 1 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<CloudUploadIcon />}
+              fullWidth
+            >
+              Select Photo
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleFileChange}
+              />
+            </Button>
+          </Box>
+          
+          {filePreview && (
+            <Box sx={{ mb: 2, textAlign: 'center' }}>
+              <img 
+                src={filePreview} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '200px',
+                  objectFit: 'contain'
+                }} 
+              />
+            </Box>
+          )}
+          
+          <TextField
+            label="Caption (optional)"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            fullWidth
+            margin="normal"
+          />
+          
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant={isCover ? "contained" : "outlined"}
+              startIcon={isCover ? <StarIcon /> : <StarBorderIcon />}
+              onClick={() => setIsCover(!isCover)}
+              color={isCover ? "primary" : "inherit"}
+            >
+              {isCover ? "Will be set as cover" : "Set as cover photo"}
+            </Button>
+          </Box>
+          
           {uploadError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mt: 2 }}>
               {uploadError}
             </Alert>
           )}
-          
-          <Box sx={{ mt: 2 }}>
-            <input
-              accept="image/*"
-              style={{ display: 'none' }}
-              id="photo-upload-input"
-              type="file"
-              onChange={handleFileChange}
-            />
-            <label htmlFor="photo-upload-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<CloudUploadIcon />}
-                fullWidth
-                sx={{ mb: 2 }}
-              >
-                Select Photo
-              </Button>
-            </label>
-            
-            {filePreview && (
-              <Box 
-                sx={{ 
-                  mt: 2, 
-                  mb: 2, 
-                  display: 'flex',
-                  justifyContent: 'center'
-                }}
-              >
-                <img 
-                  src={filePreview} 
-                  alt="Preview" 
-                  style={{ 
-                    maxHeight: '200px', 
-                    maxWidth: '100%',
-                    objectFit: 'contain'
-                  }} 
-                />
-              </Box>
-            )}
-            
-            <TextField
-              fullWidth
-              label="Caption (optional)"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              margin="normal"
-            />
-            
-            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
-              <Button
-                color={isCover ? "primary" : "inherit"}
-                variant={isCover ? "contained" : "outlined"}
-                startIcon={isCover ? <StarIcon /> : <StarBorderIcon />}
-                onClick={() => setIsCover(!isCover)}
-                sx={{ mr: 1 }}
-              >
-                {isCover ? "Set as Cover Photo" : "Set as Cover Photo"}
-              </Button>
-              
-              <Typography variant="body2" color="text.secondary">
-                {photos.length === 0 ? "First photo will automatically be set as cover photo" : ""}
-              </Typography>
-            </Box>
-          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleUploadDialogClose} disabled={uploadLoading}>
-            Cancel
-          </Button>
+          <Button onClick={handleUploadDialogClose}>Cancel</Button>
           <Button 
             onClick={handleUpload} 
             variant="contained" 
             disabled={!selectedFile || uploadLoading}
-            startIcon={uploadLoading ? <CircularProgress size={20} /> : null}
+            startIcon={uploadLoading && <CircularProgress size={20} />}
           >
             {uploadLoading ? 'Uploading...' : 'Upload'}
           </Button>
@@ -583,119 +611,115 @@ const PhotoGallery = ({
       </Dialog>
       
       {/* Zoom Dialog */}
-      <Dialog
-        open={zoomDialogOpen}
-        onClose={() => setZoomDialogOpen(false)}
-        maxWidth="lg"
+      <Dialog 
+        open={zoomDialogOpen} 
+        onClose={handleZoomClose} 
+        maxWidth="lg" 
         fullWidth
+        PaperProps={{
+          sx: { 
+            bgcolor: 'background.default',
+            position: 'relative'
+          }
+        }}
       >
-        {currentZoomPhoto && (
+        <IconButton
+          onClick={handleZoomClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: 'white',
+            bgcolor: 'rgba(0,0,0,0.5)',
+            '&:hover': {
+              bgcolor: 'rgba(0,0,0,0.7)',
+            }
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        
+        {photos.length > 1 && (
           <>
-            <DialogTitle>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">
-                  {currentZoomPhoto.caption || `Photo ${photos.indexOf(currentZoomPhoto) + 1} of ${photos.length}`}
-                </Typography>
-                <IconButton onClick={() => setZoomDialogOpen(false)}>
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-            </DialogTitle>
-            <DialogContent sx={{ position: 'relative', p: 0 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
-                <img
-                  src={currentZoomPhoto.url}
-                  alt={currentZoomPhoto.caption || "Zoomed photo"}
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: '70vh',
-                    objectFit: 'contain'
-                  }}
-                />
-              </Box>
-              
-              {photos.length > 1 && (
-                <>
-                  <IconButton
-                    sx={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: 16,
-                      transform: 'translateY(-50%)',
-                      bgcolor: 'rgba(0, 0, 0, 0.5)',
-                      color: 'white',
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.7)' }
-                    }}
-                    onClick={handlePreviousPhoto}
-                  >
-                    <ChevronLeftIcon />
-                  </IconButton>
-                  
-                  <IconButton
-                    sx={{
-                      position: 'absolute',
-                      top: '50%',
-                      right: 16,
-                      transform: 'translateY(-50%)',
-                      bgcolor: 'rgba(0, 0, 0, 0.5)',
-                      color: 'white',
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.7)' }
-                    }}
-                    onClick={handleNextPhoto}
-                  >
-                    <ChevronRightIcon />
-                  </IconButton>
-                </>
-              )}
-            </DialogContent>
-            {!readOnly && (
-              <DialogActions>
-                {!currentZoomPhoto.is_cover && (
-                  <Button
-                    startIcon={<StarBorderIcon />}
-                    onClick={() => {
-                      handleSetCover(currentZoomPhoto.id);
-                      setZoomDialogOpen(false);
-                    }}
-                  >
-                    Set as Cover
-                  </Button>
-                )}
-                <Button
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={() => {
-                    setZoomDialogOpen(false);
-                    setTimeout(() => {
-                      handleDeletePhoto(currentZoomPhoto.id);
-                    }, 300);
-                  }}
-                >
-                  Delete
-                </Button>
-              </DialogActions>
-            )}
+            <IconButton
+              onClick={handlePrevPhoto}
+              disabled={!currentZoomPhoto || photos.findIndex(p => p.id === currentZoomPhoto.id) === 0}
+              sx={{
+                position: 'absolute',
+                left: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'white',
+                bgcolor: 'rgba(0,0,0,0.5)',
+                '&:hover': {
+                  bgcolor: 'rgba(0,0,0,0.7)',
+                }
+              }}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+            
+            <IconButton
+              onClick={handleNextPhoto}
+              disabled={!currentZoomPhoto || photos.findIndex(p => p.id === currentZoomPhoto.id) === photos.length - 1}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'white',
+                bgcolor: 'rgba(0,0,0,0.5)',
+                '&:hover': {
+                  bgcolor: 'rgba(0,0,0,0.7)',
+                }
+              }}
+            >
+              <ChevronRightIcon />
+            </IconButton>
           </>
+        )}
+        
+        <DialogContent sx={{ p: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          {currentZoomPhoto && (
+            <img 
+              src={currentZoomPhoto.url} 
+              alt={currentZoomPhoto.caption || 'Photo'} 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '80vh',
+                objectFit: 'contain'
+              }} 
+            />
+          )}
+        </DialogContent>
+        
+        {currentZoomPhoto && currentZoomPhoto.caption && (
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Typography variant="body1">{currentZoomPhoto.caption}</Typography>
+          </DialogActions>
         )}
       </Dialog>
       
-      {/* Snackbars */}
-      <Snackbar
-        open={errorSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setErrorSnackbarOpen(false)}
+      {/* Error Snackbar */}
+      <Snackbar 
+        open={errorSnackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={handleCloseErrorSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={() => setErrorSnackbarOpen(false)} severity="error" sx={{ width: '100%' }}>
+        <Alert onClose={handleCloseErrorSnackbar} severity="error" sx={{ width: '100%' }}>
           {error}
         </Alert>
       </Snackbar>
       
-      <Snackbar
-        open={successSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSuccessSnackbarOpen(false)}
+      {/* Success Snackbar */}
+      <Snackbar 
+        open={successSnackbarOpen} 
+        autoHideDuration={3000} 
+        onClose={handleCloseSuccessSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={() => setSuccessSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
+        <Alert onClose={handleCloseSuccessSnackbar} severity="success" sx={{ width: '100%' }}>
           {successMessage}
         </Alert>
       </Snackbar>

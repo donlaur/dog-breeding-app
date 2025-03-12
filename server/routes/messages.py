@@ -9,7 +9,8 @@ from server.supabase_client import supabase
 from server.middleware.auth import token_required
 from server.models.message import Message
 from server.models.lead import Lead
-from server.models import Customer
+# Customer model is not in the models module yet
+# from server.models import Customer
 import json
 import base64
 import io
