@@ -87,3 +87,66 @@ python -m pytest tests/test_puppies.py
 The tests use a mock database (`MockDatabase` class in `conftest.py`) that simulates the behavior of the actual Supabase database. This allows for isolated and controlled testing of the application without requiring an actual database connection.
 
 The mock database is pre-populated with test data for dogs, litters, and puppies to facilitate testing.
+
+## Common Bugs and How to Avoid Them
+
+We maintain a [Bug Database](/docs/BUG_DATABASE.md) that tracks historical issues to prevent them from recurring. Here are the most common bugs and how to avoid them:
+
+### 1. Database Query Pattern Violations
+
+#### Using `find()` instead of `find_by_field_values()`
+
+**Incorrect:**
+```python
+db.find("dogs", {"breed": "Golden Retriever"})
+```
+
+**Correct:**
+```python
+db.find_by_field_values("dogs", {"breed": "Golden Retriever"})
+```
+
+#### Querying "dogs" table instead of "puppies" table for litter-related queries
+
+**Incorrect:**
+```python
+db.find_by_field_values("dogs", {"litter_id": litter_id})
+```
+
+**Correct:**
+```python
+db.find_by_field_values("puppies", {"litter_id": litter_id})
+```
+
+#### Missing error handling after database queries
+
+**Incorrect:**
+```python
+record = db.get("dogs", dog_id)
+return create_response(record, 200)  # No check if record exists
+```
+
+**Correct:**
+```python
+record = db.get("dogs", dog_id)
+if not record:
+    return create_response({"error": "Dog not found"}, 404)
+return create_response(record, 200)
+```
+
+### 2. Prevention Tools
+
+We have several tools to help prevent these bugs:
+
+1. **Pre-commit Hook**: Automatically checks for database query pattern violations before each commit
+   - Install with: `./server/scripts/install_hooks.sh`
+
+2. **Continuous Integration**: Runs tests and checks on every push
+
+3. **Database Pattern Check Script**: Manually check for violations
+   - Run with: `python server/scripts/check_db_patterns.py --dir server/api`
+   - Fix automatically with: `python server/scripts/check_db_patterns.py --fix --dir server/api`
+
+4. **PR Review Process**: Comprehensive checklist for code reviews
+
+Refer to the [Code Review Guide](/docs/CODE_REVIEW_GUIDE.md) for more details on our quality assurance process.
