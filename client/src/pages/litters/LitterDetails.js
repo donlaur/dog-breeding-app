@@ -20,7 +20,17 @@ import {
   TableCell,
   TableContainer,
   TableRow,
-  Snackbar
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -36,7 +46,7 @@ import { API_URL, debugLog, debugError } from '../../config';
 import { showError, showInfo } from '../../utils/notifications';
 import { useTheme } from '@mui/material/styles';
 import PhotoGallery from '../../components/PhotoGallery';
-import { apiGet, getLitter, getLitterPuppies } from '../../utils/apiUtils';
+import { apiGet, getLitter, getLitterPuppies, apiPost } from '../../utils/apiUtils';
 
 function LitterDetail() {
   const params = useParams();
@@ -52,11 +62,17 @@ function LitterDetail() {
   const [puppies, setPuppies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // State for quick add puppies dialog
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [puppyRows, setPuppyRows] = useState([]);
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [quickAddError, setQuickAddError] = useState(null);
 
   useEffect(() => {
     const checkLitterId = () => {
       if (!id) {
-        debugError('⚠️ LitterDetails mounted with no ID');
+        debugError(' LitterDetails mounted with no ID');
         setError('Missing litter ID. Please select a valid litter.');
         setLoading(false);
         showError('Missing litter ID. Redirecting back to litters list...');
@@ -69,7 +85,7 @@ function LitterDetail() {
       
       const numericId = parseInt(id, 10);
       if (isNaN(numericId)) {
-        debugError('⚠️ LitterDetails mounted with non-numeric ID:', id);
+        debugError(' LitterDetails mounted with non-numeric ID:', id);
         setError(`Invalid litter ID: ${id}. Please select a valid litter.`);
         setLoading(false);
         showError('Invalid litter ID. Redirecting back to litters list...');
@@ -167,7 +183,7 @@ function LitterDetail() {
   };
 
   const handleAddPuppy = () => {
-    navigate(`/dashboard/litters/${id}/puppies/add`);
+    navigate(`/dashboard/litters/${id}/add-puppy`);
   };
 
   const handleManagePuppies = () => {
@@ -177,6 +193,115 @@ function LitterDetail() {
   const handleRefresh = () => {
     debugLog("Manually refreshing litter details");
     fetchLitterDetails();
+  };
+
+  // Quick Add Puppies functions
+  const handleOpenQuickAdd = () => {
+    // Initialize puppy rows based on the number of puppies needed
+    const remainingPuppies = (litter.num_puppies || 0) - puppies.length;
+    const initialRows = Array(remainingPuppies > 0 ? remainingPuppies : 1).fill().map(() => ({
+      name: '',
+      gender: '',
+      color: '',
+      error: null
+    }));
+    setPuppyRows(initialRows);
+    setQuickAddError(null);
+    setQuickAddOpen(true);
+  };
+  
+  const handleCloseQuickAdd = () => {
+    setQuickAddOpen(false);
+    setQuickAddError(null);
+  };
+  
+  const handlePuppyRowChange = (index, field, value) => {
+    const newRows = [...puppyRows];
+    newRows[index] = {
+      ...newRows[index],
+      [field]: value,
+      // Clear error when field is changed
+      error: field === 'error' ? value : null
+    };
+    setPuppyRows(newRows);
+  };
+  
+  const handleAddRow = () => {
+    setPuppyRows([...puppyRows, { name: '', gender: '', color: '', error: null }]);
+  };
+  
+  const handleRemoveRow = (index) => {
+    const newRows = [...puppyRows];
+    newRows.splice(index, 1);
+    setPuppyRows(newRows);
+  };
+  
+  const validatePuppyRows = () => {
+    let isValid = true;
+    const newRows = [...puppyRows];
+    
+    newRows.forEach((row, index) => {
+      // Validate required fields
+      if (!row.name.trim()) {
+        newRows[index].error = 'Name is required';
+        isValid = false;
+      } else if (!row.gender) {
+        newRows[index].error = 'Gender is required';
+        isValid = false;
+      }
+    });
+    
+    setPuppyRows(newRows);
+    return isValid;
+  };
+  
+  const handleQuickAddSubmit = async () => {
+    if (!validatePuppyRows()) {
+      setQuickAddError('Please fix the errors in the form');
+      return;
+    }
+    
+    setQuickAddLoading(true);
+    setQuickAddError(null);
+    
+    try {
+      // Get the whelp date from the litter
+      const birthDate = litter.whelp_date;
+      
+      // Create all puppies in sequence
+      const results = [];
+      for (const row of puppyRows) {
+        if (row.name.trim()) { // Only process rows with names
+          const puppyData = {
+            name: row.name.trim(),
+            gender: row.gender,
+            color: row.color.trim(),
+            litter_id: parseInt(id),
+            birthdate: birthDate, // Use the litter's whelp date
+            dam_id: litter.dam_id,
+            sire_id: litter.sire_id,
+            breed_id: litter.breed_id
+          };
+          
+          const response = await apiPost('puppies', puppyData);
+          if (response.ok) {
+            results.push(response.data);
+          } else {
+            throw new Error(response.error || `Failed to add puppy: ${row.name}`);
+          }
+        }
+      }
+      
+      // Success - refresh puppies list
+      showInfo(`Successfully added ${results.length} puppies to the litter`);
+      fetchPuppies(id);
+      handleCloseQuickAdd();
+    } catch (error) {
+      debugError('Error adding puppies:', error);
+      setQuickAddError(error.message || 'Failed to add puppies');
+    } finally {
+      setQuickAddLoading(false);
+    }
   };
 
   if (loading) {
@@ -432,6 +557,16 @@ function LitterDetail() {
             </Button>
             <Button 
               fullWidth 
+              variant="contained" 
+              color="secondary" 
+              startIcon={<AddIcon />} 
+              onClick={handleOpenQuickAdd}
+              sx={{ mb: 2 }}
+            >
+              Quick Add Puppies
+            </Button>
+            <Button 
+              fullWidth 
               variant="outlined" 
               color="error" 
               startIcon={<DeleteIcon />} 
@@ -552,6 +687,126 @@ function LitterDetail() {
         </Grid>
       </Grid>
     </Container>
+    
+    {/* Quick Add Puppies Dialog */}
+    <Dialog 
+      open={quickAddOpen} 
+      onClose={handleCloseQuickAdd}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle>
+        Quick Add Puppies to Litter
+      </DialogTitle>
+      <DialogContent>
+        {quickAddError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {quickAddError}
+          </Alert>
+        )}
+        
+        <Typography variant="body2" color="text.secondary" paragraph>
+          Quickly add multiple puppies to this litter. All puppies will use the litter's whelp date ({litter?.whelp_date || 'Unknown'}) as their birth date.
+        </Typography>
+        
+        <Box sx={{ mb: 2 }}>
+          <Grid container spacing={2} sx={{ mb: 1 }}>
+            <Grid item xs={4}>
+              <Typography variant="subtitle2">Name*</Typography>
+            </Grid>
+            <Grid item xs={3}>
+              <Typography variant="subtitle2">Gender*</Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="subtitle2">Color</Typography>
+            </Grid>
+            <Grid item xs={1}>
+              <Typography variant="subtitle2">Actions</Typography>
+            </Grid>
+          </Grid>
+          
+          <Divider sx={{ mb: 2 }} />
+          
+          {puppyRows.map((row, index) => (
+            <Grid container spacing={2} key={index} sx={{ mb: 2 }}>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Name"
+                  value={row.name}
+                  onChange={(e) => handlePuppyRowChange(index, 'name', e.target.value)}
+                  error={Boolean(row.error && row.error.includes('Name'))}
+                  helperText={row.error && row.error.includes('Name') ? row.error : ''}
+                  required
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <FormControl 
+                  fullWidth 
+                  size="small"
+                  error={Boolean(row.error && row.error.includes('Gender'))}
+                >
+                  <InputLabel id={`gender-label-${index}`}>Gender</InputLabel>
+                  <Select
+                    labelId={`gender-label-${index}`}
+                    value={row.gender}
+                    label="Gender"
+                    onChange={(e) => handlePuppyRowChange(index, 'gender', e.target.value)}
+                    required
+                  >
+                    <MenuItem value="Male">Male</MenuItem>
+                    <MenuItem value="Female">Female</MenuItem>
+                  </Select>
+                  {row.error && row.error.includes('Gender') && (
+                    <FormHelperText>{row.error}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Color"
+                  value={row.color}
+                  onChange={(e) => handlePuppyRowChange(index, 'color', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton 
+                  size="small" 
+                  color="error" 
+                  onClick={() => handleRemoveRow(index)}
+                  disabled={puppyRows.length <= 1}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Grid>
+            </Grid>
+          ))}
+          
+          <Button 
+            variant="outlined" 
+            startIcon={<AddIcon />} 
+            onClick={handleAddRow}
+            sx={{ mt: 1 }}
+          >
+            Add Row
+          </Button>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleCloseQuickAdd}>Cancel</Button>
+        <Button 
+          onClick={handleQuickAddSubmit} 
+          variant="contained" 
+          color="primary"
+          disabled={quickAddLoading}
+        >
+          {quickAddLoading ? 'Adding...' : 'Add Puppies'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
