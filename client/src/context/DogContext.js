@@ -75,7 +75,25 @@ export const DogProvider = ({ children }) => {
               setDogsLoading(false);
               setDogsError(null);
             } else if (index === 1 && includeLitters) { // Litters
-              setLitters(response.data || []);
+              // Sort litters by whelp_date (newest first)
+              const sortedLitters = (response.data || []).sort((a, b) => {
+                // Use whelp_date if available, otherwise use expected_date
+                const dateA = a.whelp_date || a.expected_date || '';
+                const dateB = b.whelp_date || b.expected_date || '';
+                
+                // Sort in descending order (newest first)
+                if (dateA && dateB) {
+                  return new Date(dateB) - new Date(dateA);
+                }
+                // If only one has a date, prioritize the one with a date
+                if (dateA && !dateB) return -1;
+                if (!dateA && dateB) return 1;
+                
+                // If neither has a date, sort by ID (newest first)
+                return b.id - a.id;
+              });
+              
+              setLitters(sortedLitters);
               setLittersLoading(false);
               setLittersError(null);
             }

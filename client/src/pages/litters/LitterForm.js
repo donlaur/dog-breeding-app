@@ -15,7 +15,8 @@ import {
   Grid,
   Typography,
   FormHelperText,
-  Divider
+  Divider,
+  CircularProgress
 } from "@mui/material";
 import { API_URL, debugLog, debugError } from "../../config";
 import PhotoGallery from "../../components/PhotoGallery";
@@ -440,12 +441,21 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {sireOptions.map(sire => (
-                <MenuItem key={sire.id} value={sire.id}>
-                  {sire.call_name || sire.name || `Dog #${sire.id}`}
+              {sireOptions && sireOptions.length > 0 ? (
+                sireOptions.map(sire => (
+                  <MenuItem key={sire.id} value={sire.id}>
+                    {sire.call_name || sire.name || `Dog #${sire.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No male dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
+            <FormHelperText>
+              {!sireOptions || sireOptions.length === 0 ? "No male dogs available" : ""}
+            </FormHelperText>
           </FormControl>
         </Grid>
         
@@ -463,12 +473,21 @@ const LitterForm = ({ onSave, initialData, breedOptions = [], sireOptions = [], 
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {damOptions.map(dam => (
-                <MenuItem key={dam.id} value={dam.id}>
-                  {dam.call_name || dam.name || `Dog #${dam.id}`}
+              {damOptions && damOptions.length > 0 ? (
+                damOptions.map(dam => (
+                  <MenuItem key={dam.id} value={dam.id}>
+                    {dam.call_name || dam.name || `Dog #${dam.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No female dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
+            <FormHelperText>
+              {!damOptions || damOptions.length === 0 ? "No female dogs available" : ""}
+            </FormHelperText>
           </FormControl>
         </Grid>
         

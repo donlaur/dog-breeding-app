@@ -269,4 +269,126 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             debug_log(f"Error fetching dogs with full details: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
+    @dogs_bp.route("/<int:dog_id>/associate-puppy/<int:puppy_id>", methods=["POST"])
+    def associate_dog_with_puppy(dog_id, puppy_id):
+        """Associate a dog with its puppy record"""
+        try:
+            debug_log(f"Associating dog ID {dog_id} with puppy ID {puppy_id}")
+            
+            # Check if dog exists
+            dog = db.get("dogs", dog_id)
+            if not dog:
+                debug_log(f"Dog with ID {dog_id} not found")
+                return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
+            
+            # Check if puppy exists
+            puppy = db.get("puppies", puppy_id)
+            if not puppy:
+                debug_log(f"Puppy with ID {puppy_id} not found")
+                return jsonify({"error": f"Puppy with ID {puppy_id} not found"}), 404
+            
+            # First check if the column exists in the database
+            try:
+                # Try to directly execute a query to check if the column exists
+                debug_log("Checking if puppy_id column exists in dogs table")
+                check_column = db.supabase.table("dogs").select("puppy_id").limit(1).execute()
+                debug_log(f"Column check result: {check_column}")
+                
+                # If we get here, the column exists, so update using puppy_id
+                updated_dog = db.update("dogs", dog_id, {"puppy_id": puppy_id})
+                field_used = "puppy_id"
+            except Exception as column_error:
+                debug_log(f"Error with puppy_id column: {str(column_error)}")
+                
+                # Try alternative field names based on schema
+                try:
+                    debug_log("Attempting to use litter_id as alternative")
+                    # Get the litter_id from the puppy record
+                    litter_id = puppy.get("litter_id")
+                    if litter_id:
+                        updated_dog = db.update("dogs", dog_id, {"litter_id": litter_id})
+                        field_used = "litter_id"
+                    else:
+                        return jsonify({"error": "Puppy has no litter_id to associate with"}), 400
+                except Exception as alt_error:
+                    debug_log(f"Error with alternative field: {str(alt_error)}")
+                    return jsonify({
+                        "error": "Could not find appropriate field in dogs table for puppy association",
+                        "details": str(alt_error)
+                    }), 500
+            
+            # Return success response
+            response = jsonify({
+                "message": f"Dog ID {dog_id} successfully associated with Puppy ID {puppy_id} using field {field_used}",
+                "dog": updated_dog
+            })
+            return response, 200
+            
+        except Exception as e:
+            debug_log(f"Error associating dog with puppy: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+    
+    @dogs_bp.route("/<int:dog_id>/disassociate-puppy", methods=["POST"])
+    def disassociate_dog_from_puppy(dog_id):
+        """Remove the association between a dog and its puppy record"""
+        try:
+            debug_log(f"Disassociating dog ID {dog_id} from puppy record")
+            
+            # Check if dog exists
+            dog = db.get("dogs", dog_id)
+            if not dog:
+                debug_log(f"Dog with ID {dog_id} not found")
+                return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
+            
+            # Update the dog record to remove the puppy_id
+            updated_dog = db.update("dogs", dog_id, {"puppy_id": None})
+            
+            # Return success response
+            response = jsonify({
+                "message": f"Dog ID {dog_id} successfully disassociated from puppy record",
+                "dog": updated_dog
+            })
+            return response, 200
+            
+        except Exception as e:
+            debug_log(f"Error disassociating dog from puppy: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+    
+    @dogs_bp.route("/<int:dog_id>/with-puppy-history", methods=["GET"])
+    def get_dog_with_puppy_history(dog_id):
+        """Get a dog with its associated puppy information"""
+        try:
+            debug_log(f"Fetching dog ID {dog_id} with puppy history")
+            
+            # Check if dog exists
+            dog = db.get("dogs", dog_id)
+            if not dog:
+                debug_log(f"Dog with ID {dog_id} not found")
+                return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
+            
+            # Create a response object that includes the dog data
+            response_data = {**dog}
+            
+            # If the dog has a puppy_id, include puppy information
+            if dog.get('puppy_id'):
+                debug_log(f"Fetching puppy with ID: {dog['puppy_id']}")
+                puppy = db.get("puppies", dog['puppy_id'])
+                if puppy:
+                    # Add puppy information
+                    response_data['puppy_info'] = puppy
+                    
+                    # If the puppy has a litter_id, include litter information
+                    if puppy.get('litter_id'):
+                        litter = db.get("litters", puppy['litter_id'])
+                        if litter:
+                            response_data['birth_litter'] = litter
+            
+            # Return the enhanced dog data
+            response = jsonify(response_data)
+            return response, 200
+            
+        except Exception as e:
+            debug_log(f"Error fetching dog with puppy history: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
     return dogs_bp
