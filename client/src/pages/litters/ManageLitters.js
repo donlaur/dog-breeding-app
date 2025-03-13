@@ -1,5 +1,5 @@
 // src/pages/litters/ManageLitters.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Box,
@@ -13,7 +13,6 @@ import {
   Grid,
   Container,
   Paper,
-  Divider,
   Avatar,
   IconButton,
   Tooltip,
@@ -24,26 +23,22 @@ import {
   MenuItem,
   Stack
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
+import { 
+  Add as AddIcon, 
   Pets as PetsIcon,
-  Female as FemaleIcon,
-  Male as MaleIcon,
-  Warning as WarningIcon,
-  Delete as DeleteIcon,
-  FilterList as FilterListIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
+import { DogContext } from '../../context/DogContext';
+import { NotificationContext } from '../../context/NotificationContext';
+import ConfirmationDialog from '../../components/common/ConfirmationDialog';
 import { formatDate } from '../../utils/dateUtils';
-import { useDog } from '../../context/DogContext';
+import { apiDelete } from '../../utils/apiUtils';
 import { API_URL, debugLog, debugError } from '../../config';
-import ConfirmationDialog from '../../components/ConfirmationDialog';
-import { showSuccess, showError } from '../../utils/notifications';
-import { apiGet, apiDelete } from '../../utils/apiUtils';
 
 const ManageLitters = () => {
-  const { litters, loading, error, refreshLitters } = useDog();
+  const { litters, loading, error, refreshLitters } = useContext(DogContext);
+  const { showSuccess, showError } = useContext(NotificationContext);
   const [breeds, setBreeds] = useState([]);
   const [sires, setSires] = useState([]);
   const [dams, setDams] = useState([]);
@@ -53,7 +48,7 @@ const ManageLitters = () => {
   // Filter states
   const [selectedDam, setSelectedDam] = useState('');
   const [selectedSire, setSelectedSire] = useState('');
-  const [filteredLitters, setFilteredLitters] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
   
   // State for confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -139,26 +134,70 @@ const ManageLitters = () => {
     fetchDogs();
   }, []);
 
-  // Apply filters when litters or filter selections change
-  useEffect(() => {
-    if (!litters) {
-      setFilteredLitters([]);
-      return;
+  // Function to get status color for chip
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Planned':
+        return 'default';
+      case 'Expected':
+        return 'primary';
+      case 'Born':
+        return 'secondary';
+      case 'Available':
+        return 'success';
+      case 'Completed':
+        return 'info';
+      default:
+        return 'default';
+    }
+  };
+
+  // Render the breed name from the ID
+  const getBreedName = (breedId) => {
+    const breed = breeds.find(b => b.id === breedId);
+    return breed ? breed.name : 'Unknown';
+  };
+
+  // Group litters by their status category
+  const getLitterCategory = (status) => {
+    if (status === 'Planned' || status === 'Expected') {
+      return 'planned';
+    } else if (status === 'Born' || status === 'Available') {
+      return 'current';
+    } else {
+      return 'past';
+    }
+  };
+
+  // Format litter name according to user preference: "Dam x Sire - Date"
+  const formatLitterName = (litter) => {
+    if (litter.litter_name && litter.litter_name.trim() !== '') {
+      return litter.litter_name;
     }
     
-    let filtered = [...litters];
+    const damName = litter.dam_name || 'Unknown';
+    const sireName = litter.sire_name || 'Unknown';
+    const date = litter.whelp_date ? formatDate(litter.whelp_date) : 
+                (litter.expected_date ? formatDate(litter.expected_date) : 'No Date');
     
-    // Apply dam filter if selected
-    if (selectedDam !== '') {
-      filtered = filtered.filter(litter => litter.dam_id === selectedDam);
+    return `${damName} x ${sireName} - ${date}`;
+  };
+
+  // Apply all filters and get filtered litters
+  const getFilteredLitters = () => {
+    // First filter by dam and sire
+    let filtered = litters.filter(litter => {
+      const matchesDam = !selectedDam || litter.dam_id === parseInt(selectedDam);
+      const matchesSire = !selectedSire || litter.sire_id === parseInt(selectedSire);
+      return matchesDam && matchesSire;
+    });
+    
+    // Then apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(litter => getLitterCategory(litter.status) === statusFilter);
     }
     
-    // Apply sire filter if selected
-    if (selectedSire !== '') {
-      filtered = filtered.filter(litter => litter.sire_id === selectedSire);
-    }
-    
-    // Sort by whelp_date (newest first)
+    // Sort by date (newest first)
     filtered.sort((a, b) => {
       // Use whelp_date if available, otherwise use expected_date
       const dateA = a.whelp_date || a.expected_date || '';
@@ -176,16 +215,18 @@ const ManageLitters = () => {
       return b.id - a.id;
     });
     
-    setFilteredLitters(filtered);
-  }, [litters, selectedDam, selectedSire]);
-
-  const handleRefresh = () => {
-    refreshLitters(true);
+    return filtered;
   };
 
+  // Clear all filters
   const handleClearFilters = () => {
     setSelectedDam('');
     setSelectedSire('');
+    setStatusFilter('all');
+  };
+
+  const handleRefresh = () => {
+    refreshLitters(true);
   };
 
   // Function to handle deleting a litter
@@ -226,30 +267,6 @@ const ManageLitters = () => {
     setLitterToDelete(null);
   };
 
-  // Get status color for chip
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Planned':
-        return 'default';
-      case 'Expected':
-        return 'primary';
-      case 'Born':
-        return 'secondary';
-      case 'Available':
-        return 'success';
-      case 'Completed':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
-  // Render the breed name from the ID
-  const getBreedName = (breedId) => {
-    const breed = breeds.find(b => b.id === breedId);
-    return breed ? breed.name : 'Unknown';
-  };
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -279,11 +296,28 @@ const ManageLitters = () => {
       
       {/* Filter controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <FilterListIcon sx={{ mr: 1 }} />
             <Typography variant="subtitle1">Filter Litters</Typography>
           </Box>
+          
+          {/* Status filter */}
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel id="status-filter-label">Status</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              id="status-filter"
+              value={statusFilter}
+              label="Status"
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <MenuItem value="all">All Litters</MenuItem>
+              <MenuItem value="planned">Planned</MenuItem>
+              <MenuItem value="current">Current</MenuItem>
+              <MenuItem value="past">Past</MenuItem>
+            </Select>
+          </FormControl>
           
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel id="dam-filter-label">Dam (Mother)</InputLabel>
@@ -341,14 +375,14 @@ const ManageLitters = () => {
             variant="outlined" 
             startIcon={<ClearIcon />} 
             onClick={handleClearFilters}
-            disabled={!selectedDam && !selectedSire}
+            disabled={!selectedDam && !selectedSire && statusFilter === 'all'}
           >
             Clear Filters
           </Button>
           
-          {(selectedDam || selectedSire) && (
+          {(selectedDam || selectedSire || statusFilter !== 'all') && (
             <Typography variant="body2" color="text.secondary">
-              Showing {filteredLitters.length} of {litters.length} litters
+              Showing {getFilteredLitters().length} of {litters.length} litters
             </Typography>
           )}
         </Stack>
@@ -364,110 +398,93 @@ const ManageLitters = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
-      ) : filteredLitters && filteredLitters.length > 0 ? (
-        <Grid container spacing={3}>
-          {filteredLitters.map(litter => (
-            <Grid item xs={12} sm={6} md={4} key={litter.id}>
-              <Card 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: 6,
-                  }
-                }}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" component="h2">
-                      {litter.litter_name || `Litter #${litter.id}`}
+      ) : getFilteredLitters().length > 0 ? (
+        <Grid container spacing={2}>
+          {getFilteredLitters().map(litter => {
+            // Find the actual dam and sire objects to get their photos
+            const dam = dams.find(d => d.id === litter.dam_id) || {};
+            const sire = sires.find(s => s.id === litter.sire_id) || {};
+            const isLitterBorn = litter.status === 'Born' || litter.status === 'Available' || litter.status === 'Completed';
+            const totalPuppies = litter.num_puppies || litter.puppy_count || 0;
+            const availablePuppies = litter.available_puppies || 0;
+            
+            return (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={litter.id}>
+                <Card 
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-3px)',
+                      boxShadow: 3,
+                    },
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
+                >
+                  <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {getBreedName(litter.breed_id)}
                     </Typography>
-                    <Chip 
-                      label={litter.status || 'Unknown'} 
-                      color={getStatusColor(litter.status)}
-                      size="small"
-                    />
-                  </Box>
-                  
-                  <Divider sx={{ mb: 2 }} />
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Breed:</strong> {getBreedName(litter.breed_id)}
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <MaleIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="body2">
-                      <strong>Sire:</strong> {litter.sire_name || 'Unknown'}
+                    <Typography variant="caption" color="text.secondary">
+                      {availablePuppies}/{totalPuppies} puppies
                     </Typography>
                   </Box>
                   
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <FemaleIcon color="secondary" sx={{ mr: 1 }} />
-                    <Typography variant="body2">
-                      <strong>Dam:</strong> {litter.dam_name || 'Unknown'}
+                  <CardContent sx={{ flexGrow: 1, pt: 1, pb: 1 }}>
+                    <Typography variant="h6" component="h2" sx={{ mb: 1, fontSize: '1rem', fontWeight: 600 }}>
+                      {formatLitterName(litter)}
                     </Typography>
-                  </Box>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Date of Birth:</strong> {litter.whelp_date ? formatDate(litter.whelp_date) : 'Not yet born'}
-                  </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Expected Date:</strong> {litter.expected_date ? formatDate(litter.expected_date) : 'Unknown'}
-                  </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Puppies:</strong> {litter.num_puppies || litter.puppy_count || 0}
-                  </Typography>
-                  
-                  {litter.notes && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      <strong>Notes:</strong> {litter.notes}
-                    </Typography>
-                  )}
-                </CardContent>
-                <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-                  <Button 
-                    size="small" 
-                    variant="outlined"
-                    component={Link}
-                    to={`/dashboard/litters/${litter.id}`}
-                  >
-                    View Details
-                  </Button>
-                  <Box>
-                    <Tooltip title="Edit Litter">
-                      <IconButton 
-                        size="small"
-                        component={Link}
-                        to={`/dashboard/litters/edit/${litter.id}`}
-                        sx={{ mr: 1 }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete Litter">
-                      <IconButton 
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteClick(litter)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
+                    
+                    <Box sx={{ display: 'flex', mb: 1, justifyContent: 'center' }}>
+                      {/* Dam photo (left) */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                        <Avatar 
+                          src={dam.profile_photo_url} 
+                          alt={dam.call_name || "Dam"}
+                          sx={{ width: 40, height: 40 }}
+                        />
+                      </Box>
+                      
+                      {/* Sire photo (right) */}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Avatar 
+                          src={sire.profile_photo_url} 
+                          alt={sire.call_name || "Sire"}
+                          sx={{ width: 40, height: 40 }}
+                        />
+                      </Box>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: '45%' }}>
+                        {litter.dam_name || 'Unknown'}
+                      </Typography>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: '45%', textAlign: 'right' }}>
+                        {litter.sire_name || 'Unknown'}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {isLitterBorn ? (
+                          formatDate(litter.whelp_date)
+                        ) : (
+                          `Expected: ${formatDate(litter.expected_date)}`
+                        )}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       ) : (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
-          {selectedDam || selectedSire ? (
+          {selectedDam || selectedSire || statusFilter !== 'all' ? (
             <>
               <Typography variant="h6" gutterBottom>No Matching Litters</Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
