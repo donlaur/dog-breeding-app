@@ -422,7 +422,11 @@ const ManageLitters = () => {
                   onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
                 >
                   <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography 
+                      variant="body1" 
+                      color="text.primary"
+                      sx={{ fontWeight: 'medium', fontSize: '1.2rem' }}
+                    >
                       {isLitterBorn ? formatDate(litter.whelp_date) : `Expected: ${formatDate(litter.expected_date)}`}
                     </Typography>
                     <Chip
