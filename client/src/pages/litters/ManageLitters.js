@@ -438,40 +438,59 @@ const ManageLitters = () => {
                       {formatLitterName(litter)}
                     </Typography>
                     
-                    <Box sx={{ display: 'flex', mb: 1, justifyContent: 'center' }}>
+                    {/* Overlapping dog photos */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      mb: 1.5,
+                      position: 'relative',
+                      height: 80,
+                      width: '100%'
+                    }}>
                       {/* Dam photo (left) */}
-                      <Box sx={{ mr: 2, textAlign: 'center' }}>
-                        <Avatar 
-                          src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
-                          alt={dam.call_name || 'Dam'}
-                          sx={{ 
-                            width: 65, 
-                            height: 65, 
-                            border: '2px solid #f0f0f0',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }} 
-                        />
-                        <Typography variant="caption" display="block" sx={{ mt: 0.5, fontWeight: 'medium' }}>
-                          {dam.call_name || 'Unknown Dam'}
-                        </Typography>
-                      </Box>
+                      <Avatar 
+                        src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        alt={dam.call_name || 'Dam'}
+                        sx={{ 
+                          width: 80, 
+                          height: 80, 
+                          border: '2px solid #f0f0f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          position: 'absolute',
+                          left: 'calc(50% - 45px)',
+                          zIndex: 1
+                        }} 
+                      />
                       
-                      {/* Sire photo (right) */}
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Avatar 
-                          src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
-                          alt={sire.call_name || 'Sire'}
-                          sx={{ 
-                            width: 65, 
-                            height: 65, 
-                            border: '2px solid #f0f0f0',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }} 
-                        />
-                        <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                          {sire.call_name || 'Unknown Sire'}
-                        </Typography>
-                      </Box>
+                      {/* Sire photo (right) - overlapping */}
+                      <Avatar 
+                        src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        alt={sire.call_name || 'Sire'}
+                        sx={{ 
+                          width: 80, 
+                          height: 80, 
+                          border: '2px solid #f0f0f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          position: 'absolute',
+                          right: 'calc(50% - 45px)',
+                          zIndex: 0
+                        }} 
+                      />
+                    </Box>
+                    
+                    {/* Dog names */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      px: 2,
+                      mb: 1
+                    }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
+                        {dam.call_name || 'Unknown Dam'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {sire.call_name || 'Unknown Sire'}
+                      </Typography>
                     </Box>
                   </CardContent>
                 </Card>
