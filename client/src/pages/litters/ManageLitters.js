@@ -419,7 +419,7 @@ const ManageLitters = () => {
                     },
                     cursor: 'pointer'
                   }}
-                  onClick={() => navigate(`/litters/${litter.id}`)}
+                  onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
                 >
                   <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="caption" color="text.secondary">
