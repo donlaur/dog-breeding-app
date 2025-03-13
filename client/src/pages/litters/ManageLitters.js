@@ -156,12 +156,6 @@ const ManageLitters = () => {
     }
   };
 
-  // Render the breed name from the ID
-  const getBreedName = (breedId) => {
-    const breed = breeds.find(b => b.id === breedId);
-    return breed ? breed.name : 'Unknown';
-  };
-
   // Group litters by their status category
   const getLitterCategory = (status) => {
     if (status === 'Planned' || status === 'Expected') {
@@ -184,7 +178,7 @@ const ManageLitters = () => {
     const date = litter.whelp_date ? formatDate(litter.whelp_date) : 
                 (litter.expected_date ? formatDate(litter.expected_date) : 'No Date');
     
-    return `${damName} x ${sireName} - ${date}`;
+    return `${damName} (${sireName}) - ${date}`;
   };
 
   // Apply all filters and get filtered litters
@@ -414,25 +408,28 @@ const ManageLitters = () => {
               <Grid item xs={12} sm={6} md={4} lg={3} key={litter.id}>
                 <Card 
                   sx={{ 
-                    height: '100%', 
                     display: 'flex', 
                     flexDirection: 'column',
-                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    height: '100%',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
                     '&:hover': {
-                      transform: 'translateY(-3px)',
+                      transform: 'translateY(-4px)',
                       boxShadow: 3,
                     },
                     cursor: 'pointer'
                   }}
-                  onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
+                  onClick={() => navigate(`/litters/${litter.id}`)}
                 >
                   <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="caption" color="text.secondary">
-                      {getBreedName(litter.breed_id)}
+                      {isLitterBorn ? formatDate(litter.whelp_date) : `Expected: ${formatDate(litter.expected_date)}`}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {availablePuppies}/{totalPuppies} puppies
-                    </Typography>
+                    <Chip
+                      label={`${availablePuppies}/${totalPuppies}`}
+                      size="small"
+                      color={availablePuppies > 0 ? "primary" : "default"}
+                      sx={{ height: 24, minWidth: 40 }}
+                    />
                   </Box>
                   
                   <CardContent sx={{ flexGrow: 1, pt: 1, pb: 1 }}>
@@ -441,42 +438,39 @@ const ManageLitters = () => {
                     </Typography>
                     
                     <Box sx={{ display: 'flex', mb: 1, justifyContent: 'center' }}>
-                      {/* Dam photo (left) */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                      {/* Dam photo (left) - slightly larger */}
+                      <Box sx={{ mr: 1, textAlign: 'center' }}>
                         <Avatar 
-                          src={dam.profile_photo_url} 
-                          alt={dam.call_name || "Dam"}
-                          sx={{ width: 40, height: 40 }}
+                          src={dam.profile_photo_url || '/images/placeholder-dog.png'} 
+                          alt={dam.call_name || 'Dam'}
+                          sx={{ 
+                            width: 70, 
+                            height: 70, 
+                            border: '2px solid #f0f0f0',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }} 
                         />
+                        <Typography variant="caption" display="block" sx={{ mt: 0.5, fontWeight: 'medium' }}>
+                          {dam.call_name || 'Unknown Dam'}
+                        </Typography>
                       </Box>
                       
-                      {/* Sire photo (right) */}
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      {/* Sire photo (right) - slightly smaller */}
+                      <Box sx={{ textAlign: 'center' }}>
                         <Avatar 
-                          src={sire.profile_photo_url} 
-                          alt={sire.call_name || "Sire"}
-                          sx={{ width: 40, height: 40 }}
+                          src={sire.profile_photo_url || '/images/placeholder-dog.png'} 
+                          alt={sire.call_name || 'Sire'}
+                          sx={{ 
+                            width: 60, 
+                            height: 60, 
+                            border: '2px solid #f0f0f0',
+                            opacity: 0.9
+                          }} 
                         />
+                        <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary' }}>
+                          {sire.call_name || 'Unknown Sire'}
+                        </Typography>
                       </Box>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" noWrap sx={{ maxWidth: '45%' }}>
-                        {litter.dam_name || 'Unknown'}
-                      </Typography>
-                      <Typography variant="body2" noWrap sx={{ maxWidth: '45%', textAlign: 'right' }}>
-                        {litter.sire_name || 'Unknown'}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {isLitterBorn ? (
-                          formatDate(litter.whelp_date)
-                        ) : (
-                          `Expected: ${formatDate(litter.expected_date)}`
-                        )}
-                      </Typography>
                     </Box>
                   </CardContent>
                 </Card>
