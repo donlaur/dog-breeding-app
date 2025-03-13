@@ -438,7 +438,7 @@ const ManageLitters = () => {
                       {formatLitterName(litter)}
                     </Typography>
                     
-                    {/* Overlapping dog photos */}
+                    {/* Slightly overlapping dog photos (10% overlap) */}
                     <Box sx={{ 
                       display: 'flex', 
                       justifyContent: 'center', 
@@ -457,12 +457,12 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          left: 'calc(50% - 42px)',
+                          left: 'calc(50% - 80px)',
                           zIndex: 1
                         }} 
                       />
                       
-                      {/* Sire photo (right) - slightly overlapping */}
+                      {/* Sire photo (right) - slightly overlapping (10%) */}
                       <Avatar 
                         src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
                         alt={sire.call_name || 'Sire'}
@@ -472,23 +472,23 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          right: 'calc(50% - 42px)',
+                          left: 'calc(50% + 0px)',
                           zIndex: 0
                         }} 
                       />
                     </Box>
                     
-                    {/* Dog names */}
+                    {/* Dog names - adjusted to align with photos */}
                     <Box sx={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
                       px: 2,
                       mb: 1
                     }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'medium', ml: 1 }}>
                         {dam.call_name || 'Unknown Dam'}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>
                         {sire.call_name || 'Unknown Sire'}
                       </Typography>
                     </Box>
