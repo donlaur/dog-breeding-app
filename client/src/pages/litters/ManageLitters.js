@@ -457,12 +457,12 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          left: 'calc(50% - 45px)',
+                          left: 'calc(50% - 42px)',
                           zIndex: 1
                         }} 
                       />
                       
-                      {/* Sire photo (right) - overlapping */}
+                      {/* Sire photo (right) - slightly overlapping */}
                       <Avatar 
                         src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
                         alt={sire.call_name || 'Sire'}
@@ -472,7 +472,7 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          right: 'calc(50% - 45px)',
+                          right: 'calc(50% - 42px)',
                           zIndex: 0
                         }} 
                       />
