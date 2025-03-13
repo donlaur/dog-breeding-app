@@ -457,7 +457,7 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          left: 'calc(50% - 80px)',
+                          left: 'calc(50% - 88px)',
                           zIndex: 1
                         }} 
                       />
@@ -472,7 +472,7 @@ const ManageLitters = () => {
                           border: '2px solid #f0f0f0',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                           position: 'absolute',
-                          left: 'calc(50% + 0px)',
+                          left: 'calc(50% - 8px)',
                           zIndex: 0
                         }} 
                       />
