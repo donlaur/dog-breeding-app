@@ -29,20 +29,21 @@ import {
   Clear as ClearIcon,
   FilterList as FilterListIcon
 } from '@mui/icons-material';
-import { DogContext } from '../../context/DogContext';
-import { NotificationContext } from '../../context/NotificationContext';
-import ConfirmationDialog from '../../components/common/ConfirmationDialog';
+import { useDog } from '../../context/DogContext';
+import { useNotifications } from '../../context/NotificationContext';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { formatDate } from '../../utils/dateUtils';
-import { apiDelete } from '../../utils/apiUtils';
+import { apiGet, apiDelete } from '../../utils/apiUtils';
 import { API_URL, debugLog, debugError } from '../../config';
 
 const ManageLitters = () => {
-  const { litters, loading, error, refreshLitters } = useContext(DogContext);
-  const { showSuccess, showError } = useContext(NotificationContext);
+  const { litters, loading, error, refreshLitters } = useDog();
+  const { showSuccess, showError } = useNotifications();
   const [breeds, setBreeds] = useState([]);
   const [sires, setSires] = useState([]);
   const [dams, setDams] = useState([]);
   const [errorBreeds, setErrorBreeds] = useState(null);
+  const [errorDogs, setErrorDogs] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   
   // Filter states
@@ -71,6 +72,7 @@ const ManageLitters = () => {
     return () => clearInterval(intervalId);
   }, []); // Empty dependency array - only run on mount
 
+  // Fetch breeds on component mount
   useEffect(() => {
     const fetchBreeds = async () => {
       setLocalLoading(true);
@@ -123,9 +125,11 @@ const ManageLitters = () => {
           setSires(sortedSires);
         } else {
           debugError("Error fetching dogs:", response?.error);
+          setErrorDogs("Failed to load dogs. Please try again later.");
         }
       } catch (error) {
         debugError("Exception fetching dogs:", error);
+        setErrorDogs("Failed to load dogs. Please try again later.");
       } finally {
         setLocalLoading(false);
       }
@@ -239,21 +243,19 @@ const ManageLitters = () => {
   const handleConfirmDelete = async () => {
     if (!litterToDelete) return;
     
+    setDeleteLoading(true);
     try {
-      setDeleteLoading(true);
-      
       const response = await apiDelete(`litters/${litterToDelete.id}`);
       
       if (response && response.ok) {
-        showSuccess(`Successfully deleted litter "${litterToDelete.litter_name}"`);
-        refreshLitters(true); // Force refresh after deletion
+        showSuccess(`Litter "${litterToDelete.litter_name || `#${litterToDelete.id}`}" has been deleted.`);
+        refreshLitters(true);
       } else {
-        throw new Error(response?.error || "Unknown error");
+        showError(`Failed to delete litter: ${response?.error || 'Unknown error'}`);
       }
-      
     } catch (error) {
-      debugError("Error deleting litter:", error);
-      showError(`Failed to delete litter: ${error.message}`);
+      debugError('Error deleting litter:', error);
+      showError(`Failed to delete litter: ${error.message || 'Unknown error'}`);
     } finally {
       setDeleteLoading(false);
       setDeleteDialogOpen(false);
@@ -388,9 +390,9 @@ const ManageLitters = () => {
         </Stack>
       </Paper>
       
-      {error && (
+      {(error || errorBreeds || errorDogs) && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+          {error || errorBreeds || errorDogs}
         </Alert>
       )}
       
