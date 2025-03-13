@@ -35,6 +35,7 @@ import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { formatDate } from '../../utils/dateUtils';
 import { apiGet, apiDelete } from '../../utils/apiUtils';
 import { API_URL, debugLog, debugError } from '../../config';
+import { getPhotoUrl, handleImageError } from '../../utils/photoUtils';
 
 const ManageLitters = () => {
   const { litters, loading, error, refreshLitters } = useDog();
@@ -438,14 +439,14 @@ const ManageLitters = () => {
                     </Typography>
                     
                     <Box sx={{ display: 'flex', mb: 1, justifyContent: 'center' }}>
-                      {/* Dam photo (left) - slightly larger */}
-                      <Box sx={{ mr: 1, textAlign: 'center' }}>
+                      {/* Dam photo (left) */}
+                      <Box sx={{ mr: 2, textAlign: 'center' }}>
                         <Avatar 
-                          src={dam.profile_photo_url || '/images/placeholder-dog.png'} 
+                          src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
                           alt={dam.call_name || 'Dam'}
                           sx={{ 
-                            width: 70, 
-                            height: 70, 
+                            width: 65, 
+                            height: 65, 
                             border: '2px solid #f0f0f0',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }} 
@@ -455,16 +456,16 @@ const ManageLitters = () => {
                         </Typography>
                       </Box>
                       
-                      {/* Sire photo (right) - slightly smaller */}
+                      {/* Sire photo (right) */}
                       <Box sx={{ textAlign: 'center' }}>
                         <Avatar 
-                          src={sire.profile_photo_url || '/images/placeholder-dog.png'} 
+                          src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
                           alt={sire.call_name || 'Sire'}
                           sx={{ 
-                            width: 60, 
-                            height: 60, 
+                            width: 65, 
+                            height: 65, 
                             border: '2px solid #f0f0f0',
-                            opacity: 0.9
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }} 
                         />
                         <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary' }}>
