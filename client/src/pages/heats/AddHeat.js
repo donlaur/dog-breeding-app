@@ -10,9 +10,11 @@ import {
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import HeatForm from '../../components/heats/HeatForm';
-import { API_URL, debugLog, debugError } from "../../config";
+import { debugLog, debugError } from "../../config";
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiPost } from '../../utils/apiUtils';
+import PropTypes from 'prop-types';
 
 const AddHeat = () => {
   const navigate = useNavigate();
@@ -24,28 +26,26 @@ const AddHeat = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_URL}/heats`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(heat),
-      });
+      // Remove any non-schema fields that might cause database errors
+      const heatData = { ...heat };
+      delete heatData.dog_name;
+      delete heatData.dog_info;
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const response = await apiPost('heats', heatData);
+      
+      if (response.success) {
+        showSuccess("Heat cycle added successfully!");
+        
+        // Navigate back to heat management
+        setTimeout(() => {
+          navigate('/dashboard/heats');
+        }, 1500);
+      } else {
+        throw new Error(response.error || 'Failed to add heat cycle');
       }
       
-      showSuccess("Heat cycle added successfully!");
-      
-      // Navigate back to heat management
-      setTimeout(() => {
-        navigate('/dashboard/heats');
-      }, 1500);
-      
     } catch (error) {
-      console.error("Error adding heat cycle:", error);
+      debugError("Error adding heat cycle:", error);
       showError(`Failed to add heat cycle: ${error.message}`);
     } finally {
       setLoading(false);
@@ -76,10 +76,14 @@ const AddHeat = () => {
 
       {/* Form Container */}
       <Paper sx={{ p: 3, mt: 3 }}>
-        <HeatForm onSave={handleSave} />
+        <HeatForm onSave={handleSave} loading={loading} />
       </Paper>
     </Container>
   );
 };
 
-export default AddHeat; 
+AddHeat.propTypes = {
+  // No props required for this component
+};
+
+export default AddHeat;

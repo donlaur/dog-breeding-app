@@ -11,8 +11,10 @@ import {
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import HeatForm from '../../components/heats/HeatForm';
-import { API_URL, debugLog, debugError } from "../../config";
+import { debugLog, debugError } from "../../config";
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiGet, apiPut } from '../../utils/apiUtils';
+import PropTypes from 'prop-types';
 
 const EditHeat = () => {
   const { heatId } = useParams();
@@ -24,13 +26,16 @@ const EditHeat = () => {
   useEffect(() => {
     const fetchHeat = async () => {
       try {
-        const response = await fetch(`${API_URL}/heats/${heatId}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setHeat(data);
+        const response = await apiGet(`heats/${heatId}`);
+        if (response.success) {
+          setHeat(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to load heat data');
+        }
       } catch (error) {
         debugError("Error fetching heat:", error);
         setError("Failed to load heat data");
+        showError("Could not load heat record");
       } finally {
         setLoading(false);
       }
@@ -42,28 +47,26 @@ const EditHeat = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_URL}/heats/${heatId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(heatData),
-      });
+      // Remove any non-schema fields that might cause database errors
+      const sanitizedData = { ...heatData };
+      delete sanitizedData.dog_name;
+      delete sanitizedData.dog_info;
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const response = await apiPut(`heats/${heatId}`, sanitizedData);
+      
+      if (response.success) {
+        showSuccess("Heat cycle updated successfully!");
+        
+        // Navigate back to heat management after a short delay
+        setTimeout(() => {
+          navigate('/dashboard/heats');
+        }, 1500);
+      } else {
+        throw new Error(response.error || 'Failed to update heat cycle');
       }
       
-      showSuccess("Heat cycle updated successfully!");
-      
-      // Navigate back to heat management after a short delay
-      setTimeout(() => {
-        navigate('/dashboard/heats');
-      }, 1500);
-      
     } catch (error) {
-      console.error("Error updating heat cycle:", error);
+      debugError("Error updating heat cycle:", error);
       showError(`Failed to update heat cycle: ${error.message}`);
       setError(error.message);
     } finally {
@@ -71,8 +74,17 @@ const EditHeat = () => {
     }
   };
 
-  if (loading) return <CircularProgress />;
-  if (error) return <Alert severity="error">{error}</Alert>;
+  if (loading) return (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <CircularProgress />
+    </Box>
+  );
+  
+  if (error) return (
+    <Container maxWidth="md">
+      <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>
+    </Container>
+  );
 
   return (
     <Container maxWidth="md">
@@ -93,11 +105,16 @@ const EditHeat = () => {
         <HeatForm 
           initialData={heat} 
           onSave={handleUpdateHeat} 
-          isEdit={true} // Add this prop to indicate edit mode
+          isEdit={true}
+          loading={loading}
         />
       </Paper>
     </Container>
   );
 };
 
-export default EditHeat; 
+EditHeat.propTypes = {
+  // No props required for this component
+};
+
+export default EditHeat;
