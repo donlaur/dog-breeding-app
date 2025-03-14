@@ -62,7 +62,7 @@ def test_create_health_record(client, mock_db):
     mock_db.next_id["health_records"] = 1
     
     # Get a dog ID
-dogs = mock_db.find_by_field_values("dogs")
+dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     dog_id = dogs[0]["id"]
     
@@ -179,7 +179,7 @@ def test_create_vaccination(client, mock_db):
     mock_db.next_id["vaccinations"] = 1
     
     # Get a dog ID
-dogs = mock_db.find_by_field_values("dogs")
+dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     dog_id = dogs[0]["id"]
     
@@ -272,7 +272,7 @@ def test_database_query_pattern_health():
             if filters:
                 records = db.find_by_field_values("health_records", filters)
             else:
-records = db.find_by_field_values("health_records")
+records = db.find_by_field_values("health_records", {})
             return records
         except Exception as e:
             return {"error": str(e)}, 500
