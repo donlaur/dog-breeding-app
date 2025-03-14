@@ -244,9 +244,15 @@ const DashboardLayout = () => {
     }
     
     // For nested routes, make sure we don't highlight parent paths incorrectly
-    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health-records
+    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health/records
     if (path === '/dashboard') {
       return false; // Don't highlight dashboard for other pages
+    }
+    
+    // Special case for health dashboard to prevent highlighting when on sub-pages
+    if (path === '/dashboard/health' && location.pathname !== '/dashboard/health') {
+      // If we're on a sub-page like /dashboard/health/records, don't highlight the dashboard
+      return false;
     }
     
     // For child routes, check if the current path starts with the menu path
@@ -259,6 +265,14 @@ const DashboardLayout = () => {
       
       // If path continues with a slash, it's a child route
       if (location.pathname.charAt(path.length) === '/') {
+        // For parent paths that have children, only mark active if we're on an exact match
+        // This prevents /dashboard/health from highlighting when on /dashboard/health/records
+        if (path.includes('/dashboard/health') || 
+            path.includes('/dashboard/breeding') || 
+            path.includes('/dashboard/content') || 
+            path.includes('/dashboard/crm')) {
+          return false;
+        }
         return true;
       }
     }
