@@ -163,7 +163,7 @@ function Overview() {
       
       // Determine if this is a puppy or an adult dog
       // A puppy will have a litter_id property with a non-null value
-      const isPuppy = animal.hasOwnProperty('litter_id') && animal.litter_id !== null;
+      const isPuppy = Object.prototype.hasOwnProperty.call(animal, 'litter_id') && animal.litter_id !== null;
       
       // Log for debugging
       console.log(`Navigating to details for ${isPuppy ? 'puppy' : 'dog'} with ID ${id}`);
