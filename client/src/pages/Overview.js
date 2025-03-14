@@ -21,6 +21,8 @@ import UpcomingEvents from '../components/overview/UpcomingEvents';
 // Import utility functions
 import { getImageUrl, getGenderDisplay } from '../utils/imageUtils';
 import { formatAdultAge } from '../utils/ageUtils';
+import { API_URL, debugLog, debugError } from "../config";
+import { apiGet } from '../utils/apiUtils';
 
 function Overview() {
   const navigate = useNavigate();
@@ -35,23 +37,30 @@ function Overview() {
   
   // Add local state for puppies fetched directly
   const [directPuppies, setDirectPuppies] = useState([]);
+  const [puppiesLoading, setPuppiesLoading] = useState(false);
+  const [puppiesError, setPuppiesError] = useState(null);
   
-  // Direct fetch of puppies
+  // Fetch puppies using apiGet
   useEffect(() => {
     const fetchPuppiesDirectly = async () => {
       try {
-        console.log('Directly fetching puppies from API...');
-        const response = await fetch('/api/puppies');
+        setPuppiesLoading(true);
+        debugLog('Fetching puppies using API utility...');
+        
+        const response = await apiGet('puppies');
+        
         if (response.ok) {
-          const data = await response.json();
-          console.log('Direct puppies fetch successful:', data);
-          console.log('Direct puppies count:', data.length);
-          setDirectPuppies(data);
+          debugLog('Puppies fetch successful:', response.data);
+          debugLog('Puppies count:', response.data.length);
+          setDirectPuppies(response.data);
         } else {
-          console.error('Failed to directly fetch puppies:', response.status);
+          throw new Error(response.error || 'Failed to fetch puppies');
         }
       } catch (err) {
-        console.error('Error directly fetching puppies:', err);
+        debugError('Error fetching puppies:', err);
+        setPuppiesError(err.message);
+      } finally {
+        setPuppiesLoading(false);
       }
     };
     
