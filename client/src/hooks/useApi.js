@@ -21,28 +21,33 @@ const useApi = () => {
       
       // Use the appropriate API utility function based on the HTTP method
       switch (method) {
-        case 'GET':
+        case 'GET': {
           response = await apiGet(endpoint, options);
           break;
-        case 'POST':
+        }
+        case 'POST': {
           // Sanitize data before sending to prevent non-schema fields errors
           const postData = options.body ? sanitizeApiData(
             typeof options.body === 'string' ? JSON.parse(options.body) : options.body
           ) : {};
           response = await apiPost(endpoint, postData, options);
           break;
-        case 'PUT':
+        }
+        case 'PUT': {
           // Sanitize data before sending to prevent non-schema fields errors
           const putData = options.body ? sanitizeApiData(
             typeof options.body === 'string' ? JSON.parse(options.body) : options.body
           ) : {};
           response = await apiPut(endpoint, putData, options);
           break;
-        case 'DELETE':
+        }
+        case 'DELETE': {
           response = await apiDelete(endpoint, options);
           break;
-        default:
+        }
+        default: {
           throw new Error(`Unsupported HTTP method: ${method}`);
+        }
       }
       
       if (!response.ok) {
