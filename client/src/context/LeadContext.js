@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { formatISO } from 'date-fns';
+import { apiGet, apiPost, apiPut, apiDelete, sanitizeApiData } from '../utils/apiUtils';
+import { API_URL, debugLog, debugError } from '../config';
 
 export const LeadContext = createContext();
 
@@ -24,58 +26,82 @@ export const LeadProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Helper function for authenticated API calls
-  const fetchWithAuth = useCallback(async (endpoint, options = {}) => {
+  // Use API utility functions for API calls
+  const leadsApi = useCallback(async (endpoint, method = 'GET', data = null) => {
     if (!isAuthenticated) {
       throw new Error('User not authenticated');
     }
     
     try {
-      const token = await getToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...(options.headers || {})
-      };
+      const fullEndpoint = `leads/${endpoint}`;
+      debugLog(`Making ${method} request to ${fullEndpoint}`, data);
       
-      const response = await fetch(`/api/leads/${endpoint}`, {
-        ...options,
-        headers
-      });
+      let response;
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
+      switch (method) {
+        case 'GET': {
+          response = await apiGet(fullEndpoint);
+          break;
+        }
+        case 'POST': {
+          // Sanitize data to prevent non-schema fields errors
+          const sanitizedData = data ? sanitizeApiData(data) : {};
+          response = await apiPost(fullEndpoint, sanitizedData);
+          break;
+        }
+        case 'PUT': {
+          // Sanitize data to prevent non-schema fields errors
+          const sanitizedData = data ? sanitizeApiData(data) : {};
+          response = await apiPut(fullEndpoint, sanitizedData);
+          break;
+        }
+        case 'DELETE': {
+          response = await apiDelete(fullEndpoint);
+          break;
+        }
+        default: {
+          throw new Error(`Unsupported HTTP method: ${method}`);
+        }
       }
       
-      return data;
+      if (!response.ok) {
+        throw new Error(response.error || 'API request failed');
+      }
+      
+      return response.data;
     } catch (error) {
-      console.error(`Error fetching from /api/leads/${endpoint}:`, error);
+      debugError(`Error in leadsApi for ${endpoint}:`, error);
       throw error;
     }
-  }, [isAuthenticated, getToken]);
+  }, [isAuthenticated]);
 
   // Dashboard data
   const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth('dashboard');
-      if (response.success) {
-        setDashboardData(response.data);
+      setError(null);
+      
+      debugLog('Fetching leads dashboard data');
+      const data = await leadsApi('dashboard');
+      
+      if (data) {
+        setDashboardData(data);
+        debugLog('Dashboard data updated successfully');
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error fetching lead dashboard:', error);
+      debugError('Error fetching lead dashboard:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   // Leads
   const fetchLeads = useCallback(async (status = null, type = null, source = null) => {
     try {
       setIsLoading(true);
+      setError(null);
+      
       let endpoint = '';
       const params = [];
       
@@ -87,33 +113,37 @@ export const LeadProvider = ({ children }) => {
         endpoint += `?${params.join('&')}`;
       }
       
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setLeads(response.data);
+      debugLog(`Fetching leads with params: ${params.join(', ') || 'none'}`);
+      const data = await leadsApi(endpoint);
+      
+      if (data) {
+        setLeads(data);
+        debugLog(`Retrieved ${data.length} leads`);
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error fetching leads:', error);
+      debugError('Error fetching leads:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   const fetchLead = useCallback(async (leadId) => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth(`${leadId}`);
-      if (response.success) {
-        return response.data;
+      const response = await leadsApi(`${leadId}`);
+      
+      if (response) {
+        return response;
       }
     } catch (error) {
       setError(error.message);
-      console.error(`Error fetching lead ${leadId}:`, error);
+      debugError(`Error fetching lead ${leadId}:`, error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   const createLead = useCallback(async (leadData) => {
     try {
@@ -123,24 +153,21 @@ export const LeadProvider = ({ children }) => {
         leadData.inquiry_date = formatISO(leadData.inquiry_date);
       }
       
-      const response = await fetchWithAuth('', {
-        method: 'POST',
-        body: JSON.stringify(leadData)
-      });
+      const response = await leadsApi('', 'POST', leadData);
       
-      if (response.success) {
+      if (response) {
         // Update local state
-        setLeads(prev => [response.data, ...prev]);
-        return response.data;
+        setLeads(prev => [response, ...prev]);
+        return response;
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error creating lead:', error);
+      debugError('Error creating lead:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   const updateLead = useCallback(async (leadId, leadData) => {
     try {
@@ -150,47 +177,42 @@ export const LeadProvider = ({ children }) => {
         leadData.inquiry_date = formatISO(leadData.inquiry_date);
       }
       
-      const response = await fetchWithAuth(`${leadId}`, {
-        method: 'PUT',
-        body: JSON.stringify(leadData)
-      });
+      const response = await leadsApi(`${leadId}`, 'PUT', leadData);
       
-      if (response.success) {
+      if (response) {
         // Update local state
         setLeads(prev => 
-          prev.map(lead => lead.id === leadId ? response.data : lead)
+          prev.map(lead => lead.id === leadId ? response : lead)
         );
-        return response.data;
+        return response;
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error updating lead:', error);
+      debugError('Error updating lead:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   const deleteLead = useCallback(async (leadId) => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth(`${leadId}`, {
-        method: 'DELETE'
-      });
+      const response = await leadsApi(`${leadId}`, 'DELETE');
       
-      if (response.success) {
+      if (response) {
         // Update local state
         setLeads(prev => prev.filter(lead => lead.id !== leadId));
         return true;
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error deleting lead:', error);
+      debugError('Error deleting lead:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   // Lead Types, Statuses, and Sources
   const fetchLeadMetadata = useCallback(async () => {
@@ -199,65 +221,61 @@ export const LeadProvider = ({ children }) => {
       
       // Fetch in parallel
       const [typesResponse, statusesResponse, sourcesResponse] = await Promise.all([
-        fetchWithAuth('types'),
-        fetchWithAuth('statuses'),
-        fetchWithAuth('sources')
+        leadsApi('types'),
+        leadsApi('statuses'),
+        leadsApi('sources')
       ]);
       
-      if (typesResponse.success) {
-        setLeadTypes(typesResponse.data);
+      if (typesResponse) {
+        setLeadTypes(typesResponse);
       }
       
-      if (statusesResponse.success) {
-        setLeadStatuses(statusesResponse.data);
+      if (statusesResponse) {
+        setLeadStatuses(statusesResponse);
       }
       
-      if (sourcesResponse.success) {
-        setLeadSources(sourcesResponse.data);
+      if (sourcesResponse) {
+        setLeadSources(sourcesResponse);
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error fetching lead metadata:', error);
+      debugError('Error fetching lead metadata:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [leadsApi]);
 
   // Fetch initial data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      fetchDashboardData();
       fetchLeadMetadata();
+      fetchDashboardData();
     }
-  }, [isAuthenticated, fetchDashboardData, fetchLeadMetadata]);
+  }, [isAuthenticated, fetchLeadMetadata, fetchDashboardData]);
 
   // Context value
   const contextValue = {
-    // Data states
+    // Data
     leads,
     leadTypes,
     leadStatuses,
     leadSources,
     dashboardData,
     
-    // Status
+    // Loading and error states
     isLoading,
     error,
     
-    // Dashboard functions
-    fetchDashboardData,
-    
-    // Lead CRUD operations
+    // Functions
     fetchLeads,
     fetchLead,
     createLead,
     updateLead,
     deleteLead,
-    
-    // Metadata
+    fetchDashboardData,
     fetchLeadMetadata
   };
-
+  
   return (
     <LeadContext.Provider value={contextValue}>
       {children}
@@ -265,4 +283,5 @@ export const LeadProvider = ({ children }) => {
   );
 };
 
+// Custom hook for easy context usage
 export const useLead = () => useContext(LeadContext);
