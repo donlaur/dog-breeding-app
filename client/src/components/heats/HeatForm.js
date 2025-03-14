@@ -14,6 +14,7 @@ import {
   Typography
 } from '@mui/material';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet } from "../../utils/apiUtils";
 
 const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   const [dogs, setDogs] = useState({ females: [], males: [] });
@@ -35,14 +36,13 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs`);
+        const response = await apiGet('dogs');
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(response.error || 'Failed to load dogs');
         }
-        const data = await response.json();
         setDogs({
-          females: data.filter(dog => dog.gender === 'Female'),
-          males: data.filter(dog => dog.gender === 'Male')
+          females: response.data.filter(dog => dog.gender === 'Female'),
+          males: response.data.filter(dog => dog.gender === 'Male')
         });
       } catch (error) {
         debugError("Error fetching dogs:", error);
