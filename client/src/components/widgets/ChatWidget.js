@@ -98,7 +98,7 @@ const ChatWidget = () => {
         throw new Error(response.error || 'Registration failed');
       }
     } catch (err) {
-      console.error('Error registering for chat:', err);
+      debugError('Error registering for chat:', err);
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ const ChatWidget = () => {
   };
   
   const handleSendMessage = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     
     if (!currentMessage.trim()) return;
     
@@ -155,7 +155,7 @@ const ChatWidget = () => {
         throw new Error(response.error || 'Failed to send message');
       }
     } catch (err) {
-      console.error('Error sending message:', err);
+      debugError('Error sending message:', err);
       // Update the message to show it failed
       setMessages(prev => 
         prev.map(msg => 
