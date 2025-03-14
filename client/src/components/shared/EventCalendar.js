@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -393,6 +394,15 @@ const EventCalendar = ({
       )}
     </div>
   );
+};
+
+EventCalendar.propTypes = {
+  events: PropTypes.array,
+  title: PropTypes.string,
+  fetchHeats: PropTypes.bool,
+  fetchLitters: PropTypes.bool,
+  fetchEvents: PropTypes.bool,
+  onSelectSlot: PropTypes.func
 };
 
 export default EventCalendar;

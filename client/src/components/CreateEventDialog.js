@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Dialog,
   DialogTitle,
@@ -492,6 +493,13 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
       </Dialog>
     </LocalizationProvider>
   );
+};
+
+CreateEventDialog.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  selectedDate: PropTypes.object,
+  onEventCreated: PropTypes.func
 };
 
 export default CreateEventDialog;

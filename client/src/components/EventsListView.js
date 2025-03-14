@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   Table,
@@ -999,7 +1000,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
           </Typography>
           {selectedEvent && (
             <Typography variant="body2" fontWeight="500" mt={1}>
-              "{selectedEvent.title}" on {formatEventDate(selectedEvent.start_date)}
+              &ldquo;{selectedEvent.title}&rdquo; on {formatEventDate(selectedEvent.start_date)}
             </Typography>
           )}
           <Typography variant="body2" color="error" mt={2}>
@@ -1178,6 +1179,11 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       </Dialog>
     </Box>
   );
+};
+
+EventsListView.propTypes = {
+  onEventCreated: PropTypes.func,
+  onEventDeleted: PropTypes.func
 };
 
 export default EventsListView;

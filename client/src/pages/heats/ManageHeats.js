@@ -139,7 +139,7 @@ const ManageHeats = () => {
             No Heat Records Yet
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Start tracking your dog's heat cycles to better manage breeding schedules.
+            Start tracking your dog&apos;s heat cycles to better manage breeding schedules.
           </Typography>
           <Button
             component={Link}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box,
@@ -219,6 +220,12 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
       </Grid>
     </Box>
   );
+};
+
+HeatForm.propTypes = {
+  onSave: PropTypes.func,
+  initialData: PropTypes.object,
+  isEdit: PropTypes.bool
 };
 
 export default HeatForm; 
