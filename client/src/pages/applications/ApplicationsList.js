@@ -12,9 +12,11 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { apiGet, apiPut } from '../../utils/apiUtils';
+import { debugLog, debugError } from '../../config';
+import { showSuccess, showError } from '../../utils/notifications';
 
 // Status chip colors
 const statusColors = {
@@ -38,18 +40,19 @@ const ApplicationsList = () => {
     const fetchApplications = async () => {
       try {
         // Get forms first
-        const formsResponse = await axios.get('/api/application-forms');
-        if (formsResponse.data.success) {
-          setForms(formsResponse.data.data);
+        const formsResponse = await apiGet('application-forms');
+        if (formsResponse.success) {
+          setForms(formsResponse.data);
         }
         
         // Then get submissions
-        const submissionsResponse = await axios.get('/api/form-submissions');
-        if (submissionsResponse.data.success) {
-          setApplications(submissionsResponse.data.data);
+        const submissionsResponse = await apiGet('form-submissions');
+        if (submissionsResponse.success) {
+          setApplications(submissionsResponse.data);
         }
       } catch (error) {
-        console.error('Error fetching applications:', error);
+        debugError('Error fetching applications:', error);
+        showError('Failed to load applications');
       } finally {
         setLoading(false);
       }
@@ -60,14 +63,15 @@ const ApplicationsList = () => {
   
   const handleViewApplication = async (applicationId) => {
     try {
-      const response = await axios.get(`/api/form-submissions/${applicationId}`);
-      if (response.data.success) {
-        setSelectedApplication(response.data.data);
+      const response = await apiGet(`form-submissions/${applicationId}`);
+      if (response.success) {
+        setSelectedApplication(response.data);
         setDialogOpen(true);
-        setStatusUpdateValue(response.data.data.status);
+        setStatusUpdateValue(response.data.status);
       }
     } catch (error) {
-      console.error('Error fetching application details:', error);
+      debugError('Error fetching application details:', error);
+      showError('Failed to load application details');
     }
   };
   
@@ -78,11 +82,11 @@ const ApplicationsList = () => {
   
   const handleUpdateStatus = async () => {
     try {
-      const response = await axios.put(`/api/form-submissions/${selectedApplication.id}/status`, {
+      const response = await apiPut(`form-submissions/${selectedApplication.id}/status`, {
         status: statusUpdateValue
       });
       
-      if (response.data.success) {
+      if (response.success) {
         // Update the application in the list
         setApplications(prevApps => 
           prevApps.map(app => 
@@ -97,9 +101,12 @@ const ApplicationsList = () => {
           ...prev,
           status: statusUpdateValue
         }));
+        
+        showSuccess('Application status updated successfully');
       }
     } catch (error) {
-      console.error('Error updating status:', error);
+      debugError('Error updating application status:', error);
+      showError('Failed to update application status');
     }
   };
   
