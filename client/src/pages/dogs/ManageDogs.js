@@ -1,7 +1,7 @@
 // src/pages/dogs/ManageDogs.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { API_URL, debugLog, debugError } from "../../config";
+import { debugLog, debugError } from "../../config";
 import { 
   Box,
   Card,
@@ -32,6 +32,8 @@ import DogCard from '../../components/DogCard';
 import '../../styles/ManageDogs.css';
 import { getPhotoUrl } from '../../utils/photoUtils';
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiDelete } from '../../utils/apiUtils';
+import PropTypes from 'prop-types';
 
 const BREED_NAME = "Pembroke Welsh Corgi";
 
@@ -98,17 +100,14 @@ const ManageDogs = () => {
     try {
       setDeleteLoading(true);
       
-      const response = await fetch(`${API_URL}/dogs/${dogId}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`dogs/${dogId}`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (response.success) {
+        showSuccess(`Successfully deleted dog "${dogName || 'Unknown'}"`);
+        refreshDogs();
+      } else {
+        throw new Error(response.error || 'Failed to delete dog');
       }
-      
-      showSuccess(`Successfully deleted dog "${dogName || 'Unknown'}"`);
-      refreshDogs();
       
     } catch (error) {
       debugError("Error deleting dog:", error);
@@ -200,13 +199,12 @@ const ManageDogs = () => {
               onClick={handleRefresh}
               disabled={loading} // Use the specific loading state
             >
-              {loading ? 'Refreshing...' : 'Refresh'}
+              Refresh
             </Button>
             <Button
-              variant="contained"
-              color="primary"
               component={Link}
               to="/dashboard/dogs/add"
+              variant="contained"
               startIcon={<AddIcon />}
             >
               Add Dog
@@ -338,6 +336,10 @@ const ManageDogs = () => {
       </Box>
     </Container>
   );
+};
+
+ManageDogs.propTypes = {
+  // Add prop types here
 };
 
 export default ManageDogs;

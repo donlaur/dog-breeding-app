@@ -1,7 +1,7 @@
 // src/pages/dogs/DogForm.js
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { API_URL, debugLog, debugError } from "../../config";
+import { debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
 import { useNotifications } from "../../context/NotificationContext";
 import "../../styles/DogForm.css";
@@ -23,6 +23,8 @@ import {
 } from '@mui/material';
 import { PhotoCamera, ArrowBack } from '@mui/icons-material';
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiGet } from '../../utils/apiUtils';
+import PropTypes from 'prop-types';
 
 const DEFAULT_BREED_ID = process.env.REACT_APP_DEFAULT_BREED_ID || 1;
 const BREED_NAME = "Pembroke Welsh Corgi"; // Hardcoded for your specific use
@@ -95,29 +97,30 @@ function DogForm() {
     }
 
     debugLog("Fetching dog data for editing:", id);
-    fetch(`${API_URL}/dogs/${id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+    const fetchDogData = async () => {
+      try {
+        const response = await apiGet(`dogs/${id}`);
+        if (response.success) {
+          debugLog("Dog data received for editing:", response.data);
+          // Ensure IDs are properly formatted
+          const formattedData = {
+            ...response.data,
+            sire_id: response.data.sire_id ? parseInt(response.data.sire_id, 10) : '',
+            dam_id: response.data.dam_id ? parseInt(response.data.dam_id, 10) : ''
+          };
+          setDog(formattedData);
+        } else {
+          throw new Error(response.error || 'Failed to fetch dog data');
         }
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("Dog data received for editing:", data);
-        // Ensure IDs are properly formatted
-        const formattedData = {
-          ...data,
-          sire_id: data.sire_id ? parseInt(data.sire_id, 10) : '',
-          dam_id: data.dam_id ? parseInt(data.dam_id, 10) : ''
-        };
-        setDog(formattedData);
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         debugError("Error fetching dog:", err);
-        debugError("Error details:", err.message);
+        showError(`Error loading dog: ${err.message}`);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchDogData();
   }, [id]);
 
   if (loading) {
