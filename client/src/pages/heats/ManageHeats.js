@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import HeatList from '../../components/heats/HeatList';
 import HeatCalendar from '../../components/heats/HeatCalendar';
-import { apiGet } from '../../utils/apiUtils';
+import { apiGet, apiDelete } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 
 const ManageHeats = () => {
@@ -38,10 +38,12 @@ const ManageHeats = () => {
   useEffect(() => {
     const loadHeats = async () => {
       try {
-        const response = await fetch(`${API_URL}/heats`);
-        if (!response.ok) throw new Error('Failed to fetch heats');
-        const data = await response.json();
-        setHeats(data);
+        const response = await apiGet('heats');
+        if (response.ok) {
+          setHeats(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to fetch heats');
+        }
       } catch (err) {
         debugError("Error fetching heats:", err);
         setError("Failed to load heats data");
@@ -57,10 +59,11 @@ const ManageHeats = () => {
     try {
       const queryParams = new URLSearchParams(filters).toString();
       const response = await apiGet(`heats?${queryParams}`);
-      if (!response.ok) throw new Error('Failed to fetch heats');
-      
-      const data = await response.json();
-      setHeats(data);
+      if (response.ok) {
+        setHeats(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to fetch heats');
+      }
     } catch (error) {
       setError(error.message);
     } finally {
@@ -70,20 +73,16 @@ const ManageHeats = () => {
 
   const handleDeleteHeat = async (heatId, dogName) => {
     try {
-      const response = await fetch(`${API_URL}/heats/${heatId}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`heats/${heatId}`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        showSuccess(`Successfully deleted heat cycle for ${dogName}`);
+        refreshHeats(); // Refresh the heats list
+      } else {
+        throw new Error(response.error || 'Failed to delete heat cycle');
       }
-      
-      showSuccess(`Successfully deleted heat cycle for ${dogName}`);
-      refreshHeats(); // Refresh the heats list
-      
     } catch (error) {
-      console.error("Error deleting heat cycle:", error);
+      debugError("Error deleting heat cycle:", error);
       showError(`Failed to delete heat cycle: ${error.message}`);
     }
   };
@@ -92,14 +91,16 @@ const ManageHeats = () => {
   const refreshHeats = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/heats`);
-      if (!response.ok) throw new Error('Failed to fetch heats');
-      const data = await response.json();
-      setHeats(data);
+      const response = await apiGet('heats');
+      if (response.ok) {
+        setHeats(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to fetch heats');
+      }
       setLoading(false);
     } catch (err) {
       debugError("Error refreshing heats:", err);
-      setError("Failed to refresh heats data");
+      setError(err.message || "Failed to refresh heats data");
       setLoading(false);
     }
   };
