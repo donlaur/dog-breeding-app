@@ -9,7 +9,7 @@ import json
 import datetime
 from flask import Flask
 from server.events import create_events_bp
-from server.auth.auth import token_required
+from server.auth import token_required
 from server.database.db_interface import DatabaseInterface
 
 class TestEventsAPI:

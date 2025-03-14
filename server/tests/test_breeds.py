@@ -313,7 +313,7 @@ def test_database_query_pattern_breeds():
     # Create a function that simulates the get_all_breeds endpoint
     def get_all_breeds(db):
         try:
-breeds = db.find_by_field_values("breeds")
+            breeds = db.find_by_field_values("breeds", {})
             return breeds
         except Exception as e:
             return {"error": str(e)}, 500
