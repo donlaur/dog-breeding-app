@@ -42,22 +42,18 @@ const BreederProfile = () => {
     setError(null);
     
     try {
-      // Using the correct endpoint from program.py
-      const response = await fetch(`${API_URL}/program/`);
+      // Using the correct endpoint from program.py with apiGet
+      const response = await apiGet('program/');
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          // If profile doesn't exist yet, we'll handle it gracefully
-          debugLog('Profile not found, will create a new one when saved');
-          setLoading(false);
-          return;
-        }
-        throw new Error(`Failed to fetch profile: ${response.status}`);
+      if (response.success) {
+        debugLog('Profile data loaded:', response.data);
+        setProgram(response.data);
+      } else if (response.status === 404) {
+        // If profile doesn't exist yet, we'll handle it gracefully
+        debugLog('Profile not found, will create a new one when saved');
+      } else {
+        throw new Error(response.error || 'Failed to fetch profile');
       }
-      
-      const data = await response.json();
-      debugLog('Profile data loaded:', data);
-      setProgram(data);
     } catch (error) {
       debugError('Error fetching program:', error);
       setError('Failed to load breeder profile. Please try again.');
@@ -81,7 +77,7 @@ const BreederProfile = () => {
       // Use the correct program endpoint to match our API
       const response = await apiPut('program', program);
       
-      if (response.ok) {
+      if (response.success) {
         setSaveSuccess(true);
         showSuccess("Profile updated successfully!");
       } else {

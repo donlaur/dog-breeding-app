@@ -21,6 +21,8 @@ import UpcomingEvents from '../components/overview/UpcomingEvents';
 // Import utility functions
 import { getImageUrl, getGenderDisplay } from '../utils/imageUtils';
 import { formatAdultAge } from '../utils/ageUtils';
+import { apiGet } from '../utils/apiUtils';
+import { debugLog, debugError } from '../config';
 
 function Overview() {
   const navigate = useNavigate();
@@ -40,18 +42,17 @@ function Overview() {
   useEffect(() => {
     const fetchPuppiesDirectly = async () => {
       try {
-        console.log('Directly fetching puppies from API...');
-        const response = await fetch('/api/puppies');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Direct puppies fetch successful:', data);
-          console.log('Direct puppies count:', data.length);
-          setDirectPuppies(data);
+        debugLog('Directly fetching puppies from API...');
+        const response = await apiGet('puppies');
+        if (response.success) {
+          debugLog('Direct puppies fetch successful:', response.data);
+          debugLog('Direct puppies count:', response.data.length);
+          setDirectPuppies(response.data);
         } else {
-          console.error('Failed to directly fetch puppies:', response.status);
+          debugError('Failed to directly fetch puppies:', response.error);
         }
       } catch (err) {
-        console.error('Error directly fetching puppies:', err);
+        debugError('Error directly fetching puppies:', err);
       }
     };
     
@@ -67,13 +68,13 @@ function Overview() {
   // Use effect for initial data load with a maximum loading time
   useEffect(() => {
     if (isInitialMount.current) {
-      console.log("Overview - Initial mount");
+      debugLog("Overview - Initial mount");
       isInitialMount.current = false;
       
       // Set a maximum loading time of 3 seconds to prevent getting stuck
       loadingTimeout.current = setTimeout(() => {
         setLocalLoading(false);
-        console.log("Forced loading to complete after timeout");
+        debugLog("Forced loading to complete after timeout");
       }, 3000);
     }
     
@@ -101,7 +102,7 @@ function Overview() {
   // Listen for custom puppies_loaded event
   useEffect(() => {
     const handlePuppiesLoaded = (event) => {
-      console.log('Custom puppies_loaded event received in Overview:', event.detail);
+      debugLog('Custom puppies_loaded event received in Overview:', event.detail);
       // Force a re-render
       setLocalLoading(false);
     };
@@ -118,7 +119,7 @@ function Overview() {
     // Only try to refresh data once if dogs is still empty after loading completes
     if (!loading && !localLoading && !refreshAttempted.current && (!dogs || dogs.length === 0)) {
       refreshAttempted.current = true;
-      console.log("No dogs found after loading completed, refreshing data once");
+      debugLog("No dogs found after loading completed, refreshing data once");
       refreshData(true);
     }
   }, [loading, localLoading, dogs, refreshData]);
@@ -128,8 +129,8 @@ function Overview() {
   
   // Use the direct puppies data instead of the context data
   // Log puppies data for debugging
-  console.log('Context puppies in Overview:', contextPuppies);
-  console.log('Direct puppies in Overview:', directPuppies);
+  debugLog('Context puppies in Overview:', contextPuppies);
+  debugLog('Direct puppies in Overview:', directPuppies);
   
   // Use directPuppies count if available, otherwise fall back to context puppies
   const puppiesCount = directPuppies.length || contextPuppies.length;
@@ -139,7 +140,7 @@ function Overview() {
   ).length;
   
   // More logging
-  console.log('Overview counts:', { adultDogsCount, puppiesCount, activeLittersCount, 
+  debugLog('Overview counts:', { adultDogsCount, puppiesCount, activeLittersCount, 
     directPuppiesCount: directPuppies.length, 
     contextPuppiesCount: contextPuppies.length 
   });
@@ -154,15 +155,15 @@ function Overview() {
       
       // Determine if this is a puppy or an adult dog
       // A puppy will have a litter_id property with a non-null value
-      const isPuppy = animal.hasOwnProperty('litter_id') && animal.litter_id !== null;
+      const isPuppy = Object.prototype.hasOwnProperty.call(animal, 'litter_id') && animal.litter_id !== null;
       
       // Log for debugging
-      console.log(`Navigating to details for ${isPuppy ? 'puppy' : 'dog'} with ID ${id}`);
+      debugLog(`Navigating to details for ${isPuppy ? 'puppy' : 'dog'} with ID ${id}`);
       
       // Navigate to the appropriate URL based on whether it's a puppy or dog
       navigate(isPuppy ? `/dashboard/puppies/${id}` : `/dashboard/dogs/${id}`);
     } catch (err) {
-      console.error("Error navigating to animal details:", err);
+      debugError("Error navigating to animal details:", err);
     }
   };
 
@@ -250,4 +251,4 @@ function Overview() {
   );
 }
 
-export default Overview; 
+export default Overview;
