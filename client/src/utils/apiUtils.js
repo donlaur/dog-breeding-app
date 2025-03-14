@@ -1,6 +1,49 @@
 import { API_URL, debugLog, debugError } from '../config';
 import { showError } from './notifications';
 
+/* eslint-disable no-restricted-syntax */
+// This file is exempt from the fetch call restriction since it defines the API utilities
+
+// Non-schema fields that should be removed before sending to the server
+const NON_SCHEMA_FIELDS = [
+  'dam_name',
+  'sire_name',
+  'breed_name',
+  'dam_info',
+  'sire_info',
+  'breed_info',
+  'created_at',
+  'updated_at',
+  'cover_photo_preview'
+];
+
+/**
+ * Sanitizes data before sending it to the API by removing non-schema fields
+ * @param {Object} data - The data object to sanitize
+ * @param {Array<string>} additionalFieldsToRemove - Optional additional fields to remove
+ * @returns {Object} - The sanitized data object
+ */
+export const sanitizeApiData = (data, additionalFieldsToRemove = []) => {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+  
+  // Create a copy to avoid mutating the original
+  const sanitizedData = { ...data };
+  
+  // Remove all non-schema fields
+  const fieldsToRemove = [...NON_SCHEMA_FIELDS, ...additionalFieldsToRemove];
+  
+  fieldsToRemove.forEach(field => {
+    if (field in sanitizedData) {
+      delete sanitizedData[field];
+      debugLog(`Removed non-schema field: ${field}`);
+    }
+  });
+  
+  return sanitizedData;
+};
+
 /**
  * Debug tool to check auth token status
  * This function can be called from the console: checkAuthToken()
@@ -51,8 +94,8 @@ export const checkAuthToken = () => {
  * @return {string} - Formatted URL
  */
 export const formatApiUrl = (endpoint) => {
-  // Use the proxy configuration in package.json instead of hardcoding the port
-  return `/api/${endpoint.replace(/^\/+/, '')}`;
+  // Use API_URL from config instead of hardcoding the path
+  return `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
 };
 
 /**
@@ -224,7 +267,7 @@ export const apiPost = async (endpoint, data, options = {}) => {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(sanitizeApiData(data)),
       ...options,
     });
     
@@ -286,7 +329,7 @@ export const apiPut = async (endpoint, data, options = {}) => {
         'Authorization': token ? `Bearer ${token}` : '',
         ...(options.headers || {})
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(sanitizeApiData(data)),
       ...options,
     });
     
