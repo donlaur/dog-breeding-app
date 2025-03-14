@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { API_URL } from '../../config';
+import { API_URL, debugLog, debugError } from '../../config';
 import { CircularProgress, Box, Typography, Button } from '@mui/material';
+import { apiGet } from '../../utils/apiUtils';
 
 const localizer = momentLocalizer(moment);
 
@@ -44,9 +45,9 @@ const EventCalendar = ({
         // Fetch custom events from the events API
         if (fetchEvents) {
           try {
-            const eventsResponse = await fetch(`${API_URL}/events/`);
+            const eventsResponse = await apiGet('events/');
             if (eventsResponse.ok) {
-              const eventsData = await eventsResponse.json();
+              const eventsData = eventsResponse.data;
               
               // Process events data
               const customEvents = eventsData.map(event => ({
@@ -69,15 +70,15 @@ const EventCalendar = ({
               allEvents = [...allEvents, ...customEvents];
             }
           } catch (error) {
-            console.error('Error fetching custom events:', error);
+            debugError('Error fetching custom events:', error);
           }
         }
         
         // Fetch heats if requested
         if (fetchHeats) {
-          const heatsResponse = await fetch(`${API_URL}/heats`);
+          const heatsResponse = await apiGet('heats');
           if (heatsResponse.ok) {
-            const heatsData = await heatsResponse.json();
+            const heatsData = heatsResponse.data;
             // Add heat events
             const heatEvents = heatsData.map(heat => ({
               id: `heat-${heat.id}`,
@@ -94,9 +95,9 @@ const EventCalendar = ({
 
         // Fetch litters if requested
         if (fetchLitters) {
-          const littersResponse = await fetch(`${API_URL}/litters/`);
+          const littersResponse = await apiGet('litters/');
           if (littersResponse.ok) {
-            const littersData = await littersResponse.json();
+            const littersData = littersResponse.data;
             // Add litter events like whelp date, go-home date, etc.
             const litterEvents = littersData.flatMap(litter => {
               const events = [];
@@ -144,7 +145,7 @@ const EventCalendar = ({
         
         setEvents(allEvents);
       } catch (error) {
-        console.error('Error fetching events:', error);
+        debugError('Error fetching events:', error);
       } finally {
         setLoading(false);
       }
@@ -157,12 +158,11 @@ const EventCalendar = ({
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
+        const response = await apiGet('dogs/');
         if (!response.ok) throw new Error('Failed to fetch dogs');
-        const data = await response.json();
-        setDogList(data);
+        setDogList(response.data);
       } catch (error) {
-        console.error('Error fetching dogs:', error);
+        debugError('Error fetching dogs:', error);
       }
     };
 

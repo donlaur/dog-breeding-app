@@ -24,7 +24,8 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import moment from 'moment';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost } from '../utils/apiUtils';
 
 /**
  * A dialog for creating and editing calendar events
@@ -75,21 +76,19 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
     try {
       // Fetch dogs and litters in parallel
       const [dogsResponse, littersResponse] = await Promise.all([
-        fetch(`${API_URL}/dogs/`),
-        fetch(`${API_URL}/litters/`)
+        apiGet('dogs/'),
+        apiGet('litters/')
       ]);
       
       if (dogsResponse.ok) {
-        const dogsData = await dogsResponse.json();
-        setDogs(dogsData);
+        setDogs(dogsResponse.data);
       }
       
       if (littersResponse.ok) {
-        const littersData = await littersResponse.json();
-        setLitters(littersData);
+        setLitters(littersResponse.data);
       }
     } catch (error) {
-      console.error('Error fetching entities:', error);
+      debugError('Error fetching entities:', error);
     } finally {
       setLoadingEntities(false);
     }
@@ -149,39 +148,24 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
         eventData.related_id = relatedId;
       }
       
-      // Send the request to create the event
-      const response = await fetch(`${API_URL}/events/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
-      });
+      // Send the request to create the event using apiPost
+      const response = await apiPost('events/', eventData);
       
       if (!response.ok) {
-        let errorMsg = 'Failed to create event';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.error || errorMsg;
-        } catch (e) {
-          // If we can't parse the error response, use generic error
-        }
-        throw new Error(errorMsg);
+        throw new Error(response.error || 'Failed to create event');
       }
       
-      // Get the created event
-      const createdEvent = await response.json();
-      
-      // Show success message and reset the form
       setSuccess(true);
-      resetForm();
       
-      // Notify parent component that event was created
-      if (onEventCreated) {
-        onEventCreated(createdEvent);
+      // Notify parent component
+      if (onEventCreated && response.data) {
+        onEventCreated(response.data);
       }
       
-      // Close the dialog after a short delay
+      // Close dialog after successful creation
       setTimeout(() => {
         onClose();
+        resetForm();
       }, 1500);
     } catch (error) {
       console.error('Error creating event:', error);
