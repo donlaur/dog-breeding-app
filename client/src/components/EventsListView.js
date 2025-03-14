@@ -47,7 +47,8 @@ import {
 } from '@mui/icons-material';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiDelete } from '../utils/apiUtils';
 
 // Helper function to determine event icon
 const getEventIcon = (eventType) => {
@@ -136,16 +137,15 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       try {
         // Fetch from multiple endpoints in parallel
         const [eventsResponse, heatsResponse, littersResponse] = await Promise.all([
-          fetch(`${API_URL}/events/`),
-          fetch(`${API_URL}/heats/`),
-          fetch(`${API_URL}/litters/`)
+          apiGet('events/'),
+          apiGet('heats/'),
+          apiGet('litters/')
         ]);
         
         // Process custom events from events table
         let allEvents = [];
         if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json();
-          allEvents = eventsData.map(event => ({
+          allEvents = eventsResponse.data.map(event => ({
             ...event,
             sourceType: 'event' // Mark the source for identification
           }));
@@ -153,8 +153,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         
         // Process heat cycles as events
         if (heatsResponse.ok) {
-          const heatsData = await heatsResponse.json();
-          const heatEvents = heatsData.map(heat => ({
+          const heatEvents = heatsResponse.data.map(heat => ({
             id: `heat-${heat.id}`,
             title: `Heat Cycle`,
             description: heat.notes || 'Heat cycle',
@@ -172,7 +171,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         
         // Process litters as events
         if (littersResponse.ok) {
-          const littersData = await littersResponse.json();
+          const littersData = littersResponse.data;
           
           // Map litters to birth events
           const litterEvents = littersData.flatMap(litter => {
@@ -227,7 +226,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         
         setEvents(allEvents);
       } catch (err) {
-        console.error('Error fetching events:', err);
+        debugError('Error fetching events:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -241,17 +240,15 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   useEffect(() => {
     const fetchRelatedEntities = async () => {
       try {
-        const dogRes = fetch(`${API_URL}/dogs/`);
-        const litterRes = fetch(`${API_URL}/litters/`);
-        const puppyRes = fetch(`${API_URL}/puppies/`);
-        
         const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
-          dogRes, litterRes, puppyRes
+          apiGet('dogs/'),
+          apiGet('litters/'),
+          apiGet('puppies/')
         ]);
         
-        const dogsData = dogsResponse.ok ? await dogsResponse.json() : [];
-        const littersData = littersResponse.ok ? await littersResponse.json() : [];
-        const puppiesData = puppiesResponse.ok ? await puppiesResponse.json() : [];
+        const dogsData = dogsResponse.ok ? dogsResponse.data : [];
+        const littersData = littersResponse.ok ? littersResponse.data : [];
+        const puppiesData = puppiesResponse.ok ? puppiesResponse.data : [];
         
         const entitiesData = {
           dogs: dogsData,
@@ -261,7 +258,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         setEntities(entitiesData);
         setFilterEntities(entitiesData);
       } catch (err) {
-        console.error('Error fetching related entities:', err);
+        debugError('Error fetching related entities:', err);
       }
     };
     
@@ -380,37 +377,33 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
     setSelectedEvent(event);
   };
   
-  // Handle event delete
+  // Delete the selected event
   const handleDeleteEvent = async () => {
-    if (!selectedEvent) return;
-    
     setDeleteInProgress(true);
+    setError(null);
+    
     try {
-      // Different deletion logic based on event source
       let response;
       
+      // Special handling for different source types
       if (selectedEvent.sourceType === 'heat') {
-        // For heat events, we need to delete the heat cycle
-        const heatId = selectedEvent.id.replace('heat-', '');
-        response = await fetch(`${API_URL}/heats/${heatId}`, {
-          method: 'DELETE'
-        });
+        // For heat events
+        setError("Cannot delete heat events directly. Please edit the heat record instead.");
+        setDeleteInProgress(false);
+        return;
       } else if (selectedEvent.sourceType === 'litter') {
-        // For litter events, we don't want to delete the litter
-        // Instead, we'll just remove the event from the UI
+        // For litter events (birth, go home, etc)
         // You could potentially add an API to update litter dates if needed
         setError("Cannot delete litter events directly. Please edit the litter instead.");
         setDeleteInProgress(false);
         return;
       } else {
         // For regular events, delete from the events API
-        response = await fetch(`${API_URL}/events/${selectedEvent.id}`, {
-          method: 'DELETE'
-        });
+        response = await apiDelete(`events/${selectedEvent.id}`);
       }
       
       if (!response.ok) {
-        throw new Error(`Failed to delete event: ${response.status}`);
+        throw new Error(response.error || 'Failed to delete event');
       }
       
       // Remove event from local state
@@ -425,7 +418,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         onEventDeleted();
       }
     } catch (err) {
-      console.error('Error deleting event:', err);
+      debugError('Error deleting event:', err);
       setError(`Error deleting event: ${err.message}`);
     } finally {
       setDeleteInProgress(false);
