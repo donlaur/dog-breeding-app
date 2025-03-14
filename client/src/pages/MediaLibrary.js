@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -10,12 +10,7 @@ import {
   CardContent,
   CardActions,
   Button,
-  IconButton,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -24,7 +19,12 @@ import {
   Alert,
   Chip,
   Divider,
-  Paper
+  Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText
 } from '@mui/material';
 import {
   Photo as PhotoIcon,
@@ -34,219 +34,337 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon
 } from '@mui/icons-material';
-import { API_URL, debugLog, debugError } from '../config';
-import { apiGet, apiPost, apiDelete } from '../utils/apiUtils';
+import { debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiDelete, sanitizeApiData } from '../utils/apiUtils';
 import { showSuccess, showError } from '../utils/notifications';
+
+// Constants
+const MAX_CAPTION_LENGTH = 200;
+const MAX_TITLE_LENGTH = 100;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
   const [photos, setPhotos] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [photoFilter, setPhotoFilter] = useState('all');
+  const [documentFilter, setDocumentFilter] = useState('all');
   
-  // Upload state
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadType, setUploadType] = useState('photo');
-  const [uploadEntityType, setUploadEntityType] = useState('');
-  const [uploadEntityId, setUploadEntityId] = useState('');
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadDescription, setUploadDescription] = useState('');
-  const [uploadCaption, setUploadCaption] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
-  
-  // Entity lists for selection
+  // Entities for associating media
   const [dogs, setDogs] = useState([]);
   const [litters, setLitters] = useState([]);
   const [puppies, setPuppies] = useState([]);
   
+  // Upload dialog states
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadType, setUploadType] = useState('photo');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState('');
+  const [uploadEntityType, setUploadEntityType] = useState('dog');
+  const [uploadEntityId, setUploadEntityId] = useState('');
+  const [uploadCaption, setUploadCaption] = useState('');
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  
+  // File input ref
+  const fileInputRef = useRef(null);
+  
+  // Load entities on mount
   useEffect(() => {
     fetchEntities();
   }, []);
   
+  // Load media based on active tab
   useEffect(() => {
     if (activeTab === 'photos') {
-      fetchAllPhotos();
-    } else if (activeTab === 'documents') {
-      fetchAllDocuments();
+      fetchPhotos(photoFilter);
+    } else {
+      fetchDocuments(documentFilter);
     }
-  }, [activeTab]);
+  }, [activeTab, photoFilter, documentFilter]);
   
   const fetchEntities = async () => {
     try {
-      const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        apiGet('dogs'),
-        apiGet('litters'),
-        apiGet('puppies')
+      const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
+        apiGet('/dogs/'),
+        apiGet('/litters/'),
+        apiGet('/puppies/')
       ]);
       
-      if (dogsRes.success) {
-        setDogs(dogsRes.data);
-      }
-      
-      if (littersRes.success) {
-        setLitters(littersRes.data);
-      }
-      
-      if (puppiesRes.success) {
-        setPuppies(puppiesRes.data);
-      }
-    } catch (err) {
-      debugError('Error fetching entities:', err);
-    }
-  };
-  
-  const fetchAllPhotos = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Fetch photos for different entity types concurrently
-      const [dogPhotos, litterPhotos, puppyPhotos] = await Promise.all([
-        fetchPhotosForEntityType('dog'),
-        fetchPhotosForEntityType('litter'),
-        fetchPhotosForEntityType('puppy')
-      ]);
-      
-      // Combine all photos
-      const allPhotos = [...dogPhotos, ...litterPhotos, ...puppyPhotos];
-      
-      // Sort by created date (newest first)
-      allPhotos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      
-      setPhotos(allPhotos);
-    } catch (err) {
-      debugError('Error fetching photos:', err);
-      setError('Failed to fetch photos. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchPhotosForEntityType = async (entityType) => {
-    try {
-      // Get all entities of this type
-      let entities = [];
-      if (entityType === 'dog') entities = dogs;
-      else if (entityType === 'litter') entities = litters;
-      else if (entityType === 'puppy') entities = puppies;
-      
-      // For each entity, fetch its photos
-      const photosPromises = entities.map(entity => 
-        apiGet(`photos/${entityType}/${entity.id}`)
-          .then(res => res.success ? res.data : [])
-          .then(photos => photos.map(photo => ({
-            ...photo,
-            entityName: getEntityName(entityType, entity)
-          })))
-          .catch(() => [])
-      );
-      
-      const photosByEntity = await Promise.all(photosPromises);
-      return photosByEntity.flat();
-    } catch (err) {
-      debugError(`Error fetching ${entityType} photos:`, err);
-      return [];
-    }
-  };
-  
-  const fetchAllDocuments = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Fetch documents for different entity types concurrently
-      const [dogDocs, litterDocs, puppyDocs] = await Promise.all([
-        fetchDocumentsForEntityType('dog'),
-        fetchDocumentsForEntityType('litter'),
-        fetchDocumentsForEntityType('puppy')
-      ]);
-      
-      // Combine all documents
-      const allDocuments = [...dogDocs, ...litterDocs, ...puppyDocs];
-      
-      // Sort by created date (newest first)
-      allDocuments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      
-      setDocuments(allDocuments);
-    } catch (err) {
-      debugError('Error fetching documents:', err);
-      setError('Failed to fetch documents. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchDocumentsForEntityType = async (entityType) => {
-    try {
-      // Get all entities of this type
-      let entities = [];
-      if (entityType === 'dog') entities = dogs;
-      else if (entityType === 'litter') entities = litters;
-      else if (entityType === 'puppy') entities = puppies;
-      
-      // For each entity, fetch its documents
-      const docsPromises = entities.map(entity => 
-        apiGet(`files/documents/${entityType}/${entity.id}`)
-          .then(res => res.success ? res.data : [])
-          .then(docs => docs.map(doc => ({
-            ...doc,
-            entityName: getEntityName(entityType, entity)
-          })))
-          .catch(() => [])
-      );
-      
-      const docsByEntity = await Promise.all(docsPromises);
-      return docsByEntity.flat();
-    } catch (err) {
-      debugError(`Error fetching ${entityType} documents:`, err);
-      return [];
+      setDogs(dogsResponse);
+      setLitters(littersResponse);
+      setPuppies(puppiesResponse);
+    } catch (error) {
+      debugError("Error fetching entities:", error);
+      setError("Failed to load entities");
     }
   };
   
   const getEntityName = (entityType, entity) => {
-    if (entityType === 'dog') {
-      return entity.call_name || entity.registered_name || `Dog #${entity.id}`;
-    } else if (entityType === 'litter') {
-      return entity.litter_name || `Litter #${entity.id}`;
-    } else if (entityType === 'puppy') {
-      return entity.name || `Puppy #${entity.id}`;
+    switch (entityType) {
+      case 'dog':
+        return entity.call_name || entity.registered_name || `Dog #${entity.id}`;
+      case 'litter':
+        return entity.litter_name || `Litter #${entity.id}`;
+      case 'puppy':
+        return entity.name || `Puppy #${entity.id}`;
+      default:
+        return `Entity #${entity.id}`;
     }
-    return 'Unknown';
   };
   
+  const fetchPhotos = async (filter = 'all') => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let entityType, entities;
+      
+      // Determine which entities to fetch photos for based on filter
+      switch (filter) {
+        case 'dogs':
+          entityType = 'dog';
+          entities = dogs;
+          break;
+        case 'litters':
+          entityType = 'litter';
+          entities = litters;
+          break;
+        case 'puppies':
+          entityType = 'puppy';
+          entities = puppies;
+          break;
+        case 'all':
+        default:
+          // Fetch all photos
+          const allPhotos = [];
+          
+          // Dogs photos
+          if (dogs.length) {
+            const dogsPhotos = await fetchEntityPhotos('dog', dogs);
+            allPhotos.push(...dogsPhotos);
+          }
+          
+          // Litters photos
+          if (litters.length) {
+            const littersPhotos = await fetchEntityPhotos('litter', litters);
+            allPhotos.push(...littersPhotos);
+          }
+          
+          // Puppies photos
+          if (puppies.length) {
+            const puppiesPhotos = await fetchEntityPhotos('puppy', puppies);
+            allPhotos.push(...puppiesPhotos);
+          }
+          
+          setPhotos(allPhotos);
+          setLoading(false);
+          return;
+      }
+      
+      // If not "all", fetch photos for the specific entity type
+      if (entities && entities.length) {
+        const entityPhotos = await fetchEntityPhotos(entityType, entities);
+        setPhotos(entityPhotos);
+      } else {
+        setPhotos([]);
+      }
+    } catch (error) {
+      debugError('Error fetching photos:', error);
+      setError('Failed to load photos. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchEntityPhotos = async (entityType, entities) => {
+    try {
+      // For each entity, fetch its photos
+      const photosPromises = entities.map(entity => 
+        apiGet(`/photos/${entityType}/${entity.id}`)
+          .then(photos => photos.map(photo => ({
+            ...photo,
+            entityName: getEntityName(entityType, entity),
+            entityType,
+            entityId: entity.id
+          })))
+          .catch(err => {
+            debugError(`Error fetching photos for ${entityType} #${entity.id}:`, err);
+            return [];
+          })
+      );
+      
+      const photosArrays = await Promise.all(photosPromises);
+      return photosArrays.flat();
+    } catch (error) {
+      debugError(`Error in fetchEntityPhotos for ${entityType}:`, error);
+      return [];
+    }
+  };
+  const fetchDocuments = async (filter = 'all') => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let entityType, entities;
+      
+      // Determine which entities to fetch documents for based on filter
+      switch (filter) {
+        case 'dogs':
+          entityType = 'dog';
+          entities = dogs;
+          break;
+        case 'litters':
+          entityType = 'litter';
+          entities = litters;
+          break;
+        case 'puppies':
+          entityType = 'puppy';
+          entities = puppies;
+          break;
+        case 'all':
+        default:
+          // Fetch all documents
+          const allDocs = [];
+          
+          // Dogs documents
+          if (dogs.length) {
+            const dogsDocs = await fetchEntityDocuments('dog', dogs);
+            allDocs.push(...dogsDocs);
+          }
+          
+          // Litters documents
+          if (litters.length) {
+            const littersDocs = await fetchEntityDocuments('litter', litters);
+            allDocs.push(...littersDocs);
+          }
+          
+          // Puppies documents
+          if (puppies.length) {
+            const puppiesDocs = await fetchEntityDocuments('puppy', puppies);
+            allDocs.push(...puppiesDocs);
+          }
+          
+          setDocuments(allDocs);
+          setLoading(false);
+          return;
+      }
+      
+      // If not "all", fetch documents for the specific entity type
+      if (entities && entities.length) {
+        const entityDocs = await fetchEntityDocuments(entityType, entities);
+        setDocuments(entityDocs);
+      } else {
+        setDocuments([]);
+      }
+    } catch (error) {
+      debugError('Error fetching documents:', error);
+      setError('Failed to load documents. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchEntityDocuments = async (entityType, entities) => {
+    try {
+      // For each entity, fetch its documents
+      const docsPromises = entities.map(entity => 
+        apiGet(`/files/documents/${entityType}/${entity.id}`)
+          .then(docs => docs.map(doc => ({
+            ...doc,
+            entityName: getEntityName(entityType, entity),
+            entityType,
+            entityId: entity.id
+          })))
+          .catch(err => {
+            debugError(`Error fetching documents for ${entityType} #${entity.id}:`, err);
+            return [];
+          })
+      );
+      
+      const docsArrays = await Promise.all(docsPromises);
+      return docsArrays.flat();
+    } catch (error) {
+      debugError(`Error in fetchEntityDocuments for ${entityType}:`, error);
+      return [];
+    }
+  };
+  
+  // Handle file selection
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
     
+    // Validate file type
+    const isValidType = uploadType === 'photo' 
+      ? ALLOWED_IMAGE_TYPES.includes(file.type)
+      : ALLOWED_DOCUMENT_TYPES.includes(file.type);
+    
+    if (!isValidType) {
+      setUploadError(`Invalid file type. ${uploadType === 'photo' 
+        ? 'Please select an image file (JPEG, PNG, GIF, WebP).'
+        : 'Please select a document file (PDF, DOC, DOCX, TXT, XLS, XLSX).'}`);
+      return;
+    }
+    
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(`File size exceeds 5MB limit.`);
+      return;
+    }
+    
     setSelectedFile(file);
+    setUploadError(null);
     
     // Create preview for images
-    if (file.type.startsWith('image/')) {
+    if (uploadType === 'photo' && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFilePreview(reader.result);
       };
       reader.readAsDataURL(file);
     } else {
-      setFilePreview(null); // No preview for non-image files
+      setFilePreview('');
     }
   };
   
+  // Handle upload
   const handleUpload = async () => {
-    if (!selectedFile || !uploadEntityType || !uploadEntityId) {
-      setUploadError('Please select a file, entity type, and entity ID');
-      return;
+    if (!selectedFile || !uploadEntityType || !uploadEntityId) return;
+    
+    // Validate text inputs
+    if (uploadType === 'photo') {
+      if (uploadCaption && uploadCaption.length > MAX_CAPTION_LENGTH) {
+        setUploadError(`Caption should be at most ${MAX_CAPTION_LENGTH} characters.`);
+        return;
+      }
+    } else {
+      if (!uploadTitle) {
+        setUploadError('Title is required for documents.');
+        return;
+      }
+      if (uploadTitle.length > MAX_TITLE_LENGTH) {
+        setUploadError(`Title should be at most ${MAX_TITLE_LENGTH} characters.`);
+        return;
+      }
+      if (uploadDescription && uploadDescription.length > MAX_DESCRIPTION_LENGTH) {
+        setUploadError(`Description should be at most ${MAX_DESCRIPTION_LENGTH} characters.`);
+        return;
+      }
     }
     
     setUploadingFile(true);
     setUploadError(null);
     
     try {
+      // Create form data
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('entity_type', uploadEntityType);
@@ -254,471 +372,528 @@ const MediaLibrary = () => {
       
       if (uploadType === 'photo') {
         formData.append('caption', uploadCaption);
-        // Don't automatically set is_cover to false, let the server determine if it should be a cover
-        // This way, if it's the first photo, it will be the cover, and if not, the cover won't change
         
-        // Upload to photos endpoint using apiPost with FormData
-        const response = await apiPost('photos/', formData, { isFormData: true });
+        // Upload photo
+        const response = await apiPost('/photos/upload', formData, { isFormData: true });
+        debugLog('Photo upload response:', response);
         
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to upload photo');
-        }
+        showSuccess('Photo uploaded successfully!');
       } else {
         formData.append('title', uploadTitle);
         formData.append('description', uploadDescription);
         
-        // Upload to files endpoint using apiPost with FormData
-        const response = await apiPost('files/', formData, { isFormData: true });
+        // Upload document
+        const response = await apiPost('/files/upload', formData, { isFormData: true });
+        debugLog('Document upload response:', response);
         
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to upload document');
-        }
+        showSuccess('Document uploaded successfully!');
       }
       
-      // Refresh the current tab
+      // Reset form and close dialog
+      handleCloseUploadDialog();
+      
+      // Refresh the media list
       if (uploadType === 'photo') {
-        fetchAllPhotos();
+        fetchPhotos(photoFilter);
       } else {
-        fetchAllDocuments();
+        fetchDocuments(documentFilter);
       }
-      
-      // Show success message and reset form
-      showSuccess(`${uploadType === 'photo' ? 'Photo' : 'Document'} uploaded successfully`);
-      
-      setUploadDialogOpen(false);
-      resetUploadForm();
-    } catch (err) {
-      debugError('Upload error:', err);
-      setUploadError(err.message || 'Failed to upload file');
-      showError(err.message || 'Failed to upload file');
+    } catch (error) {
+      debugError('Error uploading file:', error);
+      setUploadError(error.message || 'Failed to upload file. Please try again.');
     } finally {
       setUploadingFile(false);
     }
   };
   
-  const resetUploadForm = () => {
+  // Handle deleting media
+  const handleDelete = async (id, isPhoto) => {
+    if (!window.confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      if (isPhoto) {
+        await apiDelete(`/photos/${id}`);
+        setPhotos(photos.filter(photo => photo.id !== id));
+        showSuccess('Photo deleted successfully!');
+      } else {
+        await apiDelete(`/files/${id}`);
+        setDocuments(documents.filter(doc => doc.id !== id));
+        showSuccess('Document deleted successfully!');
+      }
+    } catch (error) {
+      debugError('Error deleting item:', error);
+      showError(error.message || 'Failed to delete item. Please try again.');
+    }
+  };
+  
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+  
+  // Open upload dialog
+  const handleOpenUploadDialog = (type) => {
+    setUploadType(type);
     setSelectedFile(null);
-    setFilePreview(null);
+    setFilePreview('');
+    setUploadEntityType('dog');
+    setUploadEntityId('');
+    setUploadCaption('');
     setUploadTitle('');
     setUploadDescription('');
-    setUploadCaption('');
     setUploadError(null);
+    setUploadDialogOpen(true);
   };
   
-  const handleDeletePhoto = async (photoId) => {
-    if (!window.confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      const response = await apiDelete(`photos/${photoId}`);
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to delete photo');
-      }
-      
-      // Remove from local state
-      setPhotos(photos.filter(photo => photo.id !== photoId));
-      
-      // Show success message
-      showSuccess('Photo deleted successfully');
-    } catch (err) {
-      debugError('Error deleting photo:', err);
-      showError('Failed to delete photo. Please try again.');
+  // Close upload dialog
+  const handleCloseUploadDialog = () => {
+    setUploadDialogOpen(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
-  
-  const handleDeleteDocument = async (documentId) => {
-    if (!window.confirm('Are you sure you want to delete this document? This cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      const response = await apiDelete(`files/documents/${documentId}`);
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to delete document');
-      }
-      
-      // Remove from local state
-      setDocuments(documents.filter(doc => doc.id !== documentId));
-      
-      // Show success message
-      showSuccess('Document deleted successfully');
-    } catch (err) {
-      debugError('Error deleting document:', err);
-      showError('Failed to delete document. Please try again.');
-    }
-  };
-  
-  // Get file extension from URL
-  const getFileExtension = (url) => {
-    if (!url) return '';
-    const parts = url.split('.');
-    return parts.length > 1 ? parts.pop().toUpperCase() : '';
-  };
-
-  // Get document icon by file type
-  const getDocumentIcon = (url) => {
-    const ext = getFileExtension(url).toLowerCase();
-    switch (ext) {
-      case 'pdf':
-        return '📄';
-      case 'doc':
-      case 'docx':
-        return '📝';
-      case 'xls':
-      case 'xlsx':
-      case 'csv':
-        return '📊';
-      case 'txt':
-        return '📋';
-      default:
-        return '📎';
-    }
-  };
-
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Media Library
-      </Typography>
-      
-      <Box sx={{ mb: 3 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
-          variant="fullWidth"
+  // Render upload dialog
+  const renderUploadDialog = () => (
+    <Dialog open={uploadDialogOpen} onClose={handleCloseUploadDialog} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        Upload {uploadType === 'photo' ? 'Photo' : 'Document'}
+      </DialogTitle>
+      <DialogContent>
+        {uploadError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {uploadError}
+          </Alert>
+        )}
+        
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="outlined"
+            component="label"
+            fullWidth
+            sx={{ py: 5, border: '1px dashed' }}
+          >
+            {uploadType === 'photo' ? 'Select Photo' : 'Select Document'}
+            <input
+              type="file"
+              hidden
+              accept={uploadType === 'photo' ? 'image/*' : '.pdf,.doc,.docx,.txt,.xls,.xlsx'}
+              onChange={handleFileSelect}
+              ref={fileInputRef}
+            />
+          </Button>
+          
+          {selectedFile && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2">
+                Selected: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+              </Typography>
+            </Box>
+          )}
+          
+          {filePreview && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <img
+                src={filePreview}
+                alt="Preview"
+                style={{ maxWidth: '100%', maxHeight: '200px' }}
+              />
+            </Box>
+          )}
+        </Box>
+        
+        <Divider sx={{ my: 2 }} />
+        
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Entity Type</InputLabel>
+              <Select
+                value={uploadEntityType}
+                onChange={(e) => setUploadEntityType(e.target.value)}
+                label="Entity Type"
+              >
+                <MenuItem value="dog">Dog</MenuItem>
+                <MenuItem value="litter">Litter</MenuItem>
+                <MenuItem value="puppy">Puppy</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Entity</InputLabel>
+              <Select
+                value={uploadEntityId}
+                onChange={(e) => setUploadEntityId(e.target.value)}
+                label="Entity"
+              >
+                {uploadEntityType === 'dog' ? (
+                  dogs.map(dog => (
+                    <MenuItem key={dog.id} value={dog.id}>
+                      {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
+                    </MenuItem>
+                  ))
+                ) : uploadEntityType === 'litter' ? (
+                  litters.map(litter => (
+                    <MenuItem key={litter.id} value={litter.id}>
+                      {litter.litter_name || `Litter #${litter.id}`}
+                    </MenuItem>
+                  ))
+                ) : (
+                  puppies.map(puppy => (
+                    <MenuItem key={puppy.id} value={puppy.id}>
+                      {puppy.name || `Puppy #${puppy.id}`}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          {uploadType === 'photo' ? (
+            <Grid item xs={12}>
+              <TextField
+                label="Caption (optional)"
+                fullWidth
+                value={uploadCaption}
+                onChange={(e) => setUploadCaption(e.target.value)}
+                helperText={`${uploadCaption.length}/${MAX_CAPTION_LENGTH} characters max`}
+                error={uploadCaption.length > MAX_CAPTION_LENGTH}
+              />
+            </Grid>
+          ) : (
+            <>
+              <Grid item xs={12}>
+                <TextField
+                  label="Title"
+                  fullWidth
+                  required
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  helperText={`${uploadTitle.length}/${MAX_TITLE_LENGTH} characters max`}
+                  error={uploadTitle.length > MAX_TITLE_LENGTH}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Description (optional)"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={uploadDescription}
+                  onChange={(e) => setUploadDescription(e.target.value)}
+                  helperText={`${uploadDescription.length}/${MAX_DESCRIPTION_LENGTH} characters max`}
+                  error={uploadDescription.length > MAX_DESCRIPTION_LENGTH}
+                />
+              </Grid>
+            </>
+          )}
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleCloseUploadDialog} disabled={uploadingFile}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleUpload}
+          variant="contained"
+          disabled={!selectedFile || !uploadEntityType || !uploadEntityId || uploadingFile}
+          startIcon={uploadingFile ? <CircularProgress size={20} /> : null}
         >
-          <Tab 
-            value="photos" 
-            label="Photos" 
-            icon={<PhotoIcon />}
-            iconPosition="start"
-          />
-          <Tab 
-            value="documents" 
-            label="Documents" 
-            icon={<DocumentIcon />}
-            iconPosition="start"
-          />
-        </Tabs>
-      </Box>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-      
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          {success}
-        </Alert>
-      )}
-      
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          {uploadingFile ? 'Uploading...' : 'Upload'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  // Render photos grid
+  const renderPhotos = () => (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Box>
+          <Button
+            variant={photoFilter === 'all' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setPhotoFilter('all')}
+            sx={{ mr: 1 }}
+          >
+            All
+          </Button>
+          <Button
+            variant={photoFilter === 'dogs' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setPhotoFilter('dogs')}
+            sx={{ mr: 1 }}
+          >
+            Dogs
+          </Button>
+          <Button
+            variant={photoFilter === 'litters' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setPhotoFilter('litters')}
+            sx={{ mr: 1 }}
+          >
+            Litters
+          </Button>
+          <Button
+            variant={photoFilter === 'puppies' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setPhotoFilter('puppies')}
+          >
+            Puppies
+          </Button>
+        </Box>
+        
         <Button
           variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
-          onClick={() => {
-            setUploadType(activeTab === 'photos' ? 'photo' : 'document');
-            setUploadDialogOpen(true);
-          }}
+          onClick={() => handleOpenUploadDialog('photo')}
         >
-          Upload {activeTab === 'photos' ? 'Photo' : 'Document'}
+          Add Photo
         </Button>
       </Box>
       
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress />
         </Box>
-      ) : activeTab === 'photos' ? (
-        <Grid container spacing={3}>
-          {photos.length === 0 ? (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                No photos found. Upload some photos to get started.
-              </Paper>
-            </Grid>
-          ) : (
-            photos.map(photo => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={photo.id}>
-                <Card>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={photo.url}
-                    alt={photo.caption || 'Photo'}
-                    sx={{ objectFit: 'cover' }}
-                  />
-                  <CardContent sx={{ pb: 1 }}>
-                    {photo.caption && (
-                      <Typography variant="body2" gutterBottom>
-                        {photo.caption}
-                      </Typography>
-                    )}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                      <Chip
-                        size="small"
-                        label={`${photo.related_type}: ${photo.entityName}`}
-                        color="primary"
-                        variant="outlined"
-                      />
-                      {photo.is_cover && (
-                        <Chip size="small" label="Cover" color="secondary" />
-                      )}
-                    </Box>
-                  </CardContent>
-                  <CardActions>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeletePhoto(photo.id)}
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      component="a"
-                      href={photo.url}
-                      target="_blank"
-                      size="small"
-                    >
-                      <ViewIcon />
-                    </IconButton>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))
-          )}
-        </Grid>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : photos.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="body1">No photos found.</Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenUploadDialog('photo')}
+              sx={{ mt: 2 }}
+            >
+              Add Your First Photo
+            </Button>
+          </Paper>
+        </Box>
       ) : (
-        <Grid container spacing={3}>
-          {documents.length === 0 ? (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                No documents found. Upload some documents to get started.
-              </Paper>
+        <Grid container spacing={2}>
+          {photos.map(photo => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={photo.id}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={photo.url}
+                  alt={photo.caption || 'Photo'}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  {photo.caption && (
+                    <Typography variant="body2" gutterBottom>{photo.caption}</Typography>
+                  )}
+                  <Chip
+                    size="small"
+                    label={`${photo.entityType.charAt(0).toUpperCase() + photo.entityType.slice(1)}: ${photo.entityName}`}
+                    sx={{ mt: 1 }}
+                  />
+                </CardContent>
+                <CardActions>
+                  <Button
+                    size="small"
+                    href={photo.url}
+                    target="_blank"
+                    startIcon={<ViewIcon />}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    size="small"
+                    href={photo.url}
+                    download
+                    startIcon={<DownloadIcon />}
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(photo.id, true)}
+                    startIcon={<DeleteIcon />}
+                  >
+                    Delete
+                  </Button>
+                </CardActions>
+              </Card>
             </Grid>
-          ) : (
-            documents.map(doc => (
-              <Grid item xs={12} sm={6} md={4} key={doc.id}>
-                <Card>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h1" sx={{ mr: 2, opacity: 0.7 }}>
-                        {getDocumentIcon(doc.url)}
-                      </Typography>
-                      <Box>
-                        <Typography variant="h6" component="h3">
-                          {doc.title || doc.original_filename}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {getFileExtension(doc.url)} • Added on {new Date(doc.created_at).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    {doc.description && (
-                      <Typography variant="body2" color="text.secondary" paragraph>
-                        {doc.description}
-                      </Typography>
-                    )}
-                    
-                    <Chip
-                      size="small"
-                      label={`${doc.related_type}: ${doc.entityName}`}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </CardContent>
-                  <CardActions>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteDocument(doc.id)}
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      component="a"
-                      href={doc.url}
-                      download={doc.original_filename}
-                      size="small"
-                    >
-                      <DownloadIcon />
-                    </IconButton>
-                    <IconButton
-                      color="info"
-                      component="a"
-                      href={doc.url}
-                      target="_blank"
-                      size="small"
-                    >
-                      <ViewIcon />
-                    </IconButton>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))
-          )}
+          ))}
         </Grid>
       )}
-      
-      {/* Upload Dialog */}
-      <Dialog
-        open={uploadDialogOpen}
-        onClose={() => setUploadDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Upload {uploadType === 'photo' ? 'Photo' : 'Document'}
-        </DialogTitle>
-        <DialogContent>
-          {uploadError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {uploadError}
-            </Alert>
-          )}
-          
-          <Box sx={{ my: 2 }}>
-            <input
-              accept={uploadType === 'photo' ? "image/*" : "*/*"}
-              style={{ display: 'none' }}
-              id="upload-file-input"
-              type="file"
-              onChange={handleFileSelect}
-            />
-            <label htmlFor="upload-file-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<AddIcon />}
-                fullWidth
-              >
-                Select {uploadType === 'photo' ? 'Photo' : 'Document'}
-              </Button>
-            </label>
-            
-            {selectedFile && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  Selected: {selectedFile.name}
-                </Typography>
-              </Box>
-            )}
-            
-            {filePreview && (
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  style={{ maxWidth: '100%', maxHeight: '200px' }}
-                />
-              </Box>
-            )}
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity Type</InputLabel>
-                <Select
-                  value={uploadEntityType}
-                  onChange={(e) => setUploadEntityType(e.target.value)}
-                  label="Entity Type"
-                >
-                  <MenuItem value="dog">Dog</MenuItem>
-                  <MenuItem value="litter">Litter</MenuItem>
-                  <MenuItem value="puppy">Puppy</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity</InputLabel>
-                <Select
-                  value={uploadEntityId}
-                  onChange={(e) => setUploadEntityId(e.target.value)}
-                  label="Entity"
-                >
-                  {uploadEntityType === 'dog' ? (
-                    dogs.map(dog => (
-                      <MenuItem key={dog.id} value={dog.id}>
-                        {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
-                      </MenuItem>
-                    ))
-                  ) : uploadEntityType === 'litter' ? (
-                    litters.map(litter => (
-                      <MenuItem key={litter.id} value={litter.id}>
-                        {litter.litter_name || `Litter #${litter.id}`}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    puppies.map(puppy => (
-                      <MenuItem key={puppy.id} value={puppy.id}>
-                        {puppy.name || `Puppy #${puppy.id}`}
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            {uploadType === 'photo' ? (
-              <Grid item xs={12}>
-                <TextField
-                  label="Caption (optional)"
-                  fullWidth
-                  value={uploadCaption}
-                  onChange={(e) => setUploadCaption(e.target.value)}
-                />
-              </Grid>
-            ) : (
-              <>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Title"
-                    fullWidth
-                    value={uploadTitle}
-                    onChange={(e) => setUploadTitle(e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Description (optional)"
-                    fullWidth
-                    multiline
-                    rows={3}
-                    value={uploadDescription}
-                    onChange={(e) => setUploadDescription(e.target.value)}
-                  />
-                </Grid>
-              </>
-            )}
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)} disabled={uploadingFile}>
-            Cancel
+    </Box>
+  );
+
+  // Render documents grid
+  const renderDocuments = () => (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Box>
+          <Button
+            variant={documentFilter === 'all' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setDocumentFilter('all')}
+            sx={{ mr: 1 }}
+          >
+            All
           </Button>
           <Button
-            onClick={handleUpload}
-            variant="contained"
-            disabled={!selectedFile || !uploadEntityType || !uploadEntityId || uploadingFile}
-            startIcon={uploadingFile ? <CircularProgress size={20} /> : null}
+            variant={documentFilter === 'dogs' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setDocumentFilter('dogs')}
+            sx={{ mr: 1 }}
           >
-            {uploadingFile ? 'Uploading...' : 'Upload'}
+            Dogs
           </Button>
-        </DialogActions>
-      </Dialog>
+          <Button
+            variant={documentFilter === 'litters' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setDocumentFilter('litters')}
+            sx={{ mr: 1 }}
+          >
+            Litters
+          </Button>
+          <Button
+            variant={documentFilter === 'puppies' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setDocumentFilter('puppies')}
+          >
+            Puppies
+          </Button>
+        </Box>
+        
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenUploadDialog('document')}
+        >
+          Add Document
+        </Button>
+      </Box>
+      
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : documents.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="body1">No documents found.</Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenUploadDialog('document')}
+              sx={{ mt: 2 }}
+            >
+              Add Your First Document
+            </Button>
+          </Paper>
+        </Box>
+      ) : (
+        <Grid container spacing={2}>
+          {documents.map(doc => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={doc.id}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box
+                  sx={{
+                    height: '120px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'action.hover'
+                  }}
+                >
+                  <DocumentIcon sx={{ fontSize: 60, color: 'primary.main' }} />
+                </Box>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle1" gutterBottom>{doc.title}</Typography>
+                  {doc.description && (
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {doc.description}
+                    </Typography>
+                  )}
+                  <Chip
+                    size="small"
+                    label={`${doc.entityType.charAt(0).toUpperCase() + doc.entityType.slice(1)}: ${doc.entityName}`}
+                    sx={{ mt: 1 }}
+                  />
+                </CardContent>
+                <CardActions>
+                  <Button
+                    size="small"
+                    href={doc.url}
+                    target="_blank"
+                    startIcon={<ViewIcon />}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    size="small"
+                    href={doc.url}
+                    download
+                    startIcon={<DownloadIcon />}
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(doc.id, false)}
+                    startIcon={<DeleteIcon />}
+                  >
+                    Delete
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </Box>
+  );
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>Media Library</Typography>
+      
+      <Tabs
+        value={activeTab}
+        onChange={handleTabChange}
+        sx={{ mb: 3 }}
+        indicatorColor="primary"
+        textColor="primary"
+      >
+        <Tab
+          value="photos"
+          label="Photos"
+          icon={<PhotoIcon />}
+          iconPosition="start"
+        />
+        <Tab
+          value="documents"
+          label="Documents"
+          icon={<DocumentIcon />}
+          iconPosition="start"
+        />
+      </Tabs>
+      
+      {activeTab === 'photos' ? renderPhotos() : renderDocuments()}
+      
+      {renderUploadDialog()}
     </Box>
   );
 };

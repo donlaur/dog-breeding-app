@@ -5,24 +5,37 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './HeatCalendar.css';
 import { HeatContext } from '../context/HeatContext';
 import DogContext from '../context/DogContext';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet } from '../utils/apiUtils';
 
 const localizer = momentLocalizer(moment);
 
 const HeatCalendar = ({ heats }) => {
   const [selectedHeat, setSelectedHeat] = useState(null);
   const [dogList, setDogList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch all dogs when component mounts
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
-        if (!response.ok) throw new Error('Failed to fetch dogs');
-        const data = await response.json();
-        setDogList(data);
+        setLoading(true);
+        debugLog('Fetching dogs for HeatCalendar');
+        
+        const response = await apiGet('dogs/');
+        
+        if (response.ok) {
+          debugLog('Dogs fetched successfully:', response.data);
+          setDogList(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to fetch dogs');
+        }
       } catch (error) {
-        console.error('Error fetching dogs:', error);
+        debugError('Error fetching dogs:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -30,8 +43,12 @@ const HeatCalendar = ({ heats }) => {
   }, []);
 
   // Don't render until we have both heats and dogs
-  if (!heats || !dogList || dogList.length === 0) {
+  if (!heats || !dogList || dogList.length === 0 || loading) {
     return <div className="p-4">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4">Error: {error}</div>;
   }
 
   // Transform heats into calendar events with proper dog name lookup

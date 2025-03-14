@@ -4,114 +4,125 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
 import { useNotifications } from "../../context/NotificationContext";
+import { apiGet, apiPost, apiPut } from "../../utils/apiUtils";
+import { showSuccess, showError } from "../../utils/notifications";
 import "../../styles/DogForm.css";
 import { 
   Box, 
+  Typography, 
   TextField, 
   Button, 
+  Grid, 
   FormControl, 
-  FormLabel, 
-  RadioGroup, 
-  FormControlLabel, 
-  Radio,
-  MenuItem,
-  Avatar,
-  IconButton,
-  Typography,
-  Breadcrumbs,
-  Select
+  InputLabel, 
+  MenuItem, 
+  Select, 
+  FormHelperText,
+  CircularProgress,
+  Autocomplete,
+  Paper,
+  Divider,
+  Container
 } from '@mui/material';
-import { PhotoCamera, ArrowBack } from '@mui/icons-material';
-import { showSuccess, showError } from '../../utils/notifications';
-import { apiGet } from '../../utils/apiUtils';
-import PropTypes from 'prop-types';
-
-const DEFAULT_BREED_ID = process.env.REACT_APP_DEFAULT_BREED_ID || 1;
-const BREED_NAME = "Pembroke Welsh Corgi"; // Hardcoded for your specific use
-
-// Helper to normalize numeric fields from the API
-const normalizeNumericField = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    (typeof value === "string" && value.toLowerCase() === "null")
-  ) {
-    return "";
-  }
-  return value;
-};
+import { format, parse } from 'date-fns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 function DogForm() {
-  const { dogs, updateDog, addDog, breeds, refreshData } = useContext(DogContext);
-  const { notifyDogStatusUpdate } = useNotifications();
-  const navigate = useNavigate();
   const { id } = useParams();
-  const editingDog = dogs.find((dog) => dog.id === parseInt(id));
+  const navigate = useNavigate();
+  const { addDog, updateDog } = useContext(DogContext);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [breeds, setBreeds] = useState([]);
+  const [colors, setColors] = useState([]);
+  const [breeders, setBreeders] = useState([]);
+  const [dogs, setDogs] = useState([]); // For sire/dam selection
+  
+  // Form state
   const [dog, setDog] = useState({
+    id: null,
     registered_name: "",
     call_name: "",
-    breed_id: DEFAULT_BREED_ID,  
-    breed: BREED_NAME,           
-    gender: "",
-    birth_date: "",
-    status: "Active",
-    cover_photo: "",
+    registration_number: "",
+    birth_date: null,
+    sex: "",
+    breeder_id: "",
+    breed_id: "",
     color: "",
+    height: "",
     weight: "",
-    microchip: "",
+    microchip_number: "",
     notes: "",
-    sire_id: "",
+    status: "owned",
+    price: "",
     dam_id: "",
-    litter_id: "", 
-    cover_photo_file: null,
-    cover_photo_preview: null,
-    is_adult: false
+    sire_id: "",
+    is_breeding_stock: false
   });
-  const [loading, setLoading] = useState(true);
-
+  
+  // Form validation state
+  const [errors, setErrors] = useState({});
+  
+  // Get reference to notification context
+  
+  // Load reference data on mount
+  useEffect(() => {
+    const fetchReferenceData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch data in parallel
+        const [breedsResponse, colorsResponse, breedersResponse, dogsResponse] = await Promise.all([
+          apiGet('/breeds/'),
+          apiGet('/colors/'),
+          apiGet('/breeders/'),
+          apiGet('/dogs/')
+        ]);
+        
+        setBreeds(breedsResponse || []);
+        setColors(colorsResponse || []);
+        setBreeders(breedersResponse || []);
+        setDogs(dogsResponse || []);
+        
+        debugLog("Reference data loaded:", { 
+          breeds: breedsResponse.length, 
+          colors: colorsResponse.length,
+          breeders: breedersResponse.length,
+          dogs: dogsResponse.length
+        });
+      } catch (error) {
+        debugError("Error loading reference data:", error);
+        showError("Failed to load form data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchReferenceData();
+  }, []);
+  
+  // Load dog data if editing
   useEffect(() => {
     if (!id) {
-      debugLog("Initializing new dog form");
-      setDog({
-        registered_name: "",
-        call_name: "",
-        breed_id: DEFAULT_BREED_ID,
-        breed: BREED_NAME,
-        gender: "",
-        birth_date: "",
-        status: "Active",
-        cover_photo: "",
-        color: "",
-        weight: "",
-        microchip: "",
-        notes: "",
-        sire_id: "",
-        dam_id: "",
-        litter_id: "",
-        cover_photo_file: null,
-        cover_photo_preview: null,
-        is_adult: false
-      });
       setLoading(false);
       return;
     }
 
-    debugLog("Fetching dog data for editing:", id);
     const fetchDogData = async () => {
       try {
-        const response = await apiGet(`dogs/${id}`);
-        if (response.success) {
-          debugLog("Dog data received for editing:", response.data);
-          // Ensure IDs are properly formatted
-          const formattedData = {
-            ...response.data,
-            sire_id: response.data.sire_id ? parseInt(response.data.sire_id, 10) : '',
-            dam_id: response.data.dam_id ? parseInt(response.data.dam_id, 10) : ''
-          };
-          setDog(formattedData);
-        } else {
-          throw new Error(response.error || 'Failed to fetch dog data');
-        }
+        debugLog("Fetching dog data for editing:", id);
+        const response = await apiGet(`/dogs/${id}`);
+        
+        debugLog("Dog data received for editing:", response);
+        // Ensure IDs are properly formatted
+        const formattedData = {
+          ...response,
+          dam_id: response.dam_id || "",
+          sire_id: response.sire_id || ""
+        };
+        setDog(formattedData);
       } catch (err) {
         debugError("Error fetching dog:", err);
         showError(`Error loading dog: ${err.message}`);
@@ -122,318 +133,475 @@ function DogForm() {
     
     fetchDogData();
   }, [id]);
-
-  if (loading) {
-    return <p>Loading dog data...</p>;
-  }
-
-  if (!dog) {
-    return <p>Dog not found or error loading data.</p>;
-  }
-
-  // Optional sire/dam options - exclude current dog from potential parents
-  const currentDogId = id ? parseInt(id, 10) : null;
   
-  const sireOptions = dogs
-    .filter((d) => d.gender === "Male" && d.id !== currentDogId)
-    .sort((a, b) => {
-      const nameA = (a.call_name || a.name || '').toLowerCase();
-      const nameB = (b.call_name || b.name || '').toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-    
-  const damOptions = dogs
-    .filter((d) => d.gender === "Female" && d.id !== currentDogId)
-    .sort((a, b) => {
-      const nameA = (a.call_name || a.name || '').toLowerCase();
-      const nameB = (b.call_name || b.name || '').toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-
+  // Handle form field changes
   const handleChange = (e) => {
-    // For select fields with IDs, ensure they're properly formatted
-    if (e.target.name === 'sire_id' || e.target.name === 'dam_id') {
-      const value = e.target.value === '' ? '' : parseInt(e.target.value, 10);
-      setDog({ ...dog, [e.target.name]: value });
-    } else {
-      setDog({ ...dog, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    setDog(prev => ({
+      ...prev,
+      [name]: newValue
+    }));
+    
+    // Clear validation error when field is updated
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
     }
   };
-
-  const handlePhotoChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setDog({
-        ...dog,
-        cover_photo_file: e.target.files[0],
-        cover_photo_preview: URL.createObjectURL(e.target.files[0])
-      });
+  
+  // Handle date change specifically
+  const handleDateChange = (date) => {
+    setDog(prev => ({
+      ...prev,
+      birth_date: date
+    }));
+    
+    // Clear validation error
+    if (errors.birth_date) {
+      setErrors(prev => ({
+        ...prev,
+        birth_date: null
+      }));
     }
   };
-
+  
+  // Validate form data
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Required fields
+    if (!dog.call_name) newErrors.call_name = "Call name is required";
+    if (!dog.breed_id) newErrors.breed_id = "Breed is required";
+    if (!dog.sex) newErrors.sex = "Sex is required";
+    
+    // Optional but with format validation
+    if (dog.registration_number && !/^[A-Za-z0-9-]+$/.test(dog.registration_number)) {
+      newErrors.registration_number = "Invalid registration number format";
+    }
+    
+    if (dog.weight && isNaN(Number(dog.weight))) {
+      newErrors.weight = "Weight must be a number";
+    }
+    
+    if (dog.height && isNaN(Number(dog.height))) {
+      newErrors.height = "Height must be a number";
+    }
+    
+    if (dog.price && isNaN(Number(dog.price))) {
+      newErrors.price = "Price must be a number";
+    }
+    
+    // Set errors and return validation result
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    debugLog("Submitting dog form:", dog);
-
+    
+    // Validate form
+    if (!validateForm()) {
+      showError("Please correct the form errors");
+      return;
+    }
+    
+    setSaving(true);
+    
     try {
-      if (id) {
-        await updateDog(parseInt(id), dog);
-        debugLog("Dog updated successfully");
-        showSuccess("Dog updated successfully!");
-        
-        // Check if status was updated and notify
-        const originalDog = dogs.find(d => d.id === parseInt(id));
-        if (originalDog && originalDog.status !== dog.status) {
-          notifyDogStatusUpdate(parseInt(id), dog.call_name, dog.status);
-        }
-      } else {
-        await addDog(dog);
-        debugLog("Dog added successfully");
-        showSuccess("Dog added successfully!");
+      // Prepare data for API - remove any fields that aren't in the database schema
+      const dataToSend = { ...dog };
+      
+      // Remove any fields that don't exist in the database schema
+      delete dataToSend.dam_name;
+      delete dataToSend.sire_name;
+      delete dataToSend.breed_name;
+      delete dataToSend.dam_info;
+      delete dataToSend.sire_info;
+      delete dataToSend.breed_info;
+      
+      // Format dates properly for the API
+      if (dataToSend.birth_date) {
+        dataToSend.birth_date = format(new Date(dataToSend.birth_date), 'yyyy-MM-dd');
       }
       
-      // Refresh data and navigate back
-      await refreshData();
+      let response;
       
-      // Navigate after a short delay to allow viewing the success message
-      setTimeout(() => {
-        navigate("/dashboard/dogs");
-      }, 1500);
-    } catch (err) {
-      debugError("Error saving dog:", err);
-      showError(`Error saving dog: ${err.message}`);
+      if (id) {
+        // Update existing dog
+        debugLog("Updating dog:", dataToSend);
+        response = await apiPut(`/dogs/${id}`, dataToSend);
+        showSuccess("Dog updated successfully");
+      } else {
+        // Create new dog
+        debugLog("Creating new dog:", dataToSend);
+        response = await apiPost('/dogs/', dataToSend);
+        showSuccess("Dog created successfully");
+      }
+      
+      debugLog("API response:", response);
+      
+      // Navigate back to dogs list
+      navigate('/dogs/manage');
+    } catch (error) {
+      debugError("Error saving dog:", error);
+      showError(`Failed to save dog: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
   };
-
+  
+  // Filter dogs for sire/dam selection
+  const getMaleDogs = () => dogs.filter(d => d.sex === 'male' && d.id !== dog.id);
+  const getFemaleDogs = () => dogs.filter(d => d.sex === 'female' && d.id !== dog.id);
+  
+  // Format a dog's name for display
+  const formatDogName = (dog) => {
+    if (!dog) return '';
+    return dog.call_name ? `${dog.call_name} (${dog.registered_name || 'No reg. name'})` : dog.registered_name;
+  };
+  
+  // Loading state
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs sx={{ mb: 3 }}>
-        <Link 
-          to="/dashboard/dogs"
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            textDecoration: 'none',
-            color: 'inherit'
-          }}
-        >
-          <ArrowBack sx={{ mr: 0.5, fontSize: 20 }} />
-          Back to Dogs
-        </Link>
-        <Typography color="text.primary">
-          {id ? 'Edit Dog' : 'Add Dog'}
+    <Container maxWidth="md">
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          {id ? 'Edit Dog' : 'Add New Dog'}
         </Typography>
-      </Breadcrumbs>
-
-      <Box component="form" onSubmit={handleSubmit} sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
-        {/* Photo upload section */}
-        <Box sx={{ mb: 3, textAlign: 'center' }}>
-          <input
-            accept="image/*"
-            style={{ display: 'none' }}
-            id="photo-upload"
-            type="file"
-            onChange={handlePhotoChange}
-          />
-          <label htmlFor="photo-upload">
-            <Box sx={{ position: 'relative', display: 'inline-block' }}>
-              <Avatar
-                src={dog.cover_photo_preview || dog.cover_photo}
-                sx={{ 
-                  width: 150, 
-                  height: 150, 
-                  mb: 1,
-                  cursor: 'pointer'
+        
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            {/* Basic Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Basic Information
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                name="call_name"
+                label="Call Name"
+                fullWidth
+                required
+                value={dog.call_name || ''}
+                onChange={handleChange}
+                error={!!errors.call_name}
+                helperText={errors.call_name}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                name="registered_name"
+                label="Registered Name"
+                fullWidth
+                value={dog.registered_name || ''}
+                onChange={handleChange}
+                error={!!errors.registered_name}
+                helperText={errors.registered_name}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                name="registration_number"
+                label="Registration Number"
+                fullWidth
+                value={dog.registration_number || ''}
+                onChange={handleChange}
+                error={!!errors.registration_number}
+                helperText={errors.registration_number}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required error={!!errors.sex}>
+                <InputLabel>Sex</InputLabel>
+                <Select
+                  name="sex"
+                  value={dog.sex || ''}
+                  onChange={handleChange}
+                  label="Sex"
+                >
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                </Select>
+                {errors.sex && <FormHelperText>{errors.sex}</FormHelperText>}
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Birth Date"
+                  value={dog.birth_date ? new Date(dog.birth_date) : null}
+                  onChange={handleDateChange}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      fullWidth
+                      error={!!errors.birth_date}
+                      helperText={errors.birth_date}
+                    />
+                  )}
+                />
+              </LocalizationProvider>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth error={!!errors.breed_id} required>
+                <InputLabel>Breed</InputLabel>
+                <Select
+                  name="breed_id"
+                  value={dog.breed_id || ''}
+                  onChange={handleChange}
+                  label="Breed"
+                >
+                  {breeds.map(breed => (
+                    <MenuItem key={breed.id} value={breed.id}>
+                      {breed.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.breed_id && <FormHelperText>{errors.breed_id}</FormHelperText>}
+              </FormControl>
+            </Grid>
+            
+            {/* Physical Characteristics */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Physical Characteristics
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Color</InputLabel>
+                <Select
+                  name="color"
+                  value={dog.color || ''}
+                  onChange={handleChange}
+                  label="Color"
+                >
+                  {colors.map(color => (
+                    <MenuItem key={color} value={color}>
+                      {color}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <TextField
+                name="weight"
+                label="Weight (lbs)"
+                type="number"
+                fullWidth
+                value={dog.weight || ''}
+                onChange={handleChange}
+                error={!!errors.weight}
+                helperText={errors.weight}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <TextField
+                name="height"
+                label="Height (inches)"
+                type="number"
+                fullWidth
+                value={dog.height || ''}
+                onChange={handleChange}
+                error={!!errors.height}
+                helperText={errors.height}
+              />
+            </Grid>
+            
+            {/* Parentage */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Parentage
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Sire (Father)</InputLabel>
+                <Select
+                  name="sire_id"
+                  value={dog.sire_id || ''}
+                  onChange={handleChange}
+                  label="Sire (Father)"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {getMaleDogs().map(sire => (
+                    <MenuItem key={sire.id} value={sire.id}>
+                      {formatDogName(sire)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Dam (Mother)</InputLabel>
+                <Select
+                  name="dam_id"
+                  value={dog.dam_id || ''}
+                  onChange={handleChange}
+                  label="Dam (Mother)"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {getFemaleDogs().map(dam => (
+                    <MenuItem key={dam.id} value={dam.id}>
+                      {formatDogName(dam)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            {/* Additional Information */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Additional Information
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Breeder</InputLabel>
+                <Select
+                  name="breeder_id"
+                  value={dog.breeder_id || ''}
+                  onChange={handleChange}
+                  label="Breeder"
+                >
+                  <MenuItem value="">Not specified</MenuItem>
+                  {breeders.map(breeder => (
+                    <MenuItem key={breeder.id} value={breeder.id}>
+                      {breeder.business_name || breeder.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                name="microchip_number"
+                label="Microchip Number"
+                fullWidth
+                value={dog.microchip_number || ''}
+                onChange={handleChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  name="status"
+                  value={dog.status || 'owned'}
+                  onChange={handleChange}
+                  label="Status"
+                >
+                  <MenuItem value="owned">Owned</MenuItem>
+                  <MenuItem value="co-owned">Co-Owned</MenuItem>
+                  <MenuItem value="available">Available for Sale</MenuItem>
+                  <MenuItem value="sold">Sold</MenuItem>
+                  <MenuItem value="deceased">Deceased</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                name="price"
+                label="Price"
+                type="number"
+                fullWidth
+                value={dog.price || ''}
+                onChange={handleChange}
+                error={!!errors.price}
+                helperText={errors.price}
+                InputProps={{
+                  startAdornment: <span>$</span>,
                 }}
               />
-              <IconButton
-                color="primary"
-                aria-label="upload picture"
-                component="span"
-                sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  bgcolor: 'background.paper'
-                }}
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                name="notes"
+                label="Notes"
+                multiline
+                rows={4}
+                fullWidth
+                value={dog.notes || ''}
+                onChange={handleChange}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Breeding Stock</InputLabel>
+                <Select
+                  name="is_breeding_stock"
+                  value={dog.is_breeding_stock || false}
+                  onChange={handleChange}
+                  label="Breeding Stock"
+                >
+                  <MenuItem value={true}>Yes</MenuItem>
+                  <MenuItem value={false}>No</MenuItem>
+                </Select>
+                <FormHelperText>Is this dog used for breeding?</FormHelperText>
+              </FormControl>
+            </Grid>
+            
+            {/* Form Actions */}
+            <Grid item xs={12} sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+              <Button 
+                component={Link}
+                to="/dogs/manage"
+                variant="outlined"
+                disabled={saving}
               >
-                <PhotoCamera />
-              </IconButton>
-            </Box>
-          </label>
-        </Box>
-
-        <TextField
-          fullWidth
-          label="Registered Name"
-          name="registered_name"
-          value={dog.registered_name}
-          onChange={handleChange}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Call Name"
-          name="call_name"
-          value={dog.call_name}
-          onChange={handleChange}
-          margin="normal"
-          required
-        />
-
-        <TextField
-          fullWidth
-          label="Breed"
-          value={BREED_NAME}
-          margin="normal"
-          disabled
-          InputProps={{
-            readOnly: true,
-          }}
-        />
-
-        <FormControl component="fieldset" margin="normal">
-          <FormLabel component="legend">Gender</FormLabel>
-          <RadioGroup
-            row
-            name="gender"
-            value={dog.gender}
-            onChange={handleChange}
-          >
-            <FormControlLabel value="Male" control={<Radio />} label="Male" />
-            <FormControlLabel value="Female" control={<Radio />} label="Female" />
-          </RadioGroup>
-        </FormControl>
-
-        <TextField
-          fullWidth
-          type="date"
-          label="Birth Date"
-          name="birth_date"
-          value={dog.birth_date}
-          onChange={handleChange}
-          margin="normal"
-          InputLabelProps={{
-            shrink: true,
-          }}
-        />
-
-        <FormControl component="fieldset" margin="normal">
-          <FormLabel component="legend">Status</FormLabel>
-          <RadioGroup
-            row
-            name="status"
-            value={dog.status}
-            onChange={handleChange}
-          >
-            <FormControlLabel value="Active" control={<Radio />} label="Active" />
-            <FormControlLabel value="Retired" control={<Radio />} label="Retired" />
-            <FormControlLabel value="Upcoming" control={<Radio />} label="Upcoming" />
-          </RadioGroup>
-        </FormControl>
-
-        <FormControl fullWidth margin="normal">
-          <FormLabel>Sire (Father)</FormLabel>
-          <Select
-            name="sire_id"
-            value={dog.sire_id || ''}
-            onChange={handleChange}
-            displayEmpty
-          >
-            <MenuItem value="">None</MenuItem>
-            {sireOptions.map((sire) => (
-              <MenuItem key={sire.id} value={sire.id}>{sire.call_name || sire.registered_name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl fullWidth margin="normal">
-          <FormLabel>Dam (Mother)</FormLabel>
-          <Select
-            name="dam_id"
-            value={dog.dam_id || ''}
-            onChange={handleChange}
-            displayEmpty
-          >
-            <MenuItem value="">None</MenuItem>
-            {damOptions.map((dam) => (
-              <MenuItem key={dam.id} value={dam.id}>{dam.call_name || dam.registered_name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <TextField
-          fullWidth
-          label="Color"
-          name="color"
-          value={dog.color}
-          onChange={handleChange}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Weight (lbs)"
-          name="weight"
-          value={dog.weight}
-          onChange={handleChange}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Microchip"
-          name="microchip"
-          value={dog.microchip}
-          onChange={handleChange}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Notes"
-          name="notes"
-          value={dog.notes}
-          onChange={handleChange}
-          margin="normal"
-          multiline
-          rows={4}
-        />
-        
-        <FormControl component="fieldset" margin="normal">
-          <FormLabel component="legend">
-            <input
-              type="checkbox"
-              name="is_adult"
-              checked={dog.is_adult === true}
-              onChange={(e) =>
-                setDog({ ...dog, is_adult: e.target.checked })
-              }
-            />
-            Adult (in breeding program)
-          </FormLabel>
-        </FormControl>
-
-        <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-          >
-            {id ? "Save Changes" : "Add Dog"}
-          </Button>
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={() => navigate('/dashboard/dogs')}
-          >
-            Cancel
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={20} /> : null}
+              >
+                {saving ? 'Saving...' : 'Save Dog'}
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
+    </Container>
   );
 }
 

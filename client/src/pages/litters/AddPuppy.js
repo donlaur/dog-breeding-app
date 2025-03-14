@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet, apiPost } from "../../utils/apiUtils";
 import {
   Container,
   Box,
@@ -61,30 +62,34 @@ const AddPuppy = () => {
 
   // Fetch litter details first
   useEffect(() => {
-    fetch(`${API_URL}/litters/${litterId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch litter details');
-        return res.json();
-      })
-      .then(litterData => {
-        setLitter(litterData);
-        // Pre-fill puppy data from litter
-        setPuppy(prev => ({
-          ...prev,
-          breed_id: litterData.breed_id,
-          birth_date: litterData.birth_date,
-          sire_id: litterData.sire_id,
-          dam_id: litterData.dam_id,
-          program_id: litterData.program_id,
-          price: litterData.puppy_price || litterData.price, // Use puppy price if set, otherwise litter price
-        }));
-        setLoading(false);
-      })
-      .catch(err => {
+    const fetchLitterDetails = async () => {
+      try {
+        const response = await apiGet(`litters/${litterId}`);
+        
+        if (response.ok) {
+          setLitter(response.data);
+          // Pre-fill puppy data from litter
+          setPuppy(prev => ({
+            ...prev,
+            breed_id: response.data.breed_id,
+            birth_date: response.data.birth_date,
+            sire_id: response.data.sire_id,
+            dam_id: response.data.dam_id,
+            program_id: response.data.program_id,
+            price: response.data.puppy_price || response.data.price, // Use puppy price if set, otherwise litter price
+          }));
+        } else {
+          throw new Error(response.error || 'Failed to fetch litter details');
+        }
+      } catch (err) {
         debugError("Error fetching litter:", err);
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchLitterDetails();
   }, [litterId]);
 
   const handleChange = (e) => {
@@ -95,19 +100,14 @@ const AddPuppy = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_URL}/litters/${litterId}/puppies`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(puppy),
-      });
+      const response = await apiPost(`litters/${litterId}/puppies`, puppy);
 
-      if (!response.ok) throw new Error('Failed to create puppy');
-      
-      const data = await response.json();
-      debugLog("Puppy created:", data);
-      navigate(`/dashboard/litters/${litterId}`);
+      if (response.ok) {
+        debugLog("Puppy created:", response.data);
+        navigate(`/dashboard/litters/${litterId}`);
+      } else {
+        throw new Error(response.error || 'Failed to create puppy');
+      }
     } catch (err) {
       debugError("Error creating puppy:", err);
       setError(err.message);

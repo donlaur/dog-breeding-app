@@ -22,42 +22,23 @@ function PuppyDetails() {
         setLoading(false);
       }
     };
-    
+
     fetchPuppyDetails();
   }, [id]);
 
-  if (loading) return <p className="text-center mt-4">Loading puppy details...</p>;
-  if (error) return <p className="alert alert-danger">{error}</p>;
-  if (!puppy) return <p className="alert alert-warning">Puppy not found.</p>;
+  if (loading) return <div>Loading puppy details...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!puppy) return <div>No puppy found with that ID.</div>;
 
   return (
-    <div className="container mt-4">
-      <h1 className="text-center"><i className="fas fa-paw"></i> {puppy.name}</h1>
-      <div className="card shadow-sm p-3">
-        {/* 🛑 Show default FontAwesome icon if image is missing */}
-        {puppy.image ? (
-          <img src={`/images/${puppy.image}`} alt={puppy.name} className="card-img-top"/>
-        ) : (
-          <div className="text-center py-3">
-            <i className="fas fa-dog fa-5x text-muted"></i>
-          </div>
-        )}
-        <div className="card-body">
-          <h5 className="card-title">{puppy.name}</h5>
-          <p className="card-text">
-            <strong>Gender:</strong> {puppy.gender} <br />
-            <strong>Price:</strong> ${puppy.price} <br />
-            <strong>Breed:</strong> {puppy.breed} <br />
-            <strong>Age:</strong> {puppy.age} weeks
-          </p>
-          <button className="btn btn-success">
-            <i className="fas fa-check"></i> Reserve Puppy
-          </button>
-          <Link to="/puppies" className="btn btn-secondary ms-3">
-            <i className="fas fa-arrow-left"></i> Back to Puppies
-          </Link>
-        </div>
-      </div>
+    <div>
+      <Link to="/puppies">← Back to Puppies</Link>
+      <h1>{puppy.name}</h1>
+      <p><strong>Age:</strong> {puppy.age_weeks} weeks</p>
+      <p><strong>Breed:</strong> {puppy.breed_name}</p>
+      <p><strong>Color:</strong> {puppy.color}</p>
+      <p><strong>Gender:</strong> {puppy.gender}</p>
+      <p><strong>Description:</strong> {puppy.description}</p>
     </div>
   );
 }

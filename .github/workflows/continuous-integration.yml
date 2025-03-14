@@ -96,7 +96,13 @@ jobs:
     - name: Run database pattern check script
       run: |
         cd server
-        python scripts/check_db_patterns.py --dir .
+        # Updated to exit with error code if issues are found
+        python scripts/check_db_patterns.py --dir . --exit-on-error
+        
+    - name: Run database consistency check
+      run: |
+        cd server
+        python database/consistency_check.py --dir . --strict
         
     - name: Check database query patterns in tests
       run: |

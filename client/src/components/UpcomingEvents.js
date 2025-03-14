@@ -20,7 +20,8 @@ import {
   Cake as CakeIcon,
   Event as EventIcon
 } from '@mui/icons-material';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet } from '../utils/apiUtils';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
 
@@ -38,26 +39,25 @@ const UpcomingEvents = () => {
         const startDate = moment().startOf('day').format();
         const endDate = moment().add(30, 'days').endOf('day').format();
         
-        // Fetch events in date range
-        const response = await fetch(
-          `${API_URL}/events/?start_date=${startDate}&end_date=${endDate}`
-        );
+        // Fetch events in date range using apiGet
+        const response = await apiGet(`events/?start_date=${startDate}&end_date=${endDate}`);
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch events: ${response.status}`);
+        if (response.ok) {
+          debugLog("Upcoming events fetched:", response.data);
+          const eventsData = response.data;
+          
+          // Sort by date
+          eventsData.sort((a, b) => 
+            new Date(a.start_date) - new Date(b.start_date)
+          );
+          
+          // Limit to 5 events
+          setEvents(eventsData.slice(0, 5));
+        } else {
+          throw new Error(response.error || "Failed to fetch events");
         }
-        
-        const eventsData = await response.json();
-        
-        // Sort by date
-        eventsData.sort((a, b) => 
-          new Date(a.start_date) - new Date(b.start_date)
-        );
-        
-        // Limit to 5 events
-        setEvents(eventsData.slice(0, 5));
       } catch (err) {
-        console.error('Error fetching upcoming events:', err);
+        debugError("Error fetching upcoming events:", err);
         setError(err.message);
       } finally {
         setLoading(false);

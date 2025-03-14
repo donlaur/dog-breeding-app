@@ -4,176 +4,178 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './HeatCalendar.css'; // Updated CSS path
-import { API_URL, debugLog, debugError } from '../../config';
+import { debugLog, debugError } from '../../config';
 import { apiGet } from '../../utils/apiUtils';
 import { CircularProgress, Box } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
 
-const HeatCalendar = ({ heats: propHeats }) => {
-  const [selectedHeat, setSelectedHeat] = useState(null);
-  const [dogList, setDogList] = useState([]);
-  const [heats, setHeats] = useState(propHeats || []);
-  const [loading, setLoading] = useState(!propHeats);
-
-  // Fetch heats if not provided as props
-  useEffect(() => {
-    // If heats were provided as props, no need to fetch
-    if (propHeats) {
-      setHeats(propHeats);
-      return;
-    }
-
-    const fetchHeats = async () => {
-      try {
-        const response = await apiGet('heats');
-        if (response.success) {
-          setHeats(response.data);
-        } else {
-          throw new Error(response.error || 'Failed to fetch heats');
-        }
-      } catch (error) {
-        debugError('Error fetching heats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHeats();
-  }, [propHeats]);
-
-  // Fetch all dogs when component mounts
-  useEffect(() => {
-    const fetchDogs = async () => {
-      try {
-        const response = await apiGet('dogs');
-        if (response.success) {
-          setDogList(response.data);
-        } else {
-          throw new Error(response.error || 'Failed to fetch dogs');
-        }
-      } catch (error) {
-        debugError('Error fetching dogs:', error);
-      }
-    };
-
-    fetchDogs();
-  }, []);
-
-  // Don't render until we have both heats and dogs
-  if (loading || !dogList || dogList.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+// Custom event styling
+const eventStyleGetter = (event, start, end, isSelected) => {
+  let backgroundColor = '#ff7043'; // Default for heat events
+  
+  if (event.event_type === 'mating') {
+    backgroundColor = '#42a5f5'; // Blue for mating events
+  } else if (event.event_type === 'expected_heat') {
+    backgroundColor = '#ab47bc'; // Purple for expected future heats
   }
-
-  // Transform heats into calendar events with proper dog name lookup
-  const events = heats.map(heat => {
-    const dog = dogList.find(d => d.id === heat.dog_id);
-    const dogName = dog ? dog.call_name : 'Unknown Dog';
-    
-    return {
-      id: heat.id,
-      title: `${dogName} - Heat`,
-      start: new Date(heat.start_date),
-      end: new Date(heat.end_date),
-      status: heat.mating_date ? 'mated' : 'active',
-      resource: {
-        ...heat,
-        dogName
-      }
-    };
-  });
-
-  const eventStyleGetter = (event) => {
-    let style = {
-      backgroundColor: event.status === 'mated' ? '#4CAF50' : '#FF9800',
-      borderRadius: '4px',
+  
+  return {
+    style: {
+      backgroundColor,
+      borderRadius: '0px',
       opacity: 0.8,
       color: 'white',
       border: '0px',
       display: 'block'
+    }
+  };
+};
+
+const HeatCalendar = ({ heats: propHeats, onEventSelect }) => {
+  const [heats, setHeats] = useState(propHeats || []);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(!propHeats);
+  const [dogList, setDogList] = useState([]);
+  
+  // Load heats if not provided as props
+  useEffect(() => {
+    if (!propHeats) {
+      const fetchHeats = async () => {
+        setLoading(true);
+        try {
+          const data = await apiGet('/heats/');
+          debugLog('Fetched heats for calendar:', data);
+          setHeats(data);
+        } catch (error) {
+          debugError('Error fetching heats:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchHeats();
+    }
+  }, [propHeats]);
+  
+  // Load dog data for names
+  useEffect(() => {
+    const fetchDogs = async () => {
+      try {
+        const data = await apiGet('/dogs/');
+        debugLog('Fetched dogs for heat calendar:', data);
+        setDogList(data);
+      } catch (error) {
+        debugError('Error fetching dogs:', error);
+      }
     };
-    return { style };
-  };
-
+    
+    if (heats && heats.length > 0) {
+      fetchDogs();
+    }
+  }, [heats]);
+  
+  // Transform heats into calendar events
+  useEffect(() => {
+    if (!heats || !dogList.length) return;
+    
+    const transformedEvents = [];
+    
+    // Process each heat cycle
+    heats.forEach(heat => {
+      if (!heat.start_date) return;
+      
+      const dog = dogList.find(d => d.id === heat.dog_id);
+      const dogName = dog ? dog.name : `Dog #${heat.dog_id}`;
+      
+      // Add heat cycle event
+      const heatEvent = {
+        id: `heat-${heat.id}`,
+        title: `${dogName} - Heat Cycle`,
+        start: new Date(heat.start_date),
+        end: heat.end_date ? new Date(heat.end_date) : undefined,
+        allDay: true,
+        event_type: 'heat',
+        resource: heat
+      };
+      
+      transformedEvents.push(heatEvent);
+      
+      // Add mating event if present
+      if (heat.mating_date) {
+        const matingEvent = {
+          id: `mating-${heat.id}`,
+          title: `${dogName} - Mating`,
+          start: new Date(heat.mating_date),
+          end: new Date(heat.mating_date),
+          allDay: true,
+          event_type: 'mating',
+          resource: heat
+        };
+        
+        transformedEvents.push(matingEvent);
+      }
+      
+      // Add expected future heat cycles (if heat has ended)
+      if (heat.end_date) {
+        // Average cycle is ~6 months
+        const nextHeatDate = moment(heat.end_date).add(6, 'months');
+        
+        // Only add if it's in the future
+        if (nextHeatDate.isAfter(moment())) {
+          const expectedHeatEvent = {
+            id: `expected-heat-${heat.id}`,
+            title: `${dogName} - Expected Heat`,
+            start: nextHeatDate.toDate(),
+            end: nextHeatDate.add(3, 'weeks').toDate(), // Typical heat duration
+            allDay: true,
+            event_type: 'expected_heat',
+            resource: {
+              ...heat,
+              is_expected: true
+            }
+          };
+          
+          transformedEvents.push(expectedHeatEvent);
+        }
+      }
+    });
+    
+    setEvents(transformedEvents);
+  }, [heats, dogList]);
+  
+  // Handle click on a calendar event
   const handleSelectEvent = (event) => {
-    setSelectedHeat(event.resource);
+    if (onEventSelect) {
+      onEventSelect(event.resource);
+    }
   };
-
+  
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
   return (
-    <div className="p-4 relative">
-      <h1 className="text-2xl font-bold mb-4">Heat Calendar</h1>
-      <div style={{ height: '80vh' }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          eventPropGetter={eventStyleGetter}
-          views={['month', 'week', 'day']}
-          defaultView="month"
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={(slotInfo) => {
-            console.log('Selected slot:', slotInfo);
-          }}
-          selectable
-        />
-      </div>
-
-      {/* Heat Details Modal */}
-      {selectedHeat && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                Heat Details - {selectedHeat.dogName}
-              </h2>
-              <button
-                onClick={() => setSelectedHeat(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-600">Start Date</p>
-                <p className="font-medium">{moment(selectedHeat.start_date).format('MMMM D, YYYY')}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">End Date</p>
-                <p className="font-medium">{moment(selectedHeat.end_date).format('MMMM D, YYYY')}</p>
-              </div>
-              {selectedHeat.mating_date && (
-                <div>
-                  <p className="text-gray-600">Mating Date</p>
-                  <p className="font-medium">{moment(selectedHeat.mating_date).format('MMMM D, YYYY')}</p>
-                </div>
-              )}
-              {selectedHeat.expected_whelp_date && (
-                <div>
-                  <p className="text-gray-600">Expected Whelp Date</p>
-                  <p className="font-medium">{moment(selectedHeat.expected_whelp_date).format('MMMM D, YYYY')}</p>
-                </div>
-              )}
-              {selectedHeat.notes && (
-                <div>
-                  <p className="text-gray-600">Notes</p>
-                  <p className="font-medium">{selectedHeat.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="heat-calendar-container">
+      <Calendar
+        localizer={localizer}
+        events={events}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: 500 }}
+        eventPropGetter={eventStyleGetter}
+        views={['month', 'agenda']}
+        onSelectEvent={handleSelectEvent}
+        popup
+      />
     </div>
   );
 };
 
-// Add PropTypes validation
 HeatCalendar.propTypes = {
   heats: PropTypes.arrayOf(
     PropTypes.shape({
@@ -184,7 +186,8 @@ HeatCalendar.propTypes = {
       mating_date: PropTypes.string,
       notes: PropTypes.string
     })
-  )
+  ),
+  onEventSelect: PropTypes.func
 };
 
 export default HeatCalendar;

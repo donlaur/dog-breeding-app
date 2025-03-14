@@ -1,748 +1,431 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useAuth } from './AuthContext';
-import { useDog } from './DogContext';
-import { formatISO } from 'date-fns';
 import { API_URL, debugLog, debugError } from '../config';
-import { apiGet } from '../utils/apiUtils';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
 
-export const HealthContext = createContext();
+// Create the Health context
+const HealthContext = createContext();
 
-export const HealthProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  const { dogs, puppies } = useDog();
-  
-  // State for different health record types
-  const [healthRecords, setHealthRecords] = useState([]);
+// Context hook for easy use
+export const useHealth = () => useContext(HealthContext);
+
+// Provider component
+export const HealthContextProvider = ({ children }) => {
+  // State for various health records
   const [vaccinations, setVaccinations] = useState([]);
-  const [weightRecords, setWeightRecords] = useState([]);
-  const [medicationRecords, setMedicationRecords] = useState([]);
-  const [healthConditions, setHealthConditions] = useState([]);
-  const [conditionTemplates, setConditionTemplates] = useState([]);
-  
-  // Dashboard state
-  const [dashboardData, setDashboardData] = useState({
-    upcoming_vaccinations: { count: 0, items: [] },
-    active_medications: { count: 0, items: [] },
-    active_conditions: { count: 0, items: [] },
-    recent_records: { count: 0, items: [] }
+  const [medications, setMedications] = useState([]);
+  const [healthEvents, setHealthEvents] = useState([]);
+  const [vetVisits, setVetVisits] = useState([]);
+  const [loading, setLoading] = useState({
+    vaccinations: false,
+    medications: false,
+    healthEvents: false,
+    vetVisits: false
+  });
+  const [error, setError] = useState({
+    vaccinations: null,
+    medications: null,
+    healthEvents: null,
+    vetVisits: null
   });
   
-  // Loading states
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Helper function for authenticated API calls
-  const fetchWithAuth = useCallback(async (endpoint, options = {}) => {
-    if (!isAuthenticated) {
-      throw new Error('User not authenticated');
-    }
+  // Fetch all health data for a specific dog
+  const fetchDogHealthData = async (dogId) => {
+    if (!dogId) return;
     
+    // Reset error state
+    setError({
+      vaccinations: null,
+      medications: null,
+      healthEvents: null,
+      vetVisits: null
+    });
+    
+    // Fetch vaccinations
+    await fetchVaccinations(dogId);
+    
+    // Fetch medications
+    await fetchMedications(dogId);
+    
+    // Fetch health events
+    await fetchHealthEvents(dogId);
+    
+    // Fetch vet visits
+    await fetchVetVisits(dogId);
+  };
+  
+  // Fetch vaccinations for a dog
+  const fetchVaccinations = async (dogId) => {
+    setLoading(prev => ({ ...prev, vaccinations: true }));
     try {
-      // Use apiGet utility function instead of direct fetch
-      const response = await apiGet(`health/${endpoint}`, options);
-      
-      // Return the response data
-      return response;
+      const data = await apiGet(`/vaccinations?dog_id=eq.${dogId}`);
+      debugLog('Fetched vaccinations:', data);
+      setVaccinations(data);
     } catch (error) {
-      debugError(`Error in fetchWithAuth(${endpoint}):`, error);
-      throw error;
-    }
-  }, [isAuthenticated]);
-
-  // Dashboard data
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      try {
-        const response = await fetchWithAuth('dashboard');
-        
-        // Check if response exists and has data
-        if (response && response.data) {
-          setDashboardData(response.data);
-        } else {
-          // Provide fallback data when the response is invalid
-          debugLog('Invalid dashboard response, using fallback data');
-          setDashboardData({
-            recentHealthRecords: [],
-            upcomingVaccinations: [],
-            healthStats: {
-              totalRecords: 0,
-              vaccinations: 0,
-              medications: 0,
-              conditions: 0
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching health dashboard:', error);
-        // Provide fallback data when the API endpoint is not available
-        setDashboardData({
-          recentHealthRecords: [],
-          upcomingVaccinations: [],
-          healthStats: {
-            totalRecords: 0,
-            vaccinations: 0,
-            medications: 0,
-            conditions: 0
-          }
-        });
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error in fetchDashboardData:', error);
+      debugError('Error fetching vaccinations:', error);
+      setError(prev => ({ 
+        ...prev, 
+        vaccinations: 'Failed to load vaccination records' 
+      }));
     } finally {
-      setIsLoading(false);
+      setLoading(prev => ({ ...prev, vaccinations: false }));
     }
-  }, [fetchWithAuth]);
-
-  // Health Records
-  const fetchHealthRecords = useCallback(async (dogId = null, puppyId = null, recordType = null) => {
+  };
+  
+  // Fetch medications for a dog
+  const fetchMedications = async (dogId) => {
+    setLoading(prev => ({ ...prev, medications: true }));
     try {
-      setIsLoading(true);
-      let endpoint = 'records';
-      const params = [];
-      
-      if (dogId) params.push(`dog_id=${dogId}`);
-      if (puppyId) params.push(`puppy_id=${puppyId}`);
-      if (recordType) params.push(`record_type=${recordType}`);
-      
-      if (params.length > 0) {
-        endpoint += `?${params.join('&')}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setHealthRecords(response.data);
-      }
+      const data = await apiGet(`/medications?dog_id=eq.${dogId}`);
+      debugLog('Fetched medications:', data);
+      setMedications(data);
     } catch (error) {
-      setError(error.message);
-      console.error('Error fetching health records:', error);
+      debugError('Error fetching medications:', error);
+      setError(prev => ({ 
+        ...prev, 
+        medications: 'Failed to load medication records' 
+      }));
     } finally {
-      setIsLoading(false);
+      setLoading(prev => ({ ...prev, medications: false }));
     }
-  }, [fetchWithAuth]);
-
-  const createHealthRecord = useCallback(async (recordData) => {
+  };
+  
+  // Fetch health events for a dog
+  const fetchHealthEvents = async (dogId) => {
+    setLoading(prev => ({ ...prev, healthEvents: true }));
     try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (recordData.record_date && recordData.record_date instanceof Date) {
-        recordData.record_date = formatISO(recordData.record_date);
-      }
-      
-      const response = await fetchWithAuth('records', {
-        method: 'POST',
-        body: JSON.stringify(recordData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setHealthRecords(prev => [response.data, ...prev]);
-        return response.data;
-      }
+      const data = await apiGet(`/health_events?dog_id=eq.${dogId}`);
+      debugLog('Fetched health events:', data);
+      setHealthEvents(data);
     } catch (error) {
-      setError(error.message);
-      console.error('Error creating health record:', error);
-      throw error;
+      debugError('Error fetching health events:', error);
+      setError(prev => ({ 
+        ...prev, 
+        healthEvents: 'Failed to load health event records' 
+      }));
     } finally {
-      setIsLoading(false);
+      setLoading(prev => ({ ...prev, healthEvents: false }));
     }
-  }, [fetchWithAuth]);
-
-  const updateHealthRecord = useCallback(async (recordId, recordData) => {
+  };
+  
+  // Fetch vet visits for a dog
+  const fetchVetVisits = async (dogId) => {
+    setLoading(prev => ({ ...prev, vetVisits: true }));
     try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (recordData.record_date && recordData.record_date instanceof Date) {
-        recordData.record_date = formatISO(recordData.record_date);
-      }
-      
-      const response = await fetchWithAuth(`records/${recordId}`, {
-        method: 'PUT',
-        body: JSON.stringify(recordData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setHealthRecords(prev => 
-          prev.map(record => record.id === recordId ? response.data : record)
-        );
-        return response.data;
-      }
+      const data = await apiGet(`/vet_visits?dog_id=eq.${dogId}`);
+      debugLog('Fetched vet visits:', data);
+      setVetVisits(data);
     } catch (error) {
-      setError(error.message);
-      console.error('Error updating health record:', error);
-      throw error;
+      debugError('Error fetching vet visits:', error);
+      setError(prev => ({ 
+        ...prev, 
+        vetVisits: 'Failed to load vet visit records' 
+      }));
     } finally {
-      setIsLoading(false);
+      setLoading(prev => ({ ...prev, vetVisits: false }));
     }
-  }, [fetchWithAuth]);
-
-  const deleteHealthRecord = useCallback(async (recordId) => {
+  };
+  
+  // Add a new vaccination
+  const addVaccination = async (vaccinationData) => {
     try {
-      setIsLoading(true);
-      const response = await fetchWithAuth(`records/${recordId}`, {
-        method: 'DELETE'
-      });
+      // Remove any non-schema fields
+      const dataToSend = { ...vaccinationData };
+      delete dataToSend.dog_name;
       
-      if (response.success) {
-        // Update local state
-        setHealthRecords(prev => prev.filter(record => record.id !== recordId));
-        return true;
-      }
+      const response = await apiPost('/vaccinations', dataToSend);
+      debugLog('Added vaccination:', response);
+      
+      // Update local state with new data
+      setVaccinations(prev => [...prev, response]);
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error deleting health record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error adding vaccination:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to add vaccination record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  // Vaccinations
-  const fetchVaccinations = useCallback(async (dogId = null, puppyId = null, upcoming = false) => {
+  };
+  
+  // Update a vaccination
+  const updateVaccination = async (id, vaccinationData) => {
     try {
-      setIsLoading(true);
-      let endpoint = 'vaccinations';
-      const params = [];
+      // Remove any non-schema fields
+      const dataToSend = { ...vaccinationData };
+      delete dataToSend.dog_name;
       
-      if (dogId) params.push(`dog_id=${dogId}`);
-      if (puppyId) params.push(`puppy_id=${puppyId}`);
-      if (upcoming) params.push('upcoming=true');
+      const response = await apiPut(`/vaccinations?id=eq.${id}`, dataToSend);
+      debugLog('Updated vaccination:', response);
       
-      if (params.length > 0) {
-        endpoint += `?${params.join('&')}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setVaccinations(response.data);
-      }
+      // Update local state
+      setVaccinations(prev => 
+        prev.map(item => item.id === id ? { ...item, ...response } : item)
+      );
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error fetching vaccinations:', error);
-    } finally {
-      setIsLoading(false);
+      debugError('Error updating vaccination:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to update vaccination record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const createVaccination = useCallback(async (vaccinationData) => {
+  };
+  
+  // Delete a vaccination
+  const deleteVaccination = async (id) => {
     try {
-      setIsLoading(true);
-      // Ensure dates are in ISO format
-      const dateFields = ['administration_date', 'expiration_date', 'next_due_date'];
-      for (const field of dateFields) {
-        if (vaccinationData[field] && vaccinationData[field] instanceof Date) {
-          vaccinationData[field] = formatISO(vaccinationData[field]);
-        }
-      }
+      await apiDelete(`/vaccinations?id=eq.${id}`);
+      debugLog('Deleted vaccination with ID:', id);
       
-      const response = await fetchWithAuth('vaccinations', {
-        method: 'POST',
-        body: JSON.stringify(vaccinationData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setVaccinations(prev => [response.data, ...prev]);
-        return response.data;
-      }
+      // Update local state
+      setVaccinations(prev => prev.filter(item => item.id !== id));
+      return { success: true };
     } catch (error) {
-      setError(error.message);
-      console.error('Error creating vaccination record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error deleting vaccination:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete vaccination record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const updateVaccination = useCallback(async (vaccinationId, vaccinationData) => {
+  };
+  
+  // Add a new medication
+  const addMedication = async (medicationData) => {
     try {
-      setIsLoading(true);
-      // Ensure dates are in ISO format
-      const dateFields = ['administration_date', 'expiration_date', 'next_due_date'];
-      for (const field of dateFields) {
-        if (vaccinationData[field] && vaccinationData[field] instanceof Date) {
-          vaccinationData[field] = formatISO(vaccinationData[field]);
-        }
-      }
+      // Remove any non-schema fields
+      const dataToSend = { ...medicationData };
+      delete dataToSend.dog_name;
       
-      const response = await fetchWithAuth(`vaccinations/${vaccinationId}`, {
-        method: 'PUT',
-        body: JSON.stringify(vaccinationData)
-      });
+      const response = await apiPost('/medications', dataToSend);
+      debugLog('Added medication:', response);
       
-      if (response.success) {
-        // Update local state
-        setVaccinations(prev => 
-          prev.map(vaccination => vaccination.id === vaccinationId ? response.data : vaccination)
-        );
-        return response.data;
-      }
+      // Update local state with new data
+      setMedications(prev => [...prev, response]);
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error updating vaccination record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error adding medication:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to add medication record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const deleteVaccination = useCallback(async (vaccinationId) => {
+  };
+  
+  // Update a medication
+  const updateMedication = async (id, medicationData) => {
     try {
-      setIsLoading(true);
-      const response = await fetchWithAuth(`vaccinations/${vaccinationId}`, {
-        method: 'DELETE'
-      });
+      // Remove any non-schema fields
+      const dataToSend = { ...medicationData };
+      delete dataToSend.dog_name;
       
-      if (response.success) {
-        // Update local state
-        setVaccinations(prev => prev.filter(vaccination => vaccination.id !== vaccinationId));
-        return true;
-      }
+      const response = await apiPut(`/medications?id=eq.${id}`, dataToSend);
+      debugLog('Updated medication:', response);
+      
+      // Update local state
+      setMedications(prev => 
+        prev.map(item => item.id === id ? { ...item, ...response } : item)
+      );
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error deleting vaccination record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error updating medication:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to update medication record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  // Weight Records
-  const fetchWeightRecords = useCallback(async (dogId = null, puppyId = null) => {
+  };
+  
+  // Delete a medication
+  const deleteMedication = async (id) => {
     try {
-      setIsLoading(true);
-      let endpoint = 'weights';
-      const params = [];
+      await apiDelete(`/medications?id=eq.${id}`);
+      debugLog('Deleted medication with ID:', id);
       
-      if (dogId) params.push(`dog_id=${dogId}`);
-      if (puppyId) params.push(`puppy_id=${puppyId}`);
-      
-      if (params.length > 0) {
-        endpoint += `?${params.join('&')}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setWeightRecords(response.data);
-      }
+      // Update local state
+      setMedications(prev => prev.filter(item => item.id !== id));
+      return { success: true };
     } catch (error) {
-      setError(error.message);
-      console.error('Error fetching weight records:', error);
-    } finally {
-      setIsLoading(false);
+      debugError('Error deleting medication:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete medication record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const createWeightRecord = useCallback(async (weightData) => {
+  };
+  
+  // Add a new health event
+  const addHealthEvent = async (eventData) => {
     try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (weightData.measurement_date && weightData.measurement_date instanceof Date) {
-        weightData.measurement_date = formatISO(weightData.measurement_date);
-      }
+      // Remove any non-schema fields
+      const dataToSend = { ...eventData };
+      delete dataToSend.dog_name;
       
-      const response = await fetchWithAuth('weights', {
-        method: 'POST',
-        body: JSON.stringify(weightData)
-      });
+      const response = await apiPost('/health_events', dataToSend);
+      debugLog('Added health event:', response);
       
-      if (response.success) {
-        // Update local state
-        setWeightRecords(prev => [response.data, ...prev]);
-        return response.data;
-      }
+      // Update local state with new data
+      setHealthEvents(prev => [...prev, response]);
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error creating weight record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error adding health event:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to add health event record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const updateWeightRecord = useCallback(async (recordId, weightData) => {
+  };
+  
+  // Update a health event
+  const updateHealthEvent = async (id, eventData) => {
     try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (weightData.measurement_date && weightData.measurement_date instanceof Date) {
-        weightData.measurement_date = formatISO(weightData.measurement_date);
-      }
+      // Remove any non-schema fields
+      const dataToSend = { ...eventData };
+      delete dataToSend.dog_name;
       
-      const response = await fetchWithAuth(`weights/${recordId}`, {
-        method: 'PUT',
-        body: JSON.stringify(weightData)
-      });
+      const response = await apiPut(`/health_events?id=eq.${id}`, dataToSend);
+      debugLog('Updated health event:', response);
       
-      if (response.success) {
-        // Update local state
-        setWeightRecords(prev => 
-          prev.map(record => record.id === recordId ? response.data : record)
-        );
-        return response.data;
-      }
+      // Update local state
+      setHealthEvents(prev => 
+        prev.map(item => item.id === id ? { ...item, ...response } : item)
+      );
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error updating weight record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error updating health event:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to update health event record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const deleteWeightRecord = useCallback(async (recordId) => {
+  };
+  
+  // Delete a health event
+  const deleteHealthEvent = async (id) => {
     try {
-      setIsLoading(true);
-      const response = await fetchWithAuth(`weights/${recordId}`, {
-        method: 'DELETE'
-      });
+      await apiDelete(`/health_events?id=eq.${id}`);
+      debugLog('Deleted health event with ID:', id);
       
-      if (response.success) {
-        // Update local state
-        setWeightRecords(prev => prev.filter(record => record.id !== recordId));
-        return true;
-      }
+      // Update local state
+      setHealthEvents(prev => prev.filter(item => item.id !== id));
+      return { success: true };
     } catch (error) {
-      setError(error.message);
-      console.error('Error deleting weight record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error deleting health event:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete health event record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  // Medication Records
-  const fetchMedicationRecords = useCallback(async (dogId = null, puppyId = null, activeOnly = false) => {
+  };
+  
+  // Add a new vet visit
+  const addVetVisit = async (visitData) => {
     try {
-      setIsLoading(true);
-      let endpoint = 'medications';
-      const params = [];
+      // Remove any non-schema fields
+      const dataToSend = { ...visitData };
+      delete dataToSend.dog_name;
+      delete dataToSend.vet_name;
       
-      if (dogId) params.push(`dog_id=${dogId}`);
-      if (puppyId) params.push(`puppy_id=${puppyId}`);
-      if (activeOnly) params.push('active_only=true');
+      const response = await apiPost('/vet_visits', dataToSend);
+      debugLog('Added vet visit:', response);
       
-      if (params.length > 0) {
-        endpoint += `?${params.join('&')}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setMedicationRecords(response.data);
-      }
+      // Update local state with new data
+      setVetVisits(prev => [...prev, response]);
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error fetching medication records:', error);
-    } finally {
-      setIsLoading(false);
+      debugError('Error adding vet visit:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to add vet visit record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const createMedicationRecord = useCallback(async (medicationData) => {
+  };
+  
+  // Update a vet visit
+  const updateVetVisit = async (id, visitData) => {
     try {
-      setIsLoading(true);
-      // Ensure dates are in ISO format
-      const dateFields = ['administration_date', 'end_date'];
-      for (const field of dateFields) {
-        if (medicationData[field] && medicationData[field] instanceof Date) {
-          medicationData[field] = formatISO(medicationData[field]);
-        }
-      }
+      // Remove any non-schema fields
+      const dataToSend = { ...visitData };
+      delete dataToSend.dog_name;
+      delete dataToSend.vet_name;
       
-      const response = await fetchWithAuth('medications', {
-        method: 'POST',
-        body: JSON.stringify(medicationData)
-      });
+      const response = await apiPut(`/vet_visits?id=eq.${id}`, dataToSend);
+      debugLog('Updated vet visit:', response);
       
-      if (response.success) {
-        // Update local state
-        setMedicationRecords(prev => [response.data, ...prev]);
-        return response.data;
-      }
+      // Update local state
+      setVetVisits(prev => 
+        prev.map(item => item.id === id ? { ...item, ...response } : item)
+      );
+      return { success: true, data: response };
     } catch (error) {
-      setError(error.message);
-      console.error('Error creating medication record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error updating vet visit:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to update vet visit record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const updateMedicationRecord = useCallback(async (recordId, medicationData) => {
+  };
+  
+  // Delete a vet visit
+  const deleteVetVisit = async (id) => {
     try {
-      setIsLoading(true);
-      // Ensure dates are in ISO format
-      const dateFields = ['administration_date', 'end_date'];
-      for (const field of dateFields) {
-        if (medicationData[field] && medicationData[field] instanceof Date) {
-          medicationData[field] = formatISO(medicationData[field]);
-        }
-      }
+      await apiDelete(`/vet_visits?id=eq.${id}`);
+      debugLog('Deleted vet visit with ID:', id);
       
-      const response = await fetchWithAuth(`medications/${recordId}`, {
-        method: 'PUT',
-        body: JSON.stringify(medicationData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setMedicationRecords(prev => 
-          prev.map(record => record.id === recordId ? response.data : record)
-        );
-        return response.data;
-      }
+      // Update local state
+      setVetVisits(prev => prev.filter(item => item.id !== id));
+      return { success: true };
     } catch (error) {
-      setError(error.message);
-      console.error('Error updating medication record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      debugError('Error deleting vet visit:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete vet visit record' 
+      };
     }
-  }, [fetchWithAuth]);
-
-  const deleteMedicationRecord = useCallback(async (recordId) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchWithAuth(`medications/${recordId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.success) {
-        // Update local state
-        setMedicationRecords(prev => prev.filter(record => record.id !== recordId));
-        return true;
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error deleting medication record:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  // Health Conditions
-  const fetchHealthConditions = useCallback(async (dogId = null, puppyId = null, status = null) => {
-    try {
-      setIsLoading(true);
-      let endpoint = 'conditions';
-      const params = [];
-      
-      if (dogId) params.push(`dog_id=${dogId}`);
-      if (puppyId) params.push(`puppy_id=${puppyId}`);
-      if (status) params.push(`status=${status}`);
-      
-      if (params.length > 0) {
-        endpoint += `?${params.join('&')}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setHealthConditions(response.data);
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error fetching health conditions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  const createHealthCondition = useCallback(async (conditionData) => {
-    try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (conditionData.diagnosis_date && conditionData.diagnosis_date instanceof Date) {
-        conditionData.diagnosis_date = formatISO(conditionData.diagnosis_date);
-      }
-      
-      const response = await fetchWithAuth('conditions', {
-        method: 'POST',
-        body: JSON.stringify(conditionData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setHealthConditions(prev => [response.data, ...prev]);
-        return response.data;
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error creating health condition:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  const updateHealthCondition = useCallback(async (conditionId, conditionData) => {
-    try {
-      setIsLoading(true);
-      // Ensure date is in ISO format
-      if (conditionData.diagnosis_date && conditionData.diagnosis_date instanceof Date) {
-        conditionData.diagnosis_date = formatISO(conditionData.diagnosis_date);
-      }
-      
-      const response = await fetchWithAuth(`conditions/${conditionId}`, {
-        method: 'PUT',
-        body: JSON.stringify(conditionData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setHealthConditions(prev => 
-          prev.map(condition => condition.id === conditionId ? response.data : condition)
-        );
-        return response.data;
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error updating health condition:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  const deleteHealthCondition = useCallback(async (conditionId) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchWithAuth(`conditions/${conditionId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.success) {
-        // Update local state
-        setHealthConditions(prev => prev.filter(condition => condition.id !== conditionId));
-        return true;
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error deleting health condition:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  // Condition Templates
-  const fetchConditionTemplates = useCallback(async (breedId = null) => {
-    try {
-      setIsLoading(true);
-      let endpoint = 'condition-templates';
-      if (breedId) {
-        endpoint += `?breed_id=${breedId}`;
-      }
-      
-      const response = await fetchWithAuth(endpoint);
-      if (response.success) {
-        setConditionTemplates(response.data);
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error fetching condition templates:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  const createConditionTemplate = useCallback(async (templateData) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchWithAuth('condition-templates', {
-        method: 'POST',
-        body: JSON.stringify(templateData)
-      });
-      
-      if (response.success) {
-        // Update local state
-        setConditionTemplates(prev => [response.data, ...prev]);
-        return response.data;
-      }
-    } catch (error) {
-      setError(error.message);
-      console.error('Error creating condition template:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchWithAuth]);
-
-  // Fetch initial dashboard data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchDashboardData();
-    }
-  }, [isAuthenticated, fetchDashboardData]);
-
-  // Helper function to get animal data (dog or puppy)
-  const getAnimalById = useCallback((animalId, type) => {
-    if (type === 'dog') {
-      return dogs.find(dog => dog.id === animalId);
-    } else if (type === 'puppy') {
-      return puppies.find(puppy => puppy.id === animalId);
-    }
-    return null;
-  }, [dogs, puppies]);
-
+  };
+  
   // Context value
   const contextValue = {
-    // Data states
-    healthRecords,
+    // Data
     vaccinations,
-    weightRecords,
-    medicationRecords,
-    healthConditions,
-    conditionTemplates,
-    dashboardData,
+    medications,
+    healthEvents,
+    vetVisits,
     
-    // Status
-    isLoading,
+    // Loading states
+    loading,
+    
+    // Error states
     error,
     
-    // Dashboard functions
-    fetchDashboardData,
-    
-    // Health Records CRUD
-    fetchHealthRecords,
-    createHealthRecord,
-    updateHealthRecord,
-    deleteHealthRecord,
-    
-    // Vaccinations CRUD
+    // Data fetching functions
+    fetchDogHealthData,
     fetchVaccinations,
-    createVaccination,
+    fetchMedications,
+    fetchHealthEvents,
+    fetchVetVisits,
+    
+    // CRUD operations for vaccinations
+    addVaccination,
     updateVaccination,
     deleteVaccination,
     
-    // Weight Records CRUD
-    fetchWeightRecords,
-    createWeightRecord,
-    updateWeightRecord,
-    deleteWeightRecord,
+    // CRUD operations for medications
+    addMedication,
+    updateMedication,
+    deleteMedication,
     
-    // Medication Records CRUD
-    fetchMedicationRecords,
-    createMedicationRecord,
-    updateMedicationRecord,
-    deleteMedicationRecord,
+    // CRUD operations for health events
+    addHealthEvent,
+    updateHealthEvent,
+    deleteHealthEvent,
     
-    // Health Conditions CRUD
-    fetchHealthConditions,
-    createHealthCondition,
-    updateHealthCondition,
-    deleteHealthCondition,
-    
-    // Condition Templates
-    fetchConditionTemplates,
-    createConditionTemplate,
-    
-    // Helper functions
-    getAnimalById
+    // CRUD operations for vet visits
+    addVetVisit,
+    updateVetVisit,
+    deleteVetVisit
   };
-
+  
   return (
     <HealthContext.Provider value={contextValue}>
       {children}
@@ -750,8 +433,7 @@ export const HealthProvider = ({ children }) => {
   );
 };
 
-HealthProvider.propTypes = {
+// Define PropTypes for HealthContextProvider
+HealthContextProvider.propTypes = {
   children: PropTypes.node.isRequired
 };
-
-export const useHealth = () => useContext(HealthContext);

@@ -1,11 +1,5 @@
-// src/components/layout/DashboardLayout.js
 import React, { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import GlobalSearchShortcut from '../GlobalSearchShortcut';
-import { useNotifications } from '../../context/NotificationContext';
-
-// MUI components
+import { useLocation, Link } from 'react-router-dom';
 import {
   Box,
   Drawer,
@@ -16,242 +10,177 @@ import {
   Divider,
   IconButton,
   ListItem,
-  ListItemButton,
   ListItemIcon,
   ListItemText,
-  CssBaseline,
-  useMediaQuery,
-  useTheme,
-  InputBase,
-  Avatar,
+  Collapse,
   Menu,
   MenuItem,
-  alpha,
-  styled,
-  Badge,
-  Tooltip,
-  Snackbar,
-  Alert,
-  Collapse,
-  ListSubheader,
+  Avatar,
+  Badge
 } from '@mui/material';
-
-// MUI icons
 import {
-  Home as HomeIcon,
-  Pets as PetsIcon,
-  Favorite as HeartIcon,
-  CalendarMonth as CalendarIcon,
-  ChildCare as PuppyIcon,
-  Person as ProfileIcon,
   Menu as MenuIcon,
-  LogoutOutlined as LogoutIcon,
-  NotificationsOutlined as NotificationsIcon,
-  SettingsOutlined as SettingsIcon,
-  Search as SearchIcon,
-  AccountCircle,
-  Article as PageIcon,
-  ArticleOutlined as ArticleIcon,
-  PhotoLibrary as MediaIcon,
-  Keyboard as KeyboardIcon,
-  Close as CloseIcon,
-  MedicalServices as HealthIcon,
-  Vaccines as VaccinesIcon,
-  Medication as MedicationIcon,
-  HealthAndSafety as HealthRecordsIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
+  ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
-  Description as DocumentIcon,
-  ContactMail as CRMIcon,
-  Settings as SettingsIcon2,
+  Pets as PetsIcon,
+  ExpandLess,
+  ExpandMore,
+  Healing as HealingIcon,
+  Face as FaceIcon,
+  People as PeopleIcon,
+  Description as DescriptionIcon,
+  Folder as FolderIcon,
+  NotificationsActive as NotificationsIcon,
+  AcUnit as HeatIcon,
+  Favorite as LitterIcon
 } from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+import { useAuth } from '../../hooks/useAuth';
+import NotificationsCenter from './NotificationsCenter';
 
-const drawerWidth = 260;
+const drawerWidth = 240;
 
-// Styled search component
-const Search = styled('div')(({ theme }) => ({
-  position: 'relative',
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-  },
-  marginRight: theme.spacing(2),
-  marginLeft: 0,
-  width: '100%',
-  [theme.breakpoints.up('sm')]: {
-    marginLeft: theme.spacing(3),
-    width: 'auto',
-  },
+const AppBarStyled = styled(AppBar, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  zIndex: theme.zIndex.drawer + 1,
+  transition: theme.transitions.create(['width', 'margin'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  ...(open && {
+    marginLeft: drawerWidth,
+    width: `calc(100% - ${drawerWidth}px)`,
+    transition: theme.transitions.create(['width', 'margin'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
 }));
 
-const SearchIconWrapper = styled('div')(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: '100%',
-  position: 'absolute',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-}));
-
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: 'inherit',
-  display: 'flex',
-  alignItems: 'center',
-  '& .MuiInputBase-input': {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    paddingRight: '42px', // Make room for the shortcut badge
-    transition: theme.transitions.create('width'),
-    width: '100%',
-    [theme.breakpoints.up('md')]: {
-      width: '25ch',
-    },
-  },
-  '& .MuiInputAdornment-root': {
-    position: 'absolute',
-    right: theme.spacing(1),
-    top: '50%',
-    transform: 'translateY(-50%)',
+const DrawerStyled = styled(Drawer, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  '& .MuiDrawer-paper': {
+    position: 'relative',
+    whiteSpace: 'nowrap',
+    width: drawerWidth,
+    transition: theme.transitions.create('width', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    boxSizing: 'border-box',
+    ...(!open && {
+      overflowX: 'hidden',
+      transition: theme.transitions.create('width', {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.leavingScreen,
+      }),
+      width: theme.spacing(7),
+      [theme.breakpoints.up('sm')]: {
+        width: theme.spacing(9),
+      },
+    }),
   },
 }));
 
 const DashboardLayout = () => {
-  const { logout, user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [dogsOpen, setDogsOpen] = useState(false);
+  const [littersOpen, setLittersOpen] = useState(false);
+  const [heatsOpen, setHeatsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchTip, setShowSearchTip] = useState(false);
+  const { user, logout } = useAuth();
   
-  // Define navItems first before any functions that use it
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    
-    // BREEDING PROGRAM section
-    { 
-      id: 'breeding',
-      label: 'Breeding Program', 
-      icon: <PetsIcon />,
-      isExpandable: true,
-      children: [
-        { path: '/dashboard/dogs', label: 'Dogs', icon: <PetsIcon /> },
-        { path: '/dashboard/litters', label: 'Litters', icon: <PuppyIcon /> },
-        { path: '/dashboard/heats', label: 'Heats', icon: <HeartIcon /> }
-      ]
-    },
-    
-    // HEALTH MANAGEMENT section
-    { 
-      id: 'health',
-      label: 'Health Management', 
-      icon: <HealthIcon />, 
-      isExpandable: true,
-      children: [
-        { path: '/dashboard/health', label: 'Health Dashboard', icon: <HealthIcon /> },
-        { path: '/dashboard/health/vaccinations', label: 'Vaccinations', icon: <VaccinesIcon /> },
-        { path: '/dashboard/health/medications', label: 'Medications', icon: <MedicationIcon /> },
-        { path: '/dashboard/health/records', label: 'Health Records', icon: <HealthRecordsIcon /> }
-      ]
-    },
-    
-    // CALENDAR & MEDIA
-    { path: '/dashboard/calendar', label: 'Calendar', icon: <CalendarIcon /> },
-    { path: '/dashboard/media', label: 'Media Library', icon: <MediaIcon /> },
-    
-    // WEBSITE & CRM section
-    { 
-      id: 'content',
-      label: 'Website & Content', 
-      icon: <DocumentIcon />, 
-      isExpandable: true,
-      children: [
-        { path: '/dashboard/pages', label: 'Web Pages', icon: <PageIcon /> }
-      ]
-    },
-    
-    // CRM section
-    { 
-      id: 'crm',
-      label: 'Customer Management', 
-      icon: <CRMIcon />, 
-      isExpandable: true,
-      children: [
-        { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> }
-      ]
-    },
-    
-    // ACCOUNT section
-    { path: '/dashboard/profile', label: 'My Account', icon: <ProfileIcon /> },
-  ];
-  
-  // State for collapsible menu sections
-  const [openMenu, setOpenMenu] = useState({
-    health: false,
-    breeding: false,
-    content: false,
-    crm: false
-  });
-  
-  // Check if any child route of a menu section is active
-  const isMenuSectionActive = (menuId) => {
-    if (!menuId || !navItems) return false;
-    
-    // Find the menu section
-    const menuSection = navItems.find(item => item.id === menuId);
-    if (!menuSection || !menuSection.children) return false;
-    
-    // Check if any child route is active
-    return menuSection.children.some(child => isActive(child.path));
-  };
-  
-  // Effect to automatically expand menu sections when their children are active
+  // Automatically expand submenus based on current path
   useEffect(() => {
-    const newOpenState = { ...openMenu };
-    
-    // Check each menu section
-    navItems?.forEach(item => {
-      if (item.isExpandable && item.id) {
-        // If any child is active, expand the menu
-        if (isMenuSectionActive(item.id)) {
-          newOpenState[item.id] = true;
-        }
-      }
-    });
-    
-    // Update state only if changes are needed
-    if (JSON.stringify(newOpenState) !== JSON.stringify(openMenu)) {
-      setOpenMenu(newOpenState);
+    if (location.pathname.includes('/dashboard/health')) {
+      setHealthOpen(true);
     }
-  }, [location.pathname, navItems]);
+    if (location.pathname.includes('/dashboard/dogs')) {
+      setDogsOpen(true);
+    }
+    if (location.pathname.includes('/dashboard/litters')) {
+      setLittersOpen(true);
+    }
+    if (location.pathname.includes('/dashboard/heats')) {
+      setHeatsOpen(true);
+    }
+  }, [location.pathname]);
   
-  const handleMenuToggle = (menu) => {
-    setOpenMenu({
-      ...openMenu,
-      [menu]: !openMenu[menu]
-    });
+  // Toggle drawer open state
+  const toggleDrawer = () => {
+    setOpen(!open);
   };
   
+  // Toggle health submenu
+  const toggleHealth = () => {
+    setHealthOpen(!healthOpen);
+  };
+  
+  // Toggle dogs submenu
+  const toggleDogs = () => {
+    setDogsOpen(!dogsOpen);
+  };
+  
+  // Toggle litters submenu
+  const toggleLitters = () => {
+    setLittersOpen(!littersOpen);
+  };
+  
+  // Toggle heats submenu
+  const toggleHeats = () => {
+    setHeatsOpen(!heatsOpen);
+  };
+  
+  // Handle profile menu open
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  
+  // Handle profile menu close
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+  
+  // Handle logging out
+  const handleLogout = () => {
+    handleMenuClose();
+    logout();
+  };
+  
+  // Toggle notifications panel
+  const toggleNotifications = () => {
+    setNotificationsOpen(!notificationsOpen);
+  };
+  
+  // Handle marking a notification as read
+  const handleMarkAsRead = (id) => {
+    // Implementation for marking notification as read
+    // This would update the unread count
+    setUnreadNotifications(Math.max(0, unreadNotifications - 1));
+  };
+  
+  // Check if a menu item should be highlighted
   const isActive = (path) => {
-    // For exact matches like Dashboard
-    if (path === '/dashboard' && location.pathname === '/dashboard') {
+    // Exact match
+    if (location.pathname === path) {
       return true;
     }
     
     // For nested routes, make sure we don't highlight parent paths incorrectly
-    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health/records
+    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health/medications
     if (path === '/dashboard') {
       return false; // Don't highlight dashboard for other pages
     }
     
     // Special case for health dashboard to prevent highlighting when on sub-pages
     if (path === '/dashboard/health' && location.pathname !== '/dashboard/health') {
-      // If we're on a sub-page like /dashboard/health/records, don't highlight the dashboard
+      // If we're on a sub-page like /dashboard/health/records, don't highlight the health dashboard
       return false;
     }
     
@@ -263,484 +192,352 @@ const DashboardLayout = () => {
         return true;
       }
       
-      // If path continues with a slash, it's a child route
-      if (location.pathname.charAt(path.length) === '/') {
-        // For parent paths that have children, only mark active if we're on an exact match
-        // This prevents /dashboard/health from highlighting when on /dashboard/health/records
-        if (path.includes('/dashboard/health') || 
-            path.includes('/dashboard/breeding') || 
-            path.includes('/dashboard/content') || 
-            path.includes('/dashboard/crm')) {
-          return false;
-        }
-        return true;
-      }
+      // If path is followed by a slash, it's a child route
+      const nextChar = location.pathname.charAt(path.length);
+      return nextChar === '/';
     }
     
     return false;
   };
   
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-  
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-  
-  const handleLogout = () => {
-    handleMenuClose();
-    logout();
-    navigate('/login');
-  };
-  
-  const handleSearchChange = (event) => {
-    setSearchQuery(event.target.value);
-  };
-  
-  const handleSearchSubmit = (event) => {
-    if (event.key === 'Enter' && searchQuery.trim()) {
-      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      // Show search tip if it's the user's first search
-      if (!localStorage.getItem('searchTipShown')) {
-        localStorage.setItem('searchTipShown', 'true');
-        setShowSearchTip(true);
-        // Hide the tip after 5 seconds
-        setTimeout(() => setShowSearchTip(false), 5000);
-      }
-    }
-  };
-  
-  const handleSearchClick = () => {
-    if (searchQuery.trim()) {
-      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      // Show search tip if it's the user's first search
-      if (!localStorage.getItem('searchTipShown')) {
-        localStorage.setItem('searchTipShown', 'true');
-        setShowSearchTip(true);
-        // Hide the tip after 5 seconds
-        setTimeout(() => setShowSearchTip(false), 5000);
-      }
-    }
-  };
-  
-  const handleCloseTip = () => {
-    setShowSearchTip(false);
-  };
-  
+  // Main content for the drawer sidebar
   const drawer = (
-    <>
-      <Toolbar 
-        sx={{ 
-          px: [1, 2], 
-          minHeight: 64,
+    <div>
+      <Toolbar
+        sx={{
           display: 'flex',
-          alignItems: 'center'
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          px: [1],
         }}
       >
-        <Box display="flex" alignItems="center">
-          <Box 
-            component="img" 
-            src="/icons/dog-paw.png" 
-            alt="Logo" 
-            sx={{ width: 32, height: 32, mr: 1 }}
-          />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600, color: 'white' }}>
-            Breeder Dashboard
-          </Typography>
-        </Box>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          Breeder Tools
+        </Typography>
+        <IconButton onClick={toggleDrawer}>
+          <ChevronLeftIcon />
+        </IconButton>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
-      <List sx={{ px: 2, py: 1 }}>
-        {navItems.map((item) => (
-          item.isExpandable ? (
-            <React.Fragment key={item.id}>
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => handleMenuToggle(item.id)}
-                  sx={{
-                    borderRadius: 1,
-                    py: 1,
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    },
-                  }}
-                >
-                  <ListItemIcon 
-                    sx={{ 
-                      minWidth: 40,
-                      color: 'rgba(255, 255, 255, 0.8)'
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.label} 
-                    primaryTypographyProps={{ fontSize: 14 }}
-                  />
-                  {openMenu[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </ListItemButton>
-              </ListItem>
-              <Collapse in={openMenu[item.id]} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  {item.children.map((child) => (
-                    <ListItem key={child.path} disablePadding sx={{ pl: 4 }}>
-                      <ListItemButton
-                        component={Link}
-                        to={child.path}
-                        selected={isActive(child.path)}
-                        sx={{
-                          borderRadius: 1,
-                          py: 1,
-                          color: 'rgba(255, 255, 255, 0.8)',
-                          '&.Mui-selected': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                            color: '#fff',
-                            '&:hover': {
-                              backgroundColor: 'rgba(255, 255, 255, 0.24)',
-                            },
-                          },
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          },
-                        }}
-                        onClick={() => isMobile && setMobileOpen(false)}
-                      >
-                        <ListItemIcon 
-                          sx={{ 
-                            minWidth: 40,
-                            color: isActive(child.path) ? '#fff' : 'rgba(255, 255, 255, 0.8)'
-                          }}
-                        >
-                          {child.icon}
-                        </ListItemIcon>
-                        <ListItemText 
-                          primary={child.label} 
-                          primaryTypographyProps={{ fontSize: 14 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                </List>
-              </Collapse>
-            </React.Fragment>
-          ) : (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={Link}
-                to={item.path}
-                selected={isActive(item.path)}
-                sx={{
-                  borderRadius: 1,
-                  py: 1,
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  '&.Mui-selected': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                    color: '#fff',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.24)',
-                    },
-                  },
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  },
-                }}
-                onClick={() => isMobile && setMobileOpen(false)}
-              >
-                <ListItemIcon 
-                  sx={{ 
-                    minWidth: 40,
-                    color: isActive(item.path) ? '#fff' : 'rgba(255, 255, 255, 0.8)'
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.label} 
-                  primaryTypographyProps={{ fontSize: 14 }}
-                />
-              </ListItemButton>
+      <Divider />
+      <List>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard" 
+          selected={isActive('/dashboard')}
+        >
+          <ListItemIcon>
+            <DashboardIcon />
+          </ListItemIcon>
+          <ListItemText primary="Dashboard" />
+        </ListItem>
+        
+        {/* Health Management Section */}
+        <ListItem button onClick={toggleHealth}>
+          <ListItemIcon>
+            <HealingIcon />
+          </ListItemIcon>
+          <ListItemText primary="Health" />
+          {healthOpen ? <ExpandLess /> : <ExpandMore />}
+        </ListItem>
+        <Collapse in={healthOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/health" 
+              selected={isActive('/dashboard/health')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <DashboardIcon />
+              </ListItemIcon>
+              <ListItemText primary="Health Dashboard" />
             </ListItem>
-          )
-        ))}
-      </List>
-      <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)', mt: 2 }} />
-      <List sx={{ px: 2 }}>
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={handleLogout}
-            sx={{
-              borderRadius: 1,
-              py: 1,
-              color: 'rgba(255, 255, 255, 0.8)',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40, color: 'rgba(255, 255, 255, 0.8)' }}>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Logout" 
-              primaryTypographyProps={{ fontSize: 14 }}
-            />
-          </ListItemButton>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/health/records" 
+              selected={isActive('/dashboard/health/records')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <DescriptionIcon />
+              </ListItemIcon>
+              <ListItemText primary="Health Records" />
+            </ListItem>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/health/medications" 
+              selected={isActive('/dashboard/health/medications')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <HealingIcon />
+              </ListItemIcon>
+              <ListItemText primary="Medications" />
+            </ListItem>
+          </List>
+        </Collapse>
+        
+        {/* Dogs Management Section */}
+        <ListItem button onClick={toggleDogs}>
+          <ListItemIcon>
+            <PetsIcon />
+          </ListItemIcon>
+          <ListItemText primary="Dogs" />
+          {dogsOpen ? <ExpandLess /> : <ExpandMore />}
+        </ListItem>
+        <Collapse in={dogsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/dogs/manage" 
+              selected={isActive('/dashboard/dogs/manage')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <PetsIcon />
+              </ListItemIcon>
+              <ListItemText primary="Manage Dogs" />
+            </ListItem>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/dogs/add" 
+              selected={isActive('/dashboard/dogs/add')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <PetsIcon />
+              </ListItemIcon>
+              <ListItemText primary="Add Dog" />
+            </ListItem>
+          </List>
+        </Collapse>
+        
+        {/* Litters Management Section */}
+        <ListItem button onClick={toggleLitters}>
+          <ListItemIcon>
+            <LitterIcon />
+          </ListItemIcon>
+          <ListItemText primary="Litters" />
+          {littersOpen ? <ExpandLess /> : <ExpandMore />}
+        </ListItem>
+        <Collapse in={littersOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/litters/manage" 
+              selected={isActive('/dashboard/litters/manage')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <LitterIcon />
+              </ListItemIcon>
+              <ListItemText primary="Manage Litters" />
+            </ListItem>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/litters/add" 
+              selected={isActive('/dashboard/litters/add')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <LitterIcon />
+              </ListItemIcon>
+              <ListItemText primary="Add Litter" />
+            </ListItem>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/puppies/manage" 
+              selected={isActive('/dashboard/puppies/manage')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <PetsIcon />
+              </ListItemIcon>
+              <ListItemText primary="Manage Puppies" />
+            </ListItem>
+          </List>
+        </Collapse>
+        
+        {/* Heats Management Section */}
+        <ListItem button onClick={toggleHeats}>
+          <ListItemIcon>
+            <HeatIcon />
+          </ListItemIcon>
+          <ListItemText primary="Heats" />
+          {heatsOpen ? <ExpandLess /> : <ExpandMore />}
+        </ListItem>
+        <Collapse in={heatsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/heats/manage" 
+              selected={isActive('/dashboard/heats/manage')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <HeatIcon />
+              </ListItemIcon>
+              <ListItemText primary="Manage Heats" />
+            </ListItem>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/dashboard/heats/add" 
+              selected={isActive('/dashboard/heats/add')}
+              sx={{ pl: 4 }}
+            >
+              <ListItemIcon>
+                <HeatIcon />
+              </ListItemIcon>
+              <ListItemText primary="Add Heat" />
+            </ListItem>
+          </List>
+        </Collapse>
+        
+        {/* Other main sections */}
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard/applications" 
+          selected={isActive('/dashboard/applications')}
+        >
+          <ListItemIcon>
+            <DescriptionIcon />
+          </ListItemIcon>
+          <ListItemText primary="Applications" />
+        </ListItem>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard/customers" 
+          selected={isActive('/dashboard/customers')}
+        >
+          <ListItemIcon>
+            <PeopleIcon />
+          </ListItemIcon>
+          <ListItemText primary="Customer CRM" />
+        </ListItem>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard/media" 
+          selected={isActive('/dashboard/media')}
+        >
+          <ListItemIcon>
+            <FolderIcon />
+          </ListItemIcon>
+          <ListItemText primary="Media Library" />
+        </ListItem>
+        <ListItem 
+          button 
+          component={Link} 
+          to="/dashboard/profile" 
+          selected={isActive('/dashboard/profile')}
+        >
+          <ListItemIcon>
+            <FaceIcon />
+          </ListItemIcon>
+          <ListItemText primary="Profile" />
         </ListItem>
       </List>
-    </>
+    </div>
   );
-
-  const { unreadCount } = useNotifications();
-
+  
   return (
     <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      
-      {/* App bar */}
-      <AppBar
-        position="fixed"
-        color="default"
-        elevation={0}
-        sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-          bgcolor: 'background.paper',
-          borderBottom: '1px solid #eaeaea',
-        }}
-      >
-        <Toolbar>
-          {/* Mobile menu button */}
+      <AppBarStyled position="absolute" open={open}>
+        <Toolbar
+          sx={{
+            pr: '24px',
+          }}
+        >
           <IconButton
+            edge="start"
             color="inherit"
             aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            onClick={toggleDrawer}
+            sx={{
+              marginRight: '36px',
+              ...(open && { display: 'none' }),
+            }}
           >
             <MenuIcon />
           </IconButton>
-          
-          {/* Page title - visible on mobile only */}
-          <Typography 
-            variant="h6" 
-            noWrap 
-            component="div" 
-            sx={{ 
-              flexGrow: 1, 
-              display: { xs: 'block', sm: 'none' } 
-            }}
+          <Typography
+            component="h1"
+            variant="h6"
+            color="inherit"
+            noWrap
+            sx={{ flexGrow: 1 }}
           >
-            {navItems.find((item) => isActive(item.path))?.label || 'Dashboard'}
+            Breeding Management System
           </Typography>
-          
-          {/* Search - visible on desktop */}
-          <Search sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <SearchIconWrapper onClick={handleSearchClick}>
-              <SearchIcon />
-            </SearchIconWrapper>
-            <StyledInputBase
-              placeholder="Search dogs, puppies, litters..."
-              inputProps={{ 'aria-label': 'search' }}
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onKeyPress={handleSearchSubmit}
-              endAdornment={
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    backgroundColor: 'rgba(0, 0, 0, 0.08)', 
-                    px: 0.5, 
-                    py: 0.2, 
-                    borderRadius: 1,
-                    color: 'text.secondary',
-                    display: { xs: 'none', md: 'inline' }
-                  }}
-                >
-                  {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}
-                </Typography>
-              }
-            />
-          </Search>
-          
-          {/* Mobile search icon */}
-          <IconButton 
-            onClick={() => navigate('/dashboard/search')}
-            sx={{ display: { xs: 'block', sm: 'none' }, mr: 1 }}
-          >
-            <SearchIcon />
+          <IconButton color="inherit" onClick={toggleNotifications}>
+            <Badge badgeContent={unreadNotifications} color="secondary">
+              <NotificationsIcon />
+            </Badge>
           </IconButton>
-          
-          <Box sx={{ flexGrow: 1 }} />
-          
-          {/* Action icons */}
-          <Box sx={{ display: 'flex' }}>
-            <Tooltip title="Notifications">
-              <IconButton 
-                size="large" 
-                color="inherit"
-                component={Link}
-                to="/dashboard/notifications"
-              >
-                <Badge badgeContent={unreadCount} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="System Settings">
-              <IconButton 
-                size="large" 
-                color="inherit"
-                component={Link}
-                to="/dashboard/settings"
-              >
-                <SettingsIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Account">
-              <IconButton
-                size="large"
-                edge="end"
-                aria-label="account of current user"
-                aria-haspopup="true"
-                onClick={handleProfileMenuOpen}
-                color="inherit"
-              >
-                <AccountCircle />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          
+          <IconButton
+            color="inherit"
+            onClick={handleMenuOpen}
+          >
+            <Avatar alt={user?.name || 'User'} src={user?.avatar} />
+          </IconButton>
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
-            keepMounted
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            <MenuItem 
-              component={Link} 
-              to="/dashboard/profile" 
-              onClick={handleMenuClose}
-            >
-              Breeder Profile
-            </MenuItem>
-            <MenuItem 
-              component={Link} 
-              to="/dashboard/account" 
-              onClick={handleMenuClose}
-            >
-              Account Settings
-            </MenuItem>
-            <Divider />
+            <MenuItem component={Link} to="/dashboard/profile">Profile</MenuItem>
+            <MenuItem component={Link} to="/dashboard/settings">Settings</MenuItem>
             <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
         </Toolbar>
-      </AppBar>
-      
-      {/* The sidebar/drawer */}
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-        aria-label="dashboard navigation"
+      </AppBarStyled>
+      <DrawerStyled
+        variant="permanent"
+        open={open}
       >
-        {/* Mobile drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              backgroundColor: '#1a2035',
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        
-        {/* Desktop permanent drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              backgroundColor: '#1a2035',
-              boxShadow: 'rgba(0, 0, 0, 0.15) 0px 2px 8px'
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      
-      {/* Main content area */}
+        {drawer}
+      </DrawerStyled>
       <Box
         component="main"
         sx={{
+          backgroundColor: (theme) =>
+            theme.palette.mode === 'light'
+              ? theme.palette.grey[100]
+              : theme.palette.grey[900],
           flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          bgcolor: '#f8f9fa',
-          minHeight: '100vh',
+          height: '100vh',
+          overflow: 'auto',
+          padding: (theme) => theme.spacing(4)
         }}
       >
-        <Toolbar /> {/* This creates space for the fixed app bar */}
-        <Outlet />
+        <Toolbar /> {/* Spacer for fixed app bar */}
+        {notificationsOpen && (
+          <NotificationsCenter 
+            onClose={() => setNotificationsOpen(false)}
+            onMarkAsRead={handleMarkAsRead}
+          />
+        )}
+        {/* Main content */}
+        <Box sx={{ p: 3 }}>
+          {/* This is where the main content will be rendered */}
+          {/* Components will be passed as children to DashboardLayout */}
+        </Box>
       </Box>
-      
-      {/* Add global search shortcut */}
-      <GlobalSearchShortcut />
-      
-      {/* Keyboard shortcut tip */}
-      <Snackbar
-        open={showSearchTip}
-        autoHideDuration={5000}
-        onClose={handleCloseTip}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseTip} 
-          severity="info"
-          icon={<KeyboardIcon />}
-          sx={{ 
-            width: '100%',
-            '& .MuiAlert-message': { 
-              display: 'flex', 
-              alignItems: 'center' 
-            }
-          }}
-          action={
-            <IconButton
-              size="small"
-              aria-label="close"
-              color="inherit"
-              onClick={handleCloseTip}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          <Typography variant="body2">
-            Pro tip: Press <b>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+K</b> to search from anywhere
-          </Typography>
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
 
-export default DashboardLayout; 
+export default DashboardLayout;

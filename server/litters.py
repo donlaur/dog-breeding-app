@@ -13,7 +13,7 @@ def create_litters_bp(db):
     def get_all_litters():
         """Get all litters"""
         try:
-            litters = db.find_by_field_values("litters")
+            litters = db.find_by_field_values("litters", {})
             debug_log(f"Found {len(litters)} litters")
             
             # Enhance each litter with dam and sire information
@@ -25,23 +25,23 @@ def create_litters_bp(db):
                 if litter.get('dam_id'):
                     debug_log(f"Fetching dam with ID: {litter['dam_id']}")
                     dam = db.get("dogs", litter['dam_id'])
-                    if dam:
+                    if not dam:
+                        debug_log(f"Dam with ID {litter['dam_id']} not found")
+                        litter_data['dam_name'] = 'Unknown'
+                    else:
                         litter_data['dam_name'] = dam.get('call_name', 'Unknown')
                         debug_log(f"Found dam: {litter_data['dam_name']}")
-                    else:
-                        litter_data['dam_name'] = 'Unknown'
-                        debug_log(f"Dam with ID {litter['dam_id']} not found")
                 
                 # Get sire information if sire_id is present
                 if litter.get('sire_id'):
                     debug_log(f"Fetching sire with ID: {litter['sire_id']}")
                     sire = db.get("dogs", litter['sire_id'])
-                    if sire:
+                    if not sire:
+                        debug_log(f"Sire with ID {litter['sire_id']} not found")
+                        litter_data['sire_name'] = 'Unknown'
+                    else:
                         litter_data['sire_name'] = sire.get('call_name', 'Unknown')
                         debug_log(f"Found sire: {litter_data['sire_name']}")
-                    else:
-                        litter_data['sire_name'] = 'Unknown'
-                        debug_log(f"Sire with ID {litter['sire_id']} not found")
                 
                 enhanced_litters.append(litter_data)
             
@@ -71,7 +71,15 @@ def create_litters_bp(db):
             if litter.get('dam_id'):
                 debug_log(f"Fetching dam with ID: {litter['dam_id']}")
                 dam = db.get("dogs", litter['dam_id'])
-                if dam:
+                if not dam:
+                    debug_log(f"Dam with ID {litter['dam_id']} not found")
+                    response_data['dam_info'] = {
+                        'id': litter.get('dam_id'),
+                        'call_name': 'Unknown',
+                        'registered_name': ''
+                    }
+                    response_data['dam_name'] = 'Unknown'
+                else:
                     debug_log(f"Found dam: {dam.get('call_name', 'Unknown')}")
                     # Add dam information as separate fields
                     response_data['dam_info'] = {
@@ -81,14 +89,6 @@ def create_litters_bp(db):
                     }
                     # Add dam_name for backward compatibility
                     response_data['dam_name'] = dam.get('call_name', 'Unknown')
-                else:
-                    debug_log(f"Dam with ID {litter['dam_id']} not found")
-                    response_data['dam_info'] = {
-                        'id': litter.get('dam_id'),
-                        'call_name': 'Unknown',
-                        'registered_name': ''
-                    }
-                    response_data['dam_name'] = 'Unknown'
             else:
                 response_data['dam_info'] = {
                     'id': None,
@@ -102,7 +102,15 @@ def create_litters_bp(db):
                 debug_log(f"Fetching sire with ID: {litter['sire_id']}")
                 sire = db.get("dogs", litter['sire_id'])
                 debug_log(f"Sire lookup result: {sire}")
-                if sire:
+                if not sire:
+                    debug_log(f"Sire with ID {litter['sire_id']} not found")
+                    response_data['sire_info'] = {
+                        'id': litter.get('sire_id'),
+                        'call_name': 'Unknown',
+                        'registered_name': ''
+                    }
+                    response_data['sire_name'] = 'Unknown'
+                else:
                     debug_log(f"Found sire: {sire.get('call_name', 'Unknown')}")
                     # Add sire information as separate fields
                     response_data['sire_info'] = {
@@ -113,14 +121,6 @@ def create_litters_bp(db):
                     # Add sire_name for backward compatibility
                     response_data['sire_name'] = sire.get('call_name', 'Unknown')
                     debug_log(f"Set sire_name to: {response_data['sire_name']}")
-                else:
-                    debug_log(f"Sire with ID {litter['sire_id']} not found in database")
-                    response_data['sire_info'] = {
-                        'id': litter.get('sire_id'),
-                        'call_name': 'Unknown',
-                        'registered_name': ''
-                    }
-                    response_data['sire_name'] = 'Unknown'
             else:
                 debug_log("No sire_id present in litter data")
                 response_data['sire_info'] = {
@@ -138,16 +138,16 @@ def create_litters_bp(db):
             # Get breed information if breed_id is present
             if litter.get('breed_id'):
                 breed = db.get("dog_breeds", litter['breed_id'])
-                if breed:
+                if not breed:
+                    response_data['breed_info'] = {
+                        'id': litter.get('breed_id'),
+                        'name': 'Unknown Breed'
+                    }
+                else:
                     # Add breed information as a separate field
                     response_data['breed_info'] = {
                         'id': breed.get('id'),
                         'name': breed.get('name', 'Unknown Breed')
-                    }
-                else:
-                    response_data['breed_info'] = {
-                        'id': litter.get('breed_id'),
-                        'name': 'Unknown Breed'
                     }
             else:
                 response_data['breed_info'] = {
@@ -182,10 +182,10 @@ def create_litters_bp(db):
                 debug_log(f"TEST: Fetching sire with ID: {litter['sire_id']}")
                 sire = db.get("dogs", litter['sire_id'])
                 debug_log(f"TEST: Sire lookup result: {sire}")
-                if sire:
-                    debug_log(f"TEST: Found sire: {sire.get('call_name', 'Unknown')}")
-                else:
+                if not sire:
                     debug_log(f"TEST: Sire with ID {litter['sire_id']} not found in database")
+                else:
+                    debug_log(f"TEST: Found sire: {sire.get('call_name', 'Unknown')}")
             else:
                 debug_log("TEST: No sire_id present in litter data")
             

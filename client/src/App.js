@@ -9,7 +9,7 @@ import theme from './theme';
 import { AuthProvider } from './context/AuthContext';
 import { HeatProvider } from './context/HeatContext';
 import { PageProvider } from './context/PageContext';
-import { HealthProvider } from './context/HealthContext';
+import { HealthContextProvider } from './context/HealthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -115,7 +115,7 @@ function App() {
       <AuthProvider>
         <HeatProvider>
           <PageProvider>
-            <HealthProvider>
+            <HealthContextProvider>
               <NotificationProvider>
                 <ErrorBoundary>
                   <DebugRouteInfo />
@@ -379,7 +379,7 @@ function App() {
                 </Routes>
               </ErrorBoundary>
               </NotificationProvider>
-            </HealthProvider>
+            </HealthContextProvider>
           </PageProvider>
         </HeatProvider>
       </AuthProvider>

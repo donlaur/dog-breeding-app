@@ -473,3 +473,68 @@ export const addPuppyToLitter = async (litterId, puppyData) => {
   console.log(`Adding puppy to litter ${litterId} with clean data:`, cleanData);
   return apiPost(`litters/${litterId}/puppies`, cleanData);
 };
+
+/**
+ * Upload a file to the API
+ * @param {File} file - The file to upload
+ * @param {string} type - The type of file (image, document, etc.)
+ * @param {Object} options - Additional fetch options
+ * @return {Promise<Object>} - Response data or error
+ */
+export const apiUpload = async (file, type = 'image', options = {}) => {
+  const endpoint = 'uploads';
+  
+  try {
+    debugLog(`Uploading ${type} file: ${file.name}`);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    
+    // Don't set Content-Type in headers as FormData sets it with boundary
+    const uploadOptions = {
+      method: 'POST',
+      body: formData,
+      ...options,
+      headers: {
+        // Remove any Content-Type header as it will be set by FormData
+        ...options.headers
+      }
+    };
+    
+    // Don't include Content-Type in headers for FormData
+    const response = await apiRequest(endpoint, uploadOptions);
+    
+    if (!response.ok) {
+      debugError('File upload failed:', response);
+      
+      // Show error notification
+      if (response.error) {
+        showError(`Upload failed: ${response.error}`);
+      } else {
+        showError('File upload failed. Please try again.');
+      }
+      
+      return {
+        ok: false,
+        status: response.status,
+        error: response.error || 'Upload failed',
+      };
+    }
+    
+    debugLog('Upload successful:', response.data);
+    return {
+      ok: true,
+      status: response.status || 200,
+      data: response.data
+    };
+  } catch (error) {
+    debugError('Error in file upload:', error);
+    showError('File upload failed. Please try again.');
+    
+    return {
+      ok: false,
+      error: error.message || 'Unknown error',
+    };
+  }
+};
