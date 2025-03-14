@@ -228,7 +228,7 @@ const DashboardLayout = () => {
     if (JSON.stringify(newOpenState) !== JSON.stringify(openMenu)) {
       setOpenMenu(newOpenState);
     }
-  }, [location.pathname, navItems]);
+  }, [location.pathname, navItems, isMenuSectionActive, openMenu]);
   
   const handleMenuToggle = (menu) => {
     setOpenMenu({
@@ -244,12 +244,18 @@ const DashboardLayout = () => {
     }
     
     // For nested routes, make sure we don't highlight parent paths incorrectly
-    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health-records
+    // For example, /dashboard/health shouldn't highlight when we're on /dashboard/health/medications
     if (path === '/dashboard') {
       return false; // Don't highlight dashboard for other pages
     }
     
-    // For child routes, check if the current path starts with the menu path
+    // Special case for health dashboard route
+    if (path === '/dashboard/health') {
+      // Only highlight if it's exactly the health dashboard, not a sub-page
+      return location.pathname === '/dashboard/health';
+    }
+    
+    // For other child routes, check if the current path starts with the menu path
     // and either ends there or continues with a slash
     if (location.pathname.startsWith(path)) {
       // If path is exactly the same, it's active

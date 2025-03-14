@@ -109,12 +109,15 @@ class SupabaseDatabase(DatabaseInterface):
             return []
     
     @retry_on_disconnect(max_retries=5, delay=2)
-    def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def find_by_field_values(self, table: str, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Find records in a table by multiple field values (AND condition)"""
         try:
             query = self.supabase.table(table).select("*")
             
             # Apply each filter as an AND condition
+            if filters is None:
+                filters = {}
+                
             for field, value in filters.items():
                 query = query.eq(field, value)
             

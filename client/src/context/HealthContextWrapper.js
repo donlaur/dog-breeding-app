@@ -1,7 +1,7 @@
 // HealthContextWrapper.js - A wrapper for HealthContext that only loads on relevant pages
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { HealthContext, HealthProvider } from './HealthContext';
+import { HealthContext, HealthContextProvider } from './HealthContext';
 import { debugLog } from '../config';
 
 // Routes where health data is actually needed
@@ -33,7 +33,7 @@ export const HealthContextWrapper = ({ children }) => {
   
   // If this is a health-related page, use the real provider
   if (shouldLoadHealth) {
-    return <HealthProvider>{children}</HealthProvider>;
+    return <HealthContextProvider>{children}</HealthContextProvider>;
   }
   
   // Otherwise, provide a minimal context that doesn't make API calls

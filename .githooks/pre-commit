@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo "Running pre-commit checks for Dog Breeding App..."
+
+# Check for database pattern violations
+echo "Checking for database pattern violations..."
+cd server && python scripts/check_db_patterns.py --dir . --exit-on-error
+
+# Store the exit code
+PATTERN_CHECK_EXIT_CODE=$?
+
+if [ $PATTERN_CHECK_EXIT_CODE -ne 0 ]; then
+    echo "❌ ERROR: Database pattern violations detected. Please fix them before committing."
+    exit 1
+fi
+
+# Check client-side API patterns if files were changed
+if git diff --cached --name-only | grep -q '\.js$'; then
+    echo "Checking for client-side API pattern violations..."
+    cd ../client && npx eslint --quiet src/
+
+    # Store the exit code
+    ESLINT_EXIT_CODE=$?
+
+    if [ $ESLINT_EXIT_CODE -ne 0 ]; then
+        echo "❌ ERROR: Client-side API pattern violations detected. Please fix them before committing."
+        exit 1
+    fi
+fi
+
+# If we got here, all checks passed
+echo "✅ All pre-commit checks passed!"
+exit 0

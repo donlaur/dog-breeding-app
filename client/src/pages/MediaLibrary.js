@@ -24,7 +24,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  FormHelperText
 } from '@mui/material';
 import {
   PhotoLibrary as PhotoIcon,
@@ -36,7 +37,22 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon
 } from '@mui/icons-material';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiDelete, sanitizeApiData } from '../utils/apiUtils';
+import { 
+  sanitizeUserInput, 
+  validateFileType, 
+  validateFileSize, 
+  validateTextLength, 
+  formatFileSize 
+} from '../utils/inputSanitization';
+
+const MAX_CAPTION_LENGTH = 200;
+const MAX_TITLE_LENGTH = 100;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
@@ -78,28 +94,26 @@ const MediaLibrary = () => {
   
   const fetchEntities = async () => {
     try {
-      const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        fetch(`${API_URL}/dogs`),
-        fetch(`${API_URL}/litters`),
-        fetch(`${API_URL}/puppies`)
+      const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
+        apiGet('dogs'),
+        apiGet('litters'),
+        apiGet('puppies')
       ]);
       
-      if (dogsRes.ok) {
-        const dogsData = await dogsRes.json();
-        setDogs(dogsData);
+      if (dogsResponse.ok) {
+        setDogs(dogsResponse.data);
       }
       
-      if (littersRes.ok) {
-        const littersData = await littersRes.json();
-        setLitters(littersData);
+      if (littersResponse.ok) {
+        setLitters(littersResponse.data);
       }
       
-      if (puppiesRes.ok) {
-        const puppiesData = await puppiesRes.json();
-        setPuppies(puppiesData);
+      if (puppiesResponse.ok) {
+        setPuppies(puppiesResponse.data);
       }
-    } catch (err) {
-      console.error('Error fetching entities:', err);
+    } catch (error) {
+      debugError("Error fetching entities:", error);
+      setError("Failed to load entities");
     }
   };
   
@@ -140,8 +154,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its photos
       const photosPromises = entities.map(entity => 
-        fetch(`${API_URL}/photos/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`photos/${entityType}/${entity.id}`)
+          .then(response => response.ok ? response.data : [])
           .then(photos => photos.map(photo => ({
             ...photo,
             entityName: getEntityName(entityType, entity)
@@ -194,8 +208,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its documents
       const docsPromises = entities.map(entity => 
-        fetch(`${API_URL}/files/documents/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`files/documents/${entityType}/${entity.id}`)
+          .then(response => response.ok ? response.data : [])
           .then(docs => docs.map(doc => ({
             ...doc,
             entityName: getEntityName(entityType, entity)
@@ -227,6 +241,20 @@ const MediaLibrary = () => {
     if (!file) return;
     
     setSelectedFile(file);
+    setUploadError(null); // Reset any previous errors
+    
+    // Validate file size
+    if (!validateFileSize(file, MAX_FILE_SIZE)) {
+      setUploadError(`File size exceeds the maximum limit of ${formatFileSize(MAX_FILE_SIZE)}`);
+      return;
+    }
+    
+    // Validate file type
+    const allowedTypes = uploadType === 'photo' ? ALLOWED_IMAGE_TYPES : ALLOWED_DOCUMENT_TYPES;
+    if (!validateFileType(file, allowedTypes)) {
+      setUploadError(`Invalid file type. Allowed types for ${uploadType}: ${allowedTypes.join(', ')}`);
+      return;
+    }
     
     // Create preview for images
     if (file.type.startsWith('image/')) {
@@ -240,14 +268,54 @@ const MediaLibrary = () => {
     }
   };
   
+  const validateUploadForm = () => {
+    // Check required fields
+    if (!selectedFile) {
+      setUploadError('Please select a file to upload');
+      return false;
+    }
+    
+    if (!uploadEntityType) {
+      setUploadError('Please select an entity type');
+      return false;
+    }
+    
+    if (!uploadEntityId) {
+      setUploadError('Please select an entity');
+      return false;
+    }
+    
+    // Validate text fields length
+    if (uploadType === 'photo') {
+      if (!validateTextLength(uploadCaption, MAX_CAPTION_LENGTH)) {
+        setUploadError(`Caption cannot exceed ${MAX_CAPTION_LENGTH} characters`);
+        return false;
+      }
+    } else {
+      if (!validateTextLength(uploadTitle, MAX_TITLE_LENGTH)) {
+        setUploadError(`Title cannot exceed ${MAX_TITLE_LENGTH} characters`);
+        return false;
+      }
+      
+      if (!validateTextLength(uploadDescription, MAX_DESCRIPTION_LENGTH)) {
+        setUploadError(`Description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters`);
+        return false;
+      }
+    }
+    
+    return true;
+  };
+  
   const handleUpload = async () => {
-    if (!selectedFile || !uploadEntityType || !uploadEntityId) {
-      setUploadError('Please select a file, entity type, and entity ID');
+    // Reset error state
+    setUploadError(null);
+    
+    // Validate form before proceeding
+    if (!validateUploadForm()) {
       return;
     }
     
     setUploadingFile(true);
-    setUploadError(null);
     
     try {
       const formData = new FormData();
@@ -256,33 +324,39 @@ const MediaLibrary = () => {
       formData.append('entity_id', uploadEntityId);
       
       if (uploadType === 'photo') {
-        formData.append('caption', uploadCaption);
-        // Don't automatically set is_cover to false, let the server determine if it should be a cover
-        // This way, if it's the first photo, it will be the cover, and if not, the cover won't change
+        // Sanitize user input
+        const sanitizedCaption = sanitizeUserInput(uploadCaption);
+        formData.append('caption', sanitizedCaption);
         
         // Upload to photos endpoint
-        const response = await fetch(`${API_URL}/photos/`, {
-          method: 'POST',
-          body: formData
+        const response = await apiPost('photos/', formData, {
+          headers: {
+            // Remove Content-Type header so browser can set it with boundary for FormData
+            'Content-Type': undefined
+          }
         });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload photo');
+          throw new Error(response.error || 'Failed to upload photo');
         }
       } else {
-        formData.append('title', uploadTitle);
-        formData.append('description', uploadDescription);
+        // Sanitize user input
+        const sanitizedTitle = sanitizeUserInput(uploadTitle);
+        const sanitizedDescription = sanitizeUserInput(uploadDescription);
+        
+        formData.append('title', sanitizedTitle);
+        formData.append('description', sanitizedDescription);
         
         // Upload to files endpoint
-        const response = await fetch(`${API_URL}/files/`, {
-          method: 'POST',
-          body: formData
+        const response = await apiPost('files/', formData, {
+          headers: {
+            // Remove Content-Type header so browser can set it with boundary for FormData
+            'Content-Type': undefined
+          }
         });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload document');
+          throw new Error(response.error || 'Failed to upload document');
         }
       }
       
@@ -300,13 +374,180 @@ const MediaLibrary = () => {
       setUploadDialogOpen(false);
       resetUploadForm();
     } catch (err) {
-      console.error('Upload error:', err);
+      debugError('Upload error:', err);
       setUploadError(err.message || 'Failed to upload file');
     } finally {
       setUploadingFile(false);
     }
   };
-  
+
+  const renderUploadDialog = () => (
+    <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="md" fullWidth>
+      <DialogTitle>
+        Upload {uploadType === 'photo' ? 'Photo' : 'Document'}
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          {uploadError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {uploadError}
+            </Alert>
+          )}
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 200,
+                  cursor: 'pointer',
+                  bgcolor: 'background.default'
+                }}
+                onClick={() => document.getElementById('file-upload').click()}
+              >
+                {filePreview ? (
+                  <Box sx={{ width: '100%', height: '200px', overflow: 'hidden' }}>
+                    <img 
+                      src={filePreview} 
+                      alt="Preview" 
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    />
+                  </Box>
+                ) : (
+                  <>
+                    <UploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography variant="body1" color="textSecondary">
+                      Click to select a {uploadType === 'photo' ? 'photo' : 'document'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                      Max size: {formatFileSize(MAX_FILE_SIZE)}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Allowed formats: {uploadType === 'photo' 
+                      ? 'JPG, PNG, GIF, WebP' 
+                      : 'PDF, DOC, DOCX, TXT, XLS, XLSX'}
+                    </Typography>
+                  </>
+                )}
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept={uploadType === 'photo' 
+                    ? 'image/jpeg, image/png, image/gif, image/webp' 
+                    : '.pdf,.doc,.docx,.txt,.xls,.xlsx'
+                  }
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+              </Paper>
+              {selectedFile && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    Selected file: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  </Typography>
+                </Box>
+              )}
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControl fullWidth required>
+                  <InputLabel>Entity Type</InputLabel>
+                  <Select
+                    value={uploadEntityType}
+                    onChange={(e) => setUploadEntityType(e.target.value)}
+                    label="Entity Type"
+                  >
+                    <MenuItem value="dog">Dog</MenuItem>
+                    <MenuItem value="litter">Litter</MenuItem>
+                    <MenuItem value="puppy">Puppy</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth required>
+                  <InputLabel>Entity</InputLabel>
+                  <Select
+                    value={uploadEntityId}
+                    onChange={(e) => setUploadEntityId(e.target.value)}
+                    label="Entity"
+                    disabled={!uploadEntityType}
+                  >
+                    {uploadEntityType === 'dog' && dogs.map(dog => (
+                      <MenuItem key={dog.id} value={dog.id}>
+                        {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
+                      </MenuItem>
+                    ))}
+                    {uploadEntityType === 'litter' && litters.map(litter => (
+                      <MenuItem key={litter.id} value={litter.id}>
+                        {litter.litter_name || `Litter #${litter.id}`}
+                      </MenuItem>
+                    ))}
+                    {uploadEntityType === 'puppy' && puppies.map(puppy => (
+                      <MenuItem key={puppy.id} value={puppy.id}>
+                        {puppy.name || `Puppy #${puppy.id}`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                
+                {uploadType === 'photo' ? (
+                  <TextField
+                    fullWidth
+                    label="Caption"
+                    value={uploadCaption}
+                    onChange={(e) => setUploadCaption(e.target.value)}
+                    multiline
+                    rows={4}
+                    inputProps={{ maxLength: MAX_CAPTION_LENGTH }}
+                    helperText={`${uploadCaption.length}/${MAX_CAPTION_LENGTH} characters`}
+                  />
+                ) : (
+                  <>
+                    <TextField
+                      fullWidth
+                      label="Title"
+                      value={uploadTitle}
+                      onChange={(e) => setUploadTitle(e.target.value)}
+                      required
+                      inputProps={{ maxLength: MAX_TITLE_LENGTH }}
+                      helperText={`${uploadTitle.length}/${MAX_TITLE_LENGTH} characters`}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Description"
+                      value={uploadDescription}
+                      onChange={(e) => setUploadDescription(e.target.value)}
+                      multiline
+                      rows={4}
+                      inputProps={{ maxLength: MAX_DESCRIPTION_LENGTH }}
+                      helperText={`${uploadDescription.length}/${MAX_DESCRIPTION_LENGTH} characters`}
+                    />
+                  </>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
+        <Button 
+          onClick={handleUpload}
+          variant="contained" 
+          color="primary"
+          disabled={uploadingFile || !selectedFile}
+        >
+          {uploadingFile ? <CircularProgress size={24} /> : 'Upload'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   const resetUploadForm = () => {
     setSelectedFile(null);
     setFilePreview(null);
@@ -322,24 +563,23 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE'
-      });
+      setLoading(true);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete photo');
+      const response = await apiDelete(`photos/${photoId}`);
+      
+      if (response.ok) {
+        // Refresh photos
+        fetchAllPhotos();
+        setSuccess("Photo deleted successfully");
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        throw new Error(response.error || "Failed to delete photo");
       }
-      
-      // Remove from local state
-      setPhotos(photos.filter(photo => photo.id !== photoId));
-      
-      // Show success message
-      setSuccess('Photo deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      console.error('Error deleting photo:', err);
-      setError('Failed to delete photo. Please try again.');
-      setTimeout(() => setError(null), 5000);
+    } catch (error) {
+      debugError("Error deleting photo:", error);
+      setError(`Failed to delete photo: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -349,24 +589,23 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/files/documents/${documentId}`, {
-        method: 'DELETE'
-      });
+      setLoading(true);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete document');
+      const response = await apiDelete(`files/documents/${documentId}`);
+      
+      if (response.ok) {
+        // Refresh documents
+        fetchAllDocuments();
+        setSuccess("Document deleted successfully");
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        throw new Error(response.error || "Failed to delete document");
       }
-      
-      // Remove from local state
-      setDocuments(documents.filter(doc => doc.id !== documentId));
-      
-      // Show success message
-      setSuccess('Document deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      console.error('Error deleting document:', err);
-      setError('Failed to delete document. Please try again.');
-      setTimeout(() => setError(null), 5000);
+    } catch (error) {
+      debugError("Error deleting document:", error);
+      setError(`Failed to delete document: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -396,7 +635,7 @@ const MediaLibrary = () => {
         return '📎';
     }
   };
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -587,157 +826,7 @@ const MediaLibrary = () => {
         </Grid>
       )}
       
-      {/* Upload Dialog */}
-      <Dialog
-        open={uploadDialogOpen}
-        onClose={() => setUploadDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Upload {uploadType === 'photo' ? 'Photo' : 'Document'}
-        </DialogTitle>
-        <DialogContent>
-          {uploadError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {uploadError}
-            </Alert>
-          )}
-          
-          <Box sx={{ my: 2 }}>
-            <input
-              accept={uploadType === 'photo' ? "image/*" : "*/*"}
-              style={{ display: 'none' }}
-              id="upload-file-input"
-              type="file"
-              onChange={handleFileSelect}
-            />
-            <label htmlFor="upload-file-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadIcon />}
-                fullWidth
-              >
-                Select {uploadType === 'photo' ? 'Photo' : 'Document'}
-              </Button>
-            </label>
-            
-            {selectedFile && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  Selected: {selectedFile.name}
-                </Typography>
-              </Box>
-            )}
-            
-            {filePreview && (
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  style={{ maxWidth: '100%', maxHeight: '200px' }}
-                />
-              </Box>
-            )}
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity Type</InputLabel>
-                <Select
-                  value={uploadEntityType}
-                  onChange={(e) => setUploadEntityType(e.target.value)}
-                  label="Entity Type"
-                >
-                  <MenuItem value="dog">Dog</MenuItem>
-                  <MenuItem value="litter">Litter</MenuItem>
-                  <MenuItem value="puppy">Puppy</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity</InputLabel>
-                <Select
-                  value={uploadEntityId}
-                  onChange={(e) => setUploadEntityId(e.target.value)}
-                  label="Entity"
-                >
-                  {uploadEntityType === 'dog' ? (
-                    dogs.map(dog => (
-                      <MenuItem key={dog.id} value={dog.id}>
-                        {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
-                      </MenuItem>
-                    ))
-                  ) : uploadEntityType === 'litter' ? (
-                    litters.map(litter => (
-                      <MenuItem key={litter.id} value={litter.id}>
-                        {litter.litter_name || `Litter #${litter.id}`}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    puppies.map(puppy => (
-                      <MenuItem key={puppy.id} value={puppy.id}>
-                        {puppy.name || `Puppy #${puppy.id}`}
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            {uploadType === 'photo' ? (
-              <Grid item xs={12}>
-                <TextField
-                  label="Caption (optional)"
-                  fullWidth
-                  value={uploadCaption}
-                  onChange={(e) => setUploadCaption(e.target.value)}
-                />
-              </Grid>
-            ) : (
-              <>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Title"
-                    fullWidth
-                    value={uploadTitle}
-                    onChange={(e) => setUploadTitle(e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Description (optional)"
-                    fullWidth
-                    multiline
-                    rows={3}
-                    value={uploadDescription}
-                    onChange={(e) => setUploadDescription(e.target.value)}
-                  />
-                </Grid>
-              </>
-            )}
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)} disabled={uploadingFile}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleUpload}
-            variant="contained"
-            disabled={!selectedFile || !uploadEntityType || !uploadEntityId || uploadingFile}
-            startIcon={uploadingFile ? <CircularProgress size={20} /> : null}
-          >
-            {uploadingFile ? 'Uploading...' : 'Upload'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {renderUploadDialog()}
     </Box>
   );
 };
