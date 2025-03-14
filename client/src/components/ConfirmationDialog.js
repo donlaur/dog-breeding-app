@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import {
   Dialog,
   DialogTitle,
@@ -75,4 +76,15 @@ const ConfirmationDialog = ({
   );
 };
 
-export default ConfirmationDialog; 
+ConfirmationDialog.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  title: PropTypes.string,
+  message: PropTypes.string,
+  confirmButtonText: PropTypes.string,
+  cancelButtonText: PropTypes.string,
+  severity: PropTypes.oneOf(['error', 'warning', 'info', 'success'])
+};
+
+export default ConfirmationDialog;
