@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box,
@@ -14,6 +15,7 @@ import {
   Typography
 } from '@mui/material';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet } from "../../utils/apiUtils";
 
 const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   const [dogs, setDogs] = useState({ females: [], males: [] });
@@ -35,15 +37,16 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await apiGet('dogs');
+        if (response.success) {
+          const data = response.data;
+          setDogs({
+            females: data.filter(dog => dog.gender === 'Female'),
+            males: data.filter(dog => dog.gender === 'Male')
+          });
+        } else {
+          throw new Error(response.error || 'Failed to load dogs');
         }
-        const data = await response.json();
-        setDogs({
-          females: data.filter(dog => dog.gender === 'Female'),
-          males: data.filter(dog => dog.gender === 'Male')
-        });
       } catch (error) {
         debugError("Error fetching dogs:", error);
         setError("Failed to load dogs. Please try again.");
@@ -72,7 +75,17 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
     setError(null);
     
     try {
-      await onSave(formData);
+      // Remove any non-schema fields before sending to server
+      const dataToSend = {...formData};
+      
+      // If any fields are empty strings, convert to null for the backend
+      Object.keys(dataToSend).forEach(key => {
+        if (dataToSend[key] === '') {
+          dataToSend[key] = null;
+        }
+      });
+      
+      await onSave(dataToSend);
     } catch (error) {
       setError(error.message || 'Failed to save heat');
     } finally {
@@ -100,15 +113,15 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
             <InputLabel id="dog-select-label">Female Dog</InputLabel>
             <Select
               labelId="dog-select-label"
-              id="dog_id"
+              id="dog-select"
               name="dog_id"
               value={formData.dog_id}
               onChange={handleChange}
               label="Female Dog"
             >
-              {dogs.females.map(dog => (
+              {dogs.females.map((dog) => (
                 <MenuItem key={dog.id} value={dog.id}>
-                  {dog.call_name}
+                  {dog.call_name} ({dog.registered_name || "No registered name"})
                 </MenuItem>
               ))}
             </Select>
@@ -119,9 +132,10 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
           <TextField
             fullWidth
             required
-            type="date"
-            label="Start Date"
+            id="start-date"
             name="start_date"
+            label="Start Date"
+            type="date"
             value={formData.start_date}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
@@ -131,28 +145,31 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            label="End Date"
+            id="end-date"
             name="end_date"
-            value={formData.end_date}
+            label="End Date"
+            type="date"
+            value={formData.end_date || ''}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
+            helperText="Leave blank if heat is ongoing"
           />
         </Grid>
 
         <Grid item xs={12}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-            Mating Details (Optional)
+          <Typography variant="subtitle1" mt={2} mb={1}>
+            Mating Information (Optional)
           </Typography>
         </Grid>
 
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            label="Mating Date"
+            id="mating-date"
             name="mating_date"
-            value={formData.mating_date}
+            label="Mating Date"
+            type="date"
+            value={formData.mating_date || ''}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
           />
@@ -160,18 +177,21 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
 
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth disabled={!formData.mating_date}>
-            <InputLabel id="sire-select-label">Sire (Male)</InputLabel>
+            <InputLabel id="sire-select-label">Sire</InputLabel>
             <Select
               labelId="sire-select-label"
-              id="sire_id"
+              id="sire-select"
               name="sire_id"
-              value={formData.sire_id}
+              value={formData.sire_id || ''}
               onChange={handleChange}
-              label="Sire (Male)"
+              label="Sire"
             >
-              {dogs.males.map(dog => (
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {dogs.males.map((dog) => (
                 <MenuItem key={dog.id} value={dog.id}>
-                  {dog.call_name}
+                  {dog.call_name} ({dog.registered_name || "No registered name"})
                 </MenuItem>
               ))}
             </Select>
@@ -181,44 +201,65 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            type="date"
-            label="Expected Whelp Date"
+            id="expected-whelp-date"
             name="expected_whelp_date"
-            value={formData.expected_whelp_date}
+            label="Expected Whelp Date"
+            type="date"
+            value={formData.expected_whelp_date || ''}
             onChange={handleChange}
             InputLabelProps={{ shrink: true }}
+            disabled={!formData.mating_date}
           />
         </Grid>
 
         <Grid item xs={12}>
           <TextField
             fullWidth
+            id="notes"
+            name="notes"
+            label="Notes"
             multiline
             rows={4}
-            label="Notes"
-            name="notes"
-            value={formData.notes}
+            value={formData.notes || ''}
             onChange={handleChange}
           />
         </Grid>
 
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              fullWidth
-              size="large"
-              disabled={submitting}
-            >
-              {isEdit ? 'Update Heat' : 'Add Heat'}
-            </Button>
-          </Box>
+        <Grid item xs={12} display="flex" justifyContent="space-between" mt={2}>
+          <Button 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => navigate(-1)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            type="submit"
+            disabled={submitting || !formData.dog_id || !formData.start_date}
+          >
+            {submitting ? <CircularProgress size={24} /> : isEdit ? 'Update Heat' : 'Create Heat'}
+          </Button>
         </Grid>
       </Grid>
     </Box>
   );
 };
 
-export default HeatForm; 
+// Add PropTypes validation
+HeatForm.propTypes = {
+  onSave: PropTypes.func.isRequired,
+  initialData: PropTypes.shape({
+    dog_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    start_date: PropTypes.string,
+    end_date: PropTypes.string,
+    mating_date: PropTypes.string,
+    sire_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    expected_whelp_date: PropTypes.string,
+    notes: PropTypes.string
+  }),
+  isEdit: PropTypes.bool
+};
+
+export default HeatForm;

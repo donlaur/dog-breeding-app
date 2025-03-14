@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './HeatCalendar.css'; // Updated CSS path
-import { API_URL } from '../../config';
+import { API_URL, debugLog, debugError } from '../../config';
+import { apiGet } from '../../utils/apiUtils';
 import { CircularProgress, Box } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
@@ -24,12 +26,14 @@ const HeatCalendar = ({ heats: propHeats }) => {
 
     const fetchHeats = async () => {
       try {
-        const response = await fetch(`${API_URL}/heats`);
-        if (!response.ok) throw new Error('Failed to fetch heats');
-        const data = await response.json();
-        setHeats(data);
+        const response = await apiGet('heats');
+        if (response.success) {
+          setHeats(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to fetch heats');
+        }
       } catch (error) {
-        console.error('Error fetching heats:', error);
+        debugError('Error fetching heats:', error);
       } finally {
         setLoading(false);
       }
@@ -42,12 +46,14 @@ const HeatCalendar = ({ heats: propHeats }) => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
-        if (!response.ok) throw new Error('Failed to fetch dogs');
-        const data = await response.json();
-        setDogList(data);
+        const response = await apiGet('dogs');
+        if (response.success) {
+          setDogList(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to fetch dogs');
+        }
       } catch (error) {
-        console.error('Error fetching dogs:', error);
+        debugError('Error fetching dogs:', error);
       }
     };
 
@@ -167,4 +173,18 @@ const HeatCalendar = ({ heats: propHeats }) => {
   );
 };
 
-export default HeatCalendar; 
+// Add PropTypes validation
+HeatCalendar.propTypes = {
+  heats: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      dog_id: PropTypes.number,
+      start_date: PropTypes.string,
+      end_date: PropTypes.string,
+      mating_date: PropTypes.string,
+      notes: PropTypes.string
+    })
+  )
+};
+
+export default HeatCalendar;

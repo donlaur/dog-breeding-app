@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   Table,
@@ -48,6 +49,7 @@ import {
 import moment from 'moment';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { apiGet, apiDelete } from '../utils/apiUtils';
 
 // Helper function to determine event icon
 const getEventIcon = (eventType) => {
@@ -133,18 +135,24 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   useEffect(() => {
     const fetchEvents = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
         // Fetch from multiple endpoints in parallel
         const [eventsResponse, heatsResponse, littersResponse] = await Promise.all([
-          fetch(`${API_URL}/events/`),
-          fetch(`${API_URL}/heats/`),
-          fetch(`${API_URL}/litters/`)
+          apiGet('events/'),
+          apiGet('heats/'),
+          apiGet('litters/')
         ]);
+        
+        if (!eventsResponse.success) {
+          throw new Error(eventsResponse.error || 'Failed to load events');
+        }
         
         // Process custom events from events table
         let allEvents = [];
-        if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json();
+        if (eventsResponse.success) {
+          const eventsData = eventsResponse.data;
           allEvents = eventsData.map(event => ({
             ...event,
             sourceType: 'event' // Mark the source for identification
@@ -152,8 +160,8 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         }
         
         // Process heat cycles as events
-        if (heatsResponse.ok) {
-          const heatsData = await heatsResponse.json();
+        if (heatsResponse.success) {
+          const heatsData = heatsResponse.data;
           const heatEvents = heatsData.map(heat => ({
             id: `heat-${heat.id}`,
             title: `Heat Cycle`,
@@ -171,8 +179,8 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         }
         
         // Process litters as events
-        if (littersResponse.ok) {
-          const littersData = await littersResponse.json();
+        if (littersResponse.success) {
+          const littersData = littersResponse.data;
           
           // Map litters to birth events
           const litterEvents = littersData.flatMap(litter => {
@@ -228,7 +236,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         setEvents(allEvents);
       } catch (err) {
         console.error('Error fetching events:', err);
-        setError(err.message);
+        setError('Failed to load events');
       } finally {
         setLoading(false);
       }
@@ -241,17 +249,17 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   useEffect(() => {
     const fetchRelatedEntities = async () => {
       try {
-        const dogRes = fetch(`${API_URL}/dogs/`);
-        const litterRes = fetch(`${API_URL}/litters/`);
-        const puppyRes = fetch(`${API_URL}/puppies/`);
+        const dogRes = apiGet('dogs/');
+        const litterRes = apiGet('litters/');
+        const puppyRes = apiGet('puppies/');
         
         const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
           dogRes, litterRes, puppyRes
         ]);
         
-        const dogsData = dogsResponse.ok ? await dogsResponse.json() : [];
-        const littersData = littersResponse.ok ? await littersResponse.json() : [];
-        const puppiesData = puppiesResponse.ok ? await puppiesResponse.json() : [];
+        const dogsData = dogsResponse.success ? dogsResponse.data : [];
+        const littersData = littersResponse.success ? littersResponse.data : [];
+        const puppiesData = puppiesResponse.success ? puppiesResponse.data : [];
         
         const entitiesData = {
           dogs: dogsData,
@@ -392,9 +400,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       if (selectedEvent.sourceType === 'heat') {
         // For heat events, we need to delete the heat cycle
         const heatId = selectedEvent.id.replace('heat-', '');
-        response = await fetch(`${API_URL}/heats/${heatId}`, {
-          method: 'DELETE'
-        });
+        response = await apiDelete(`heats/${heatId}`);
       } else if (selectedEvent.sourceType === 'litter') {
         // For litter events, we don't want to delete the litter
         // Instead, we'll just remove the event from the UI
@@ -404,13 +410,11 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         return;
       } else {
         // For regular events, delete from the events API
-        response = await fetch(`${API_URL}/events/${selectedEvent.id}`, {
-          method: 'DELETE'
-        });
+        response = await apiDelete(`events/${selectedEvent.id}`);
       }
       
-      if (!response.ok) {
-        throw new Error(`Failed to delete event: ${response.status}`);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete event');
       }
       
       // Remove event from local state
@@ -1006,7 +1010,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
           </Typography>
           {selectedEvent && (
             <Typography variant="body2" fontWeight="500" mt={1}>
-              "{selectedEvent.title}" on {formatEventDate(selectedEvent.start_date)}
+              &quot;{selectedEvent.title}&quot; on {formatEventDate(selectedEvent.start_date)}
             </Typography>
           )}
           <Typography variant="body2" color="error" mt={2}>
@@ -1185,6 +1189,12 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       </Dialog>
     </Box>
   );
+};
+
+// Define prop types for EventsListView
+EventsListView.propTypes = {
+  onEventCreated: PropTypes.func,
+  onEventDeleted: PropTypes.func
 };
 
 export default EventsListView;

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { API_URL } from '../../config';
+import { API_URL, debugLog, debugError } from '../../config';
+import { apiGet } from '../../utils/apiUtils';
 import { CircularProgress, Box, Typography, Button } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
@@ -44,9 +46,9 @@ const EventCalendar = ({
         // Fetch custom events from the events API
         if (fetchEvents) {
           try {
-            const eventsResponse = await fetch(`${API_URL}/events/`);
-            if (eventsResponse.ok) {
-              const eventsData = await eventsResponse.json();
+            const eventsResponse = await apiGet('events');
+            if (eventsResponse.success) {
+              const eventsData = eventsResponse.data;
               
               // Process events data
               const customEvents = eventsData.map(event => ({
@@ -69,15 +71,15 @@ const EventCalendar = ({
               allEvents = [...allEvents, ...customEvents];
             }
           } catch (error) {
-            console.error('Error fetching custom events:', error);
+            debugError('Error fetching custom events:', error);
           }
         }
         
         // Fetch heats if requested
         if (fetchHeats) {
-          const heatsResponse = await fetch(`${API_URL}/heats`);
-          if (heatsResponse.ok) {
-            const heatsData = await heatsResponse.json();
+          const heatsResponse = await apiGet('heats');
+          if (heatsResponse.success) {
+            const heatsData = heatsResponse.data;
             // Add heat events
             const heatEvents = heatsData.map(heat => ({
               id: `heat-${heat.id}`,
@@ -94,9 +96,9 @@ const EventCalendar = ({
 
         // Fetch litters if requested
         if (fetchLitters) {
-          const littersResponse = await fetch(`${API_URL}/litters/`);
-          if (littersResponse.ok) {
-            const littersData = await littersResponse.json();
+          const littersResponse = await apiGet('litters');
+          if (littersResponse.success) {
+            const littersData = littersResponse.data;
             // Add litter events like whelp date, go-home date, etc.
             const litterEvents = littersData.flatMap(litter => {
               const events = [];
@@ -144,7 +146,7 @@ const EventCalendar = ({
         
         setEvents(allEvents);
       } catch (error) {
-        console.error('Error fetching events:', error);
+        debugError('Error fetching events:', error);
       } finally {
         setLoading(false);
       }
@@ -157,12 +159,14 @@ const EventCalendar = ({
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
-        if (!response.ok) throw new Error('Failed to fetch dogs');
-        const data = await response.json();
-        setDogList(data);
+        const response = await apiGet('dogs');
+        if (response.success) {
+          setDogList(response.data);
+        } else {
+          throw new Error(response.error || 'Failed to fetch dogs');
+        }
       } catch (error) {
-        console.error('Error fetching dogs:', error);
+        debugError('Error fetching dogs:', error);
       }
     };
 
@@ -211,188 +215,81 @@ const EventCalendar = ({
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
   };
-  
-  // Handler for the Today button
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
-  
-  // Handler for navigating to previous/next month
-  const handleNavigate = (action) => {
-    const newDate = new Date(currentDate);
-    if (action === 'PREV') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (action === 'NEXT') {
-      newDate.setMonth(newDate.getMonth() + 1);
+
+  const handleSelectSlot = (slotInfo) => {
+    // If callback was provided, pass slot info
+    if (onSelectSlot) {
+      onSelectSlot(slotInfo);
     }
-    setCurrentDate(newDate);
   };
 
   return (
-    <div className="p-4 relative">
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 2,
-        flexWrap: 'wrap',
-        gap: 1
-      }}>
-        <Typography variant="h6" component="h2">
-          {title}
-        </Typography>
+    <Box sx={{ position: 'relative', height: '70vh', mt: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">{title}</Typography>
         
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            variant="outlined"
-            size="small"
-            onClick={() => handleNavigate('PREV')}
-          >
-            Previous
-          </Button>
-          
-          <Button 
-            variant="contained"
-            size="small"
-            onClick={handleToday}
-          >
-            Today
-          </Button>
-          
-          <Button 
-            variant="outlined"
-            size="small"
-            onClick={() => handleNavigate('NEXT')}
-          >
-            Next
-          </Button>
-        </Box>
+        {selectedEvent && (
+          <Box sx={{ position: 'absolute', right: 16, top: 0, backgroundColor: 'white', p: 2, boxShadow: 3, zIndex: 10, borderRadius: 1 }}>
+            <Typography variant="h6">{selectedEvent.title}</Typography>
+            <Typography variant="body2">
+              {moment(selectedEvent.start).format('MMM D, YYYY')}
+              {!moment(selectedEvent.start).isSame(moment(selectedEvent.end), 'day') && 
+                ` - ${moment(selectedEvent.end).format('MMM D, YYYY')}`}
+            </Typography>
+            {selectedEvent.resource?.description && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                {selectedEvent.resource.description}
+              </Typography>
+            )}
+            <Button 
+              size="small" 
+              variant="outlined"
+              sx={{ mt: 1 }}
+              onClick={() => setSelectedEvent(null)}
+            >
+              Close
+            </Button>
+          </Box>
+        )}
       </Box>
       
-      <div style={{ height: '80vh' }}>
-        <Calendar
-          localizer={localizer}
-          events={calendarEvents}
-          startAccessor="start"
-          endAccessor="end"
-          eventPropGetter={eventStyleGetter}
-          views={['month', 'week', 'day']}
-          defaultView="month"
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={(slotInfo) => {
-            console.log('Selected slot:', slotInfo);
-            if (onSelectSlot) onSelectSlot(slotInfo);
-          }}
-          selectable
-          date={currentDate}
-          onNavigate={setCurrentDate}
-        />
-      </div>
-
-      {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                {selectedEvent.title}
-              </h2>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-600">Event Type</p>
-                <p className="font-medium">{selectedEvent.type}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Date</p>
-                <p className="font-medium">
-                  {selectedEvent.start === selectedEvent.end
-                    ? moment(selectedEvent.start).format('MMMM D, YYYY')
-                    : `${moment(selectedEvent.start).format('MMMM D, YYYY')} - ${moment(selectedEvent.end).format('MMMM D, YYYY')}`}
-                </p>
-              </div>
-              
-              {/* Event description from our new event system */}
-              {selectedEvent.resource?.description && (
-                <div>
-                  <p className="text-gray-600">Description</p>
-                  <p className="font-medium">{selectedEvent.resource.description}</p>
-                </div>
-              )}
-              
-              {/* Related entity information */}
-              {selectedEvent.resource?.related_type && selectedEvent.resource?.related_id && (
-                <div>
-                  <p className="text-gray-600">Related To</p>
-                  <p className="font-medium">
-                    {selectedEvent.resource.related_type.charAt(0).toUpperCase() + 
-                     selectedEvent.resource.related_type.slice(1)} #{selectedEvent.resource.related_id}
-                  </p>
-                </div>
-              )}
-              
-              {/* Notification information */}
-              {selectedEvent.resource?.notify && (
-                <div>
-                  <p className="text-gray-600">Notification</p>
-                  <p className="font-medium">
-                    {selectedEvent.resource.notify_days_before > 0 
-                      ? `${selectedEvent.resource.notify_days_before} days before event` 
-                      : 'On event day'}
-                  </p>
-                </div>
-              )}
-              
-              {/* Heat-specific details */}
-              {selectedEvent.type === 'heat' && selectedEvent.resource && (
-                <>
-                  {selectedEvent.resource.mating_date && (
-                    <div>
-                      <p className="text-gray-600">Mating Date</p>
-                      <p className="font-medium">{moment(selectedEvent.resource.mating_date).format('MMMM D, YYYY')}</p>
-                    </div>
-                  )}
-                  {selectedEvent.resource.expected_whelp_date && (
-                    <div>
-                      <p className="text-gray-600">Expected Whelp Date</p>
-                      <p className="font-medium">{moment(selectedEvent.resource.expected_whelp_date).format('MMMM D, YYYY')}</p>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Litter-specific details */}
-              {selectedEvent.type?.startsWith('litter') && selectedEvent.resource && (
-                <>
-                  {selectedEvent.resource.puppy_count !== undefined && (
-                    <div>
-                      <p className="text-gray-600">Puppy Count</p>
-                      <p className="font-medium">{selectedEvent.resource.puppy_count}</p>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Generic notes field */}
-              {selectedEvent.resource?.notes && (
-                <div>
-                  <p className="text-gray-600">Notes</p>
-                  <p className="font-medium">{selectedEvent.resource.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Calendar
+        localizer={localizer}
+        events={calendarEvents}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: '100%' }}
+        eventPropGetter={eventStyleGetter}
+        onSelectEvent={handleSelectEvent}
+        onSelectSlot={handleSelectSlot}
+        selectable={!!onSelectSlot}
+        views={['month', 'week', 'day']}
+        defaultView="month"
+        defaultDate={currentDate}
+        onNavigate={date => setCurrentDate(date)}
+      />
+    </Box>
   );
+};
+
+// Add PropTypes validation
+EventCalendar.propTypes = {
+  events: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
+      start: PropTypes.instanceOf(Date),
+      end: PropTypes.instanceOf(Date),
+      type: PropTypes.string,
+      color: PropTypes.string,
+      resource: PropTypes.object
+    })
+  ),
+  title: PropTypes.string,
+  fetchHeats: PropTypes.bool,
+  fetchLitters: PropTypes.bool,
+  fetchEvents: PropTypes.bool,
+  onSelectSlot: PropTypes.func
 };
 
 export default EventCalendar;

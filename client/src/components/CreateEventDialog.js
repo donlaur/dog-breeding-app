@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Dialog,
   DialogTitle,
@@ -24,7 +25,8 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import moment from 'moment';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost } from '../utils/apiUtils';
 
 /**
  * A dialog for creating and editing calendar events
@@ -75,21 +77,19 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
     try {
       // Fetch dogs and litters in parallel
       const [dogsResponse, littersResponse] = await Promise.all([
-        fetch(`${API_URL}/dogs/`),
-        fetch(`${API_URL}/litters/`)
+        apiGet('dogs/'),
+        apiGet('litters/')
       ]);
       
-      if (dogsResponse.ok) {
-        const dogsData = await dogsResponse.json();
-        setDogs(dogsData);
+      if (dogsResponse.success) {
+        setDogs(dogsResponse.data || []);
       }
       
-      if (littersResponse.ok) {
-        const littersData = await littersResponse.json();
-        setLitters(littersData);
+      if (littersResponse.success) {
+        setLitters(littersResponse.data || []);
       }
     } catch (error) {
-      console.error('Error fetching entities:', error);
+      debugError('Error fetching entities:', error);
     } finally {
       setLoadingEntities(false);
     }
@@ -150,25 +150,14 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
       }
       
       // Send the request to create the event
-      const response = await fetch(`${API_URL}/events/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
-      });
+      const response = await apiPost('events/', eventData);
       
-      if (!response.ok) {
-        let errorMsg = 'Failed to create event';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.error || errorMsg;
-        } catch (e) {
-          // If we can't parse the error response, use generic error
-        }
-        throw new Error(errorMsg);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create event');
       }
       
       // Get the created event
-      const createdEvent = await response.json();
+      const createdEvent = response.data;
       
       // Show success message and reset the form
       setSuccess(true);
@@ -184,7 +173,7 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
         onClose();
       }, 1500);
     } catch (error) {
-      console.error('Error creating event:', error);
+      debugError('Error creating event:', error);
       setError(error.message || 'Failed to create event');
     } finally {
       setLoading(false);
@@ -508,6 +497,14 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
       </Dialog>
     </LocalizationProvider>
   );
+};
+
+// Define prop types for CreateEventDialog
+CreateEventDialog.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  selectedDate: PropTypes.object, // moment object
+  onEventCreated: PropTypes.func
 };
 
 export default CreateEventDialog;
