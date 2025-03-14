@@ -5,57 +5,57 @@ import {
   Tabs,
   Tab,
   Grid,
-  Button,
   Card,
   CardMedia,
   CardContent,
   CardActions,
+  Button,
   IconButton,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   CircularProgress,
-  Divider,
   Alert,
   Chip,
-  Paper,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Divider,
+  Paper
 } from '@mui/material';
 import {
-  PhotoLibrary as PhotoIcon,
+  Photo as PhotoIcon,
   Description as DocumentIcon,
-  CloudUpload as UploadIcon,
-  DeleteOutline as DeleteIcon,
-  EditOutlined as EditIcon,
-  Search as SearchIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
   Download as DownloadIcon,
   Visibility as ViewIcon
 } from '@mui/icons-material';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiDelete } from '../utils/apiUtils';
+import { showSuccess, showError } from '../utils/notifications';
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
   const [photos, setPhotos] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
-  // Upload dialog state
+  // Upload state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState('photo');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
+  const [uploadEntityType, setUploadEntityType] = useState('');
+  const [uploadEntityId, setUploadEntityId] = useState('');
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
   const [uploadCaption, setUploadCaption] = useState('');
-  const [uploadEntityType, setUploadEntityType] = useState('dog');
-  const [uploadEntityId, setUploadEntityId] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   
@@ -79,27 +79,24 @@ const MediaLibrary = () => {
   const fetchEntities = async () => {
     try {
       const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        fetch(`${API_URL}/dogs`),
-        fetch(`${API_URL}/litters`),
-        fetch(`${API_URL}/puppies`)
+        apiGet('dogs'),
+        apiGet('litters'),
+        apiGet('puppies')
       ]);
       
-      if (dogsRes.ok) {
-        const dogsData = await dogsRes.json();
-        setDogs(dogsData);
+      if (dogsRes.success) {
+        setDogs(dogsRes.data);
       }
       
-      if (littersRes.ok) {
-        const littersData = await littersRes.json();
-        setLitters(littersData);
+      if (littersRes.success) {
+        setLitters(littersRes.data);
       }
       
-      if (puppiesRes.ok) {
-        const puppiesData = await puppiesRes.json();
-        setPuppies(puppiesData);
+      if (puppiesRes.success) {
+        setPuppies(puppiesRes.data);
       }
     } catch (err) {
-      console.error('Error fetching entities:', err);
+      debugError('Error fetching entities:', err);
     }
   };
   
@@ -123,7 +120,7 @@ const MediaLibrary = () => {
       
       setPhotos(allPhotos);
     } catch (err) {
-      console.error('Error fetching photos:', err);
+      debugError('Error fetching photos:', err);
       setError('Failed to fetch photos. Please try again later.');
     } finally {
       setLoading(false);
@@ -140,8 +137,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its photos
       const photosPromises = entities.map(entity => 
-        fetch(`${API_URL}/photos/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`photos/${entityType}/${entity.id}`)
+          .then(res => res.success ? res.data : [])
           .then(photos => photos.map(photo => ({
             ...photo,
             entityName: getEntityName(entityType, entity)
@@ -152,7 +149,7 @@ const MediaLibrary = () => {
       const photosByEntity = await Promise.all(photosPromises);
       return photosByEntity.flat();
     } catch (err) {
-      console.error(`Error fetching ${entityType} photos:`, err);
+      debugError(`Error fetching ${entityType} photos:`, err);
       return [];
     }
   };
@@ -177,7 +174,7 @@ const MediaLibrary = () => {
       
       setDocuments(allDocuments);
     } catch (err) {
-      console.error('Error fetching documents:', err);
+      debugError('Error fetching documents:', err);
       setError('Failed to fetch documents. Please try again later.');
     } finally {
       setLoading(false);
@@ -194,8 +191,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its documents
       const docsPromises = entities.map(entity => 
-        fetch(`${API_URL}/files/documents/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`files/documents/${entityType}/${entity.id}`)
+          .then(res => res.success ? res.data : [])
           .then(docs => docs.map(doc => ({
             ...doc,
             entityName: getEntityName(entityType, entity)
@@ -206,7 +203,7 @@ const MediaLibrary = () => {
       const docsByEntity = await Promise.all(docsPromises);
       return docsByEntity.flat();
     } catch (err) {
-      console.error(`Error fetching ${entityType} documents:`, err);
+      debugError(`Error fetching ${entityType} documents:`, err);
       return [];
     }
   };
@@ -260,29 +257,21 @@ const MediaLibrary = () => {
         // Don't automatically set is_cover to false, let the server determine if it should be a cover
         // This way, if it's the first photo, it will be the cover, and if not, the cover won't change
         
-        // Upload to photos endpoint
-        const response = await fetch(`${API_URL}/photos/`, {
-          method: 'POST',
-          body: formData
-        });
+        // Upload to photos endpoint using apiPost with FormData
+        const response = await apiPost('photos/', formData, { isFormData: true });
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload photo');
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to upload photo');
         }
       } else {
         formData.append('title', uploadTitle);
         formData.append('description', uploadDescription);
         
-        // Upload to files endpoint
-        const response = await fetch(`${API_URL}/files/`, {
-          method: 'POST',
-          body: formData
-        });
+        // Upload to files endpoint using apiPost with FormData
+        const response = await apiPost('files/', formData, { isFormData: true });
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload document');
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to upload document');
         }
       }
       
@@ -294,14 +283,14 @@ const MediaLibrary = () => {
       }
       
       // Show success message and reset form
-      setSuccess(`${uploadType === 'photo' ? 'Photo' : 'Document'} uploaded successfully`);
-      setTimeout(() => setSuccess(null), 5000);
+      showSuccess(`${uploadType === 'photo' ? 'Photo' : 'Document'} uploaded successfully`);
       
       setUploadDialogOpen(false);
       resetUploadForm();
     } catch (err) {
-      console.error('Upload error:', err);
+      debugError('Upload error:', err);
       setUploadError(err.message || 'Failed to upload file');
+      showError(err.message || 'Failed to upload file');
     } finally {
       setUploadingFile(false);
     }
@@ -322,24 +311,20 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE'
-      });
+      const response = await apiDelete(`photos/${photoId}`);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete photo');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete photo');
       }
       
       // Remove from local state
       setPhotos(photos.filter(photo => photo.id !== photoId));
       
       // Show success message
-      setSuccess('Photo deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
+      showSuccess('Photo deleted successfully');
     } catch (err) {
-      console.error('Error deleting photo:', err);
-      setError('Failed to delete photo. Please try again.');
-      setTimeout(() => setError(null), 5000);
+      debugError('Error deleting photo:', err);
+      showError('Failed to delete photo. Please try again.');
     }
   };
   
@@ -349,24 +334,20 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/files/documents/${documentId}`, {
-        method: 'DELETE'
-      });
+      const response = await apiDelete(`files/documents/${documentId}`);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete document');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete document');
       }
       
       // Remove from local state
       setDocuments(documents.filter(doc => doc.id !== documentId));
       
       // Show success message
-      setSuccess('Document deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
+      showSuccess('Document deleted successfully');
     } catch (err) {
-      console.error('Error deleting document:', err);
-      setError('Failed to delete document. Please try again.');
-      setTimeout(() => setError(null), 5000);
+      debugError('Error deleting document:', err);
+      showError('Failed to delete document. Please try again.');
     }
   };
   
@@ -376,7 +357,7 @@ const MediaLibrary = () => {
     const parts = url.split('.');
     return parts.length > 1 ? parts.pop().toUpperCase() : '';
   };
-  
+
   // Get document icon by file type
   const getDocumentIcon = (url) => {
     const ext = getFileExtension(url).toLowerCase();
@@ -396,7 +377,7 @@ const MediaLibrary = () => {
         return '📎';
     }
   };
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -439,7 +420,7 @@ const MediaLibrary = () => {
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           variant="contained"
-          startIcon={<UploadIcon />}
+          startIcon={<AddIcon />}
           onClick={() => {
             setUploadType(activeTab === 'photos' ? 'photo' : 'document');
             setUploadDialogOpen(true);
@@ -616,7 +597,7 @@ const MediaLibrary = () => {
               <Button
                 variant="outlined"
                 component="span"
-                startIcon={<UploadIcon />}
+                startIcon={<AddIcon />}
                 fullWidth
               >
                 Select {uploadType === 'photo' ? 'Photo' : 'Document'}
