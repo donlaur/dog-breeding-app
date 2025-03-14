@@ -74,7 +74,7 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             debug_log("Fetching all dogs...")
             
             # Use the abstracted db interface
-            dogs = db.find_by_field_values("dogs")
+            dogs = db.find_by_field_values("dogs", {})
             
             debug_log(f"Found {len(dogs)} dogs")
             
@@ -373,14 +373,20 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             if dog.get('puppy_id'):
                 debug_log(f"Fetching puppy with ID: {dog['puppy_id']}")
                 puppy = db.get("puppies", dog['puppy_id'])
-                if puppy:
+                if not puppy:
+                    debug_log(f"Puppy with ID {dog['puppy_id']} not found")
+                    response_data['puppy_info'] = {"error": "Puppy record not found"}
+                else:
                     # Add puppy information
                     response_data['puppy_info'] = puppy
                     
                     # If the puppy has a litter_id, include litter information
                     if puppy.get('litter_id'):
                         litter = db.get("litters", puppy['litter_id'])
-                        if litter:
+                        if not litter:
+                            debug_log(f"Litter with ID {puppy['litter_id']} not found")
+                            response_data['birth_litter'] = {"error": "Litter record not found"}
+                        else:
                             response_data['birth_litter'] = litter
             
             # Return the enhanced dog data
