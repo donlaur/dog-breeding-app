@@ -36,7 +36,8 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon
 } from '@mui/icons-material';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiDelete } from '../utils/apiUtils';
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
@@ -78,28 +79,26 @@ const MediaLibrary = () => {
   
   const fetchEntities = async () => {
     try {
-      const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        fetch(`${API_URL}/dogs`),
-        fetch(`${API_URL}/litters`),
-        fetch(`${API_URL}/puppies`)
+      const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
+        apiGet('dogs'),
+        apiGet('litters'),
+        apiGet('puppies')
       ]);
       
-      if (dogsRes.ok) {
-        const dogsData = await dogsRes.json();
-        setDogs(dogsData);
+      if (dogsResponse.ok) {
+        setDogs(dogsResponse.data);
       }
       
-      if (littersRes.ok) {
-        const littersData = await littersRes.json();
-        setLitters(littersData);
+      if (littersResponse.ok) {
+        setLitters(littersResponse.data);
       }
       
-      if (puppiesRes.ok) {
-        const puppiesData = await puppiesRes.json();
-        setPuppies(puppiesData);
+      if (puppiesResponse.ok) {
+        setPuppies(puppiesResponse.data);
       }
-    } catch (err) {
-      console.error('Error fetching entities:', err);
+    } catch (error) {
+      debugError("Error fetching entities:", error);
+      setError("Failed to load entities");
     }
   };
   
@@ -140,8 +139,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its photos
       const photosPromises = entities.map(entity => 
-        fetch(`${API_URL}/photos/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`photos/${entityType}/${entity.id}`)
+          .then(response => response.ok ? response.data : [])
           .then(photos => photos.map(photo => ({
             ...photo,
             entityName: getEntityName(entityType, entity)
@@ -194,8 +193,8 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its documents
       const docsPromises = entities.map(entity => 
-        fetch(`${API_URL}/files/documents/${entityType}/${entity.id}`)
-          .then(res => res.ok ? res.json() : [])
+        apiGet(`files/documents/${entityType}/${entity.id}`)
+          .then(response => response.ok ? response.data : [])
           .then(docs => docs.map(doc => ({
             ...doc,
             entityName: getEntityName(entityType, entity)
@@ -257,32 +256,22 @@ const MediaLibrary = () => {
       
       if (uploadType === 'photo') {
         formData.append('caption', uploadCaption);
-        // Don't automatically set is_cover to false, let the server determine if it should be a cover
-        // This way, if it's the first photo, it will be the cover, and if not, the cover won't change
         
         // Upload to photos endpoint
-        const response = await fetch(`${API_URL}/photos/`, {
-          method: 'POST',
-          body: formData
-        });
+        const response = await apiPost('photos/', formData, true);
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload photo');
+          throw new Error(response.error || 'Failed to upload photo');
         }
       } else {
         formData.append('title', uploadTitle);
         formData.append('description', uploadDescription);
         
         // Upload to files endpoint
-        const response = await fetch(`${API_URL}/files/`, {
-          method: 'POST',
-          body: formData
-        });
+        const response = await apiPost('files/', formData, true);
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload document');
+          throw new Error(response.error || 'Failed to upload document');
         }
       }
       
@@ -322,24 +311,23 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE'
-      });
+      setLoading(true);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete photo');
+      const response = await apiDelete(`photos/${photoId}`);
+      
+      if (response.ok) {
+        // Refresh photos
+        fetchAllPhotos();
+        setSuccess("Photo deleted successfully");
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        throw new Error(response.error || "Failed to delete photo");
       }
-      
-      // Remove from local state
-      setPhotos(photos.filter(photo => photo.id !== photoId));
-      
-      // Show success message
-      setSuccess('Photo deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      console.error('Error deleting photo:', err);
-      setError('Failed to delete photo. Please try again.');
-      setTimeout(() => setError(null), 5000);
+    } catch (error) {
+      debugError("Error deleting photo:", error);
+      setError(`Failed to delete photo: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -349,24 +337,23 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/files/documents/${documentId}`, {
-        method: 'DELETE'
-      });
+      setLoading(true);
       
-      if (!response.ok) {
-        throw new Error('Failed to delete document');
+      const response = await apiDelete(`files/documents/${documentId}`);
+      
+      if (response.ok) {
+        // Refresh documents
+        fetchAllDocuments();
+        setSuccess("Document deleted successfully");
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        throw new Error(response.error || "Failed to delete document");
       }
-      
-      // Remove from local state
-      setDocuments(documents.filter(doc => doc.id !== documentId));
-      
-      // Show success message
-      setSuccess('Document deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      console.error('Error deleting document:', err);
-      setError('Failed to delete document. Please try again.');
-      setTimeout(() => setError(null), 5000);
+    } catch (error) {
+      debugError("Error deleting document:", error);
+      setError(`Failed to delete document: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
   

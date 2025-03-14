@@ -1,3 +1,10 @@
+// Import testing libraries first
+import "@testing-library/jest-dom";
+import { toMatchImageSnapshot } from 'jest-image-snapshot';
+
+// Add fetch polyfill for Node environment
+require('whatwg-fetch');
+
 // Mock implementation of TextEncoder/TextDecoder
 global.TextEncoder = class TextEncoder {
   encode(str) {
@@ -19,12 +26,8 @@ global.TextDecoder = class TextDecoder {
   }
 };
 
-// Add fetch polyfill for Node environment
-require('whatwg-fetch');
-
-import "@testing-library/jest-dom";
+// Import MSW server after defining polyfills
 import { server } from "./mocks/server";
-import { toMatchImageSnapshot } from 'jest-image-snapshot';
 
 // ✅ Start MSW (Mock Service Worker) before running tests
 beforeAll(() => server.listen());
