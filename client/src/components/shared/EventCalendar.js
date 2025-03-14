@@ -3,406 +3,345 @@ import PropTypes from 'prop-types';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { API_URL, debugLog, debugError } from '../../config';
-import { CircularProgress, Box, Typography, Button } from '@mui/material';
+import { debugLog, debugError } from '../../config';
 import { apiGet } from '../../utils/apiUtils';
+import { CircularProgress, Box, Typography, Button } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
 
-/**
- * A generic event calendar component that can display different types of events
- * @param {Object} props Component props
- * @param {Array} props.events Optional events data to display
- * @param {string} props.title Calendar title
- * @param {boolean} props.fetchHeats Whether to fetch heat data
- * @param {boolean} props.fetchLitters Whether to fetch litter data
- */
-const EventCalendar = ({ 
-  events: propEvents, 
-  title = 'Event Calendar',
-  fetchHeats = true,
-  fetchLitters = false,
-  fetchEvents = true,
-  onSelectSlot = null
-}) => {
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [dogList, setDogList] = useState([]);
-  const [events, setEvents] = useState(propEvents || []);
-  const [loading, setLoading] = useState(!propEvents);
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Fetch data if not provided as props
-  useEffect(() => {
-    // If events were provided as props, no need to fetch
-    if (propEvents) {
-      setEvents(propEvents);
-      return;
-    }
-
-    const fetchData = async () => {
-      try {
-        let allEvents = [];
-        
-        // Fetch custom events from the events API
-        if (fetchEvents) {
-          try {
-            const eventsResponse = await apiGet('events/');
-            if (eventsResponse.ok) {
-              const eventsData = eventsResponse.data;
-              
-              // Process events data
-              const customEvents = eventsData.map(event => ({
-                id: `event-${event.id}`,
-                title: event.title,
-                start: new Date(event.start_date),
-                end: event.end_date ? new Date(event.end_date) : new Date(event.start_date),
-                type: event.event_type || 'custom',
-                color: event.color || '#2196F3', // Default blue
-                allDay: event.all_day,
-                resource: {
-                  ...event,
-                  related_type: event.related_type,
-                  related_id: event.related_id,
-                  description: event.description,
-                  notify: event.notify
-                }
-              }));
-              
-              allEvents = [...allEvents, ...customEvents];
-            }
-          } catch (error) {
-            debugError('Error fetching custom events:', error);
-          }
-        }
-        
-        // Fetch heats if requested
-        if (fetchHeats) {
-          const heatsResponse = await apiGet('heats');
-          if (heatsResponse.ok) {
-            const heatsData = heatsResponse.data;
-            // Add heat events
-            const heatEvents = heatsData.map(heat => ({
-              id: `heat-${heat.id}`,
-              title: `Heat - ${heat.dog_id}`,
-              start: new Date(heat.start_date),
-              end: new Date(heat.end_date),
-              type: 'heat',
-              color: '#FF9800',
-              resource: heat
-            }));
-            allEvents = [...allEvents, ...heatEvents];
-          }
-        }
-
-        // Fetch litters if requested
-        if (fetchLitters) {
-          const littersResponse = await apiGet('litters/');
-          if (littersResponse.ok) {
-            const littersData = littersResponse.data;
-            // Add litter events like whelp date, go-home date, etc.
-            const litterEvents = littersData.flatMap(litter => {
-              const events = [];
-              // We'll only include these basic litter events if there are no custom events for this litter
-              // This helps avoid duplicates with our new events system
-              const hasCustomEvents = allEvents.some(e => 
-                e.resource && e.resource.related_type === 'litter' && e.resource.related_id === litter.id
-              );
-              
-              if (!hasCustomEvents) {
-                if (litter.whelp_date) {
-                  events.push({
-                    id: `litter-whelp-${litter.id}`,
-                    title: `Litter Born - ${litter.litter_name || 'Unnamed'}`,
-                    start: new Date(litter.whelp_date),
-                    end: new Date(litter.whelp_date),
-                    type: 'litter-birth',
-                    color: '#4CAF50',
-                    resource: litter
-                  });
-                }
-                
-                // Calculate go home date (8 weeks after birth)
-                if (litter.whelp_date) {
-                  const whelpDate = new Date(litter.whelp_date);
-                  const goHomeDate = new Date(whelpDate);
-                  goHomeDate.setDate(whelpDate.getDate() + 56); // 8 weeks
-                  
-                  events.push({
-                    id: `litter-go-home-${litter.id}`,
-                    title: `Puppies Go Home - ${litter.litter_name || 'Unnamed'}`,
-                    start: goHomeDate,
-                    end: goHomeDate,
-                    type: 'litter-go-home',
-                    color: '#673AB7',
-                    resource: litter
-                  });
-                }
-              }
-              return events;
-            });
-            allEvents = [...allEvents, ...litterEvents];
-          }
-        }
-        
-        setEvents(allEvents);
-      } catch (error) {
-        debugError('Error fetching events:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [propEvents, fetchHeats, fetchLitters]);
-
-  // Fetch all dogs when component mounts
-  useEffect(() => {
-    const fetchDogs = async () => {
-      try {
-        const response = await apiGet('dogs/');
-        if (!response.ok) throw new Error('Failed to fetch dogs');
-        setDogList(response.data);
-      } catch (error) {
-        debugError('Error fetching dogs:', error);
-      }
-    };
-
-    fetchDogs();
-  }, []);
-
-  // Don't render until data is loaded
-  if (loading || !dogList || dogList.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+// Custom event styling based on event type
+const eventStyleGetter = (event, start, end, isSelected) => {
+  let backgroundColor = event.color || '#1976d2'; // Default blue
+  
+  if (event.type === 'heat') {
+    backgroundColor = '#ff7043'; // Orange for heat events
+  } else if (event.type === 'mating') {
+    backgroundColor = '#42a5f5'; // Light blue for mating
+  } else if (event.type === 'whelping') {
+    backgroundColor = '#e91e63'; // Pink for whelping
+  } else if (event.type === 'vaccination') {
+    backgroundColor = '#4caf50'; // Green for vaccinations
+  } else if (event.type === 'checkup') {
+    backgroundColor = '#9c27b0'; // Purple for vet checkups
   }
-
-  // Process events to include dog names
-  const calendarEvents = events.map(event => {
-    // If it's a heat event, look up the dog name
-    if (event.type === 'heat' && event.resource?.dog_id) {
-      const dog = dogList.find(d => d.id === event.resource.dog_id);
-      const dogName = dog ? dog.call_name : 'Unknown Dog';
-      return {
-        ...event,
-        title: `${dogName} - Heat`,
-        resource: {
-          ...event.resource,
-          dogName
-        }
-      };
-    }
-    return event;
-  });
-
-  const eventStyleGetter = (event) => {
-    let style = {
-      backgroundColor: event.color || '#039be5',
-      borderRadius: '4px',
+  
+  return {
+    style: {
+      backgroundColor,
+      borderRadius: '0px',
       opacity: 0.8,
       color: 'white',
       border: '0px',
       display: 'block'
-    };
-    return { style };
-  };
-
-  const handleSelectEvent = (event) => {
-    setSelectedEvent(event);
-  };
-  
-  // Handler for the Today button
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
-  
-  // Handler for navigating to previous/next month
-  const handleNavigate = (action) => {
-    const newDate = new Date(currentDate);
-    if (action === 'PREV') {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (action === 'NEXT') {
-      newDate.setMonth(newDate.getMonth() + 1);
     }
-    setCurrentDate(newDate);
   };
+};
 
-  return (
-    <div className="p-4 relative">
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 2,
-        flexWrap: 'wrap',
-        gap: 1
-      }}>
-        <Typography variant="h6" component="h2">
-          {title}
-        </Typography>
+const EventCalendar = ({
+  events: propEvents,
+  title = 'Calendar',
+  fetchHeats = false,
+  fetchLitters = false,
+  fetchEvents = false,
+  onEventSelect,
+  height = 500,
+  showFilters = false
+}) => {
+  const [events, setEvents] = useState(propEvents || []);
+  const [loading, setLoading] = useState(!propEvents);
+  const [dogList, setDogList] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [filters, setFilters] = useState({
+    showHeats: true,
+    showLitters: true,
+    showEvents: true,
+    dogId: 'all'
+  });
+  
+  // Fetch events from APIs if not provided via props
+  useEffect(() => {
+    if (!propEvents) {
+      const loadEvents = async () => {
+        setLoading(true);
+        const allEvents = [];
         
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            variant="outlined"
-            size="small"
-            onClick={() => handleNavigate('PREV')}
-          >
-            Previous
-          </Button>
+        try {
+          // Fetch custom events from the events API
+          if (fetchEvents) {
+            try {
+              const data = await apiGet('/events/');
+              debugLog('Fetched events for calendar:', data);
+              
+              // Process events data
+              const customEvents = data.map(event => ({
+                id: `event-${event.id}`,
+                title: event.title,
+                start: new Date(event.start_date),
+                end: new Date(event.end_date || event.start_date),
+                allDay: !event.end_date || event.start_date === event.end_date,
+                type: event.type || 'custom',
+                color: event.color,
+                resource: event
+              }));
+              
+              allEvents.push(...customEvents);
+            } catch (error) {
+              debugError('Error fetching events:', error);
+            }
+          }
           
-          <Button 
-            variant="contained"
-            size="small"
-            onClick={handleToday}
-          >
-            Today
-          </Button>
+          // Fetch heats if requested
+          if (fetchHeats) {
+            try {
+              const data = await apiGet('/heats/');
+              debugLog('Fetched heats for calendar:', data);
+              
+              // Add heat events
+              const heatEvents = data.map(heat => ({
+                id: `heat-${heat.id}`,
+                title: `Heat: ${getDogName(heat.dog_id)}`,
+                start: new Date(heat.start_date),
+                end: heat.end_date ? new Date(heat.end_date) : undefined,
+                allDay: true,
+                type: 'heat',
+                dogId: heat.dog_id,
+                resource: heat
+              }));
+              
+              allEvents.push(...heatEvents);
+            } catch (error) {
+              debugError('Error fetching heats:', error);
+            }
+          }
           
-          <Button 
-            variant="outlined"
-            size="small"
-            onClick={() => handleNavigate('NEXT')}
-          >
-            Next
-          </Button>
-        </Box>
-      </Box>
+          // Fetch litters if requested
+          if (fetchLitters) {
+            try {
+              const data = await apiGet('/litters/');
+              debugLog('Fetched litters for calendar:', data);
+              
+              // Add litter events like whelp date, go-home date, etc.
+              const litterEvents = data.flatMap(litter => {
+                const events = [];
+                
+                // Add whelping date
+                if (litter.whelp_date) {
+                  events.push({
+                    id: `litter-whelp-${litter.id}`,
+                    title: `Whelping: ${getDogName(litter.dam_id)}`,
+                    start: new Date(litter.whelp_date),
+                    end: new Date(litter.whelp_date),
+                    allDay: true,
+                    type: 'whelping',
+                    dogId: litter.dam_id,
+                    resource: { ...litter, event_type: 'whelping' }
+                  });
+                }
+                
+                // Add go-home date (typically 8 weeks after whelping)
+                if (litter.whelp_date) {
+                  const goHomeDate = moment(litter.whelp_date).add(8, 'weeks');
+                  events.push({
+                    id: `litter-gohome-${litter.id}`,
+                    title: `Puppies Go Home: Litter ${litter.id}`,
+                    start: goHomeDate.toDate(),
+                    end: goHomeDate.toDate(),
+                    allDay: true,
+                    type: 'go-home',
+                    dogId: litter.dam_id,
+                    resource: { ...litter, event_type: 'go-home' }
+                  });
+                }
+                
+                return events;
+              });
+              
+              allEvents.push(...litterEvents);
+            } catch (error) {
+              debugError('Error fetching litters:', error);
+            }
+          }
+          
+          setEvents(allEvents);
+        } catch (error) {
+          debugError('Error loading calendar events:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
       
-      <div style={{ height: '80vh' }}>
-        <Calendar
-          localizer={localizer}
-          events={calendarEvents}
-          startAccessor="start"
-          endAccessor="end"
-          eventPropGetter={eventStyleGetter}
-          views={['month', 'week', 'day']}
-          defaultView="month"
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={(slotInfo) => {
-            console.log('Selected slot:', slotInfo);
-            if (onSelectSlot) onSelectSlot(slotInfo);
-          }}
-          selectable
-          date={currentDate}
-          onNavigate={setCurrentDate}
-        />
-      </div>
-
-      {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                {selectedEvent.title}
-              </h2>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-gray-500 hover:text-gray-700"
+      loadEvents();
+    } else {
+      setEvents(propEvents);
+      setLoading(false);
+    }
+  }, [propEvents, fetchEvents, fetchHeats, fetchLitters]);
+  
+  // Load dogs for name display
+  useEffect(() => {
+    const fetchDogs = async () => {
+      try {
+        const data = await apiGet('/dogs/');
+        debugLog('Fetched dogs for event calendar:', data);
+        setDogList(data);
+      } catch (error) {
+        debugError('Error fetching dogs:', error);
+      }
+    };
+    
+    fetchDogs();
+  }, []);
+  
+  // Helper function to get dog name
+  const getDogName = (dogId) => {
+    if (!dogId || !dogList.length) return `Dog #${dogId}`;
+    const dog = dogList.find(d => d.id === dogId);
+    return dog ? dog.name : `Dog #${dogId}`;
+  };
+  
+  // Apply filters to events
+  useEffect(() => {
+    if (!events.length) return;
+    
+    let filtered = [...events];
+    
+    // Filter by event type
+    if (!filters.showHeats) {
+      filtered = filtered.filter(event => event.type !== 'heat');
+    }
+    
+    if (!filters.showLitters) {
+      filtered = filtered.filter(event => 
+        event.type !== 'whelping' && event.type !== 'go-home');
+    }
+    
+    if (!filters.showEvents) {
+      filtered = filtered.filter(event => 
+        event.type !== 'custom' && 
+        event.type !== 'vaccination' && 
+        event.type !== 'checkup');
+    }
+    
+    // Filter by dog
+    if (filters.dogId !== 'all') {
+      filtered = filtered.filter(event => 
+        event.dogId && event.dogId.toString() === filters.dogId);
+    }
+    
+    setFilteredEvents(filtered);
+  }, [events, filters]);
+  
+  // Handle filter changes
+  const handleFilterChange = (name, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Handle click on a calendar event
+  const handleSelectEvent = (event) => {
+    if (onEventSelect) {
+      onEventSelect(event.resource);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        {title}
+      </Typography>
+      
+      {showFilters && (
+        <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Button
+            variant={filters.showHeats ? "contained" : "outlined"}
+            color="warning"
+            size="small"
+            onClick={() => handleFilterChange('showHeats', !filters.showHeats)}
+          >
+            Heat Cycles
+          </Button>
+          
+          <Button
+            variant={filters.showLitters ? "contained" : "outlined"}
+            color="error"
+            size="small"
+            onClick={() => handleFilterChange('showLitters', !filters.showLitters)}
+          >
+            Litters
+          </Button>
+          
+          <Button
+            variant={filters.showEvents ? "contained" : "outlined"}
+            color="primary"
+            size="small"
+            onClick={() => handleFilterChange('showEvents', !filters.showEvents)}
+          >
+            Events
+          </Button>
+          
+          {dogList.length > 0 && (
+            <Box sx={{ ml: 'auto' }}>
+              <select
+                value={filters.dogId}
+                onChange={(e) => handleFilterChange('dogId', e.target.value)}
+                style={{ padding: '8px', borderRadius: '4px' }}
               >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-600">Event Type</p>
-                <p className="font-medium">{selectedEvent.type}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Date</p>
-                <p className="font-medium">
-                  {selectedEvent.start === selectedEvent.end
-                    ? moment(selectedEvent.start).format('MMMM D, YYYY')
-                    : `${moment(selectedEvent.start).format('MMMM D, YYYY')} - ${moment(selectedEvent.end).format('MMMM D, YYYY')}`}
-                </p>
-              </div>
-              
-              {/* Event description from our new event system */}
-              {selectedEvent.resource?.description && (
-                <div>
-                  <p className="text-gray-600">Description</p>
-                  <p className="font-medium">{selectedEvent.resource.description}</p>
-                </div>
-              )}
-              
-              {/* Related entity information */}
-              {selectedEvent.resource?.related_type && selectedEvent.resource?.related_id && (
-                <div>
-                  <p className="text-gray-600">Related To</p>
-                  <p className="font-medium">
-                    {selectedEvent.resource.related_type.charAt(0).toUpperCase() + 
-                     selectedEvent.resource.related_type.slice(1)} #{selectedEvent.resource.related_id}
-                  </p>
-                </div>
-              )}
-              
-              {/* Notification information */}
-              {selectedEvent.resource?.notify && (
-                <div>
-                  <p className="text-gray-600">Notification</p>
-                  <p className="font-medium">
-                    {selectedEvent.resource.notify_days_before > 0 
-                      ? `${selectedEvent.resource.notify_days_before} days before event` 
-                      : 'On event day'}
-                  </p>
-                </div>
-              )}
-              
-              {/* Heat-specific details */}
-              {selectedEvent.type === 'heat' && selectedEvent.resource && (
-                <>
-                  {selectedEvent.resource.mating_date && (
-                    <div>
-                      <p className="text-gray-600">Mating Date</p>
-                      <p className="font-medium">{moment(selectedEvent.resource.mating_date).format('MMMM D, YYYY')}</p>
-                    </div>
-                  )}
-                  {selectedEvent.resource.expected_whelp_date && (
-                    <div>
-                      <p className="text-gray-600">Expected Whelp Date</p>
-                      <p className="font-medium">{moment(selectedEvent.resource.expected_whelp_date).format('MMMM D, YYYY')}</p>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Litter-specific details */}
-              {selectedEvent.type?.startsWith('litter') && selectedEvent.resource && (
-                <>
-                  {selectedEvent.resource.puppy_count !== undefined && (
-                    <div>
-                      <p className="text-gray-600">Puppy Count</p>
-                      <p className="font-medium">{selectedEvent.resource.puppy_count}</p>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Generic notes field */}
-              {selectedEvent.resource?.notes && (
-                <div>
-                  <p className="text-gray-600">Notes</p>
-                  <p className="font-medium">{selectedEvent.resource.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+                <option value="all">All Dogs</option>
+                {dogList.map(dog => (
+                  <option key={dog.id} value={dog.id.toString()}>
+                    {dog.name}
+                  </option>
+                ))}
+              </select>
+            </Box>
+          )}
+        </Box>
       )}
-    </div>
+      
+      <Calendar
+        localizer={localizer}
+        events={filteredEvents.length > 0 ? filteredEvents : events}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height }}
+        eventPropGetter={eventStyleGetter}
+        views={['month', 'week', 'agenda']}
+        onSelectEvent={handleSelectEvent}
+        popup
+      />
+    </Box>
   );
 };
 
 EventCalendar.propTypes = {
-  events: PropTypes.array,
+  events: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      title: PropTypes.string,
+      start: PropTypes.instanceOf(Date),
+      end: PropTypes.instanceOf(Date),
+      type: PropTypes.string,
+      color: PropTypes.string,
+      resource: PropTypes.object
+    })
+  ),
   title: PropTypes.string,
   fetchHeats: PropTypes.bool,
   fetchLitters: PropTypes.bool,
   fetchEvents: PropTypes.bool,
-  onSelectSlot: PropTypes.func
+  onEventSelect: PropTypes.func,
+  height: PropTypes.number,
+  showFilters: PropTypes.bool
 };
 
 export default EventCalendar;

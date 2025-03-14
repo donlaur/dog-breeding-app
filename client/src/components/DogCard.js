@@ -1,7 +1,7 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { getPhotoUrl, handleImageError, DEFAULT_DOG_IMAGE } from '../utils/photoUtils';
-import { Pets as PetsIcon } from '@mui/icons-material';
 import { Skeleton, Box, Card } from '@mui/material';
 
 // Skeleton version of DogCard for loading states
@@ -98,4 +98,17 @@ const DogCard = ({ dog, loading = false }) => {
   );
 };
 
-export default DogCard; 
+DogCard.propTypes = {
+  dog: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    call_name: PropTypes.string,
+    registered_name: PropTypes.string,
+    cover_photo: PropTypes.string,
+    gender: PropTypes.string,
+    status: PropTypes.string,
+    date_of_birth: PropTypes.string
+  }).isRequired,
+  loading: PropTypes.bool
+};
+
+export default DogCard;

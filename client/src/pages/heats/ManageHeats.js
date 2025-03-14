@@ -1,204 +1,446 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { API_URL, debugLog, debugError } from "../../config";
-import { 
-  Box,
-  Card,
-  CardContent,
+import {
+  Container,
   Typography,
+  Box,
   Button,
-  Chip,
+  Paper,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
   IconButton,
   CircularProgress,
   Alert,
+  TextField,
   Grid,
-  Fab,
-  Container,
-  Paper,
-  Divider
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Pets as PetsIcon
+  FilterList as FilterIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
-import HeatList from '../../components/heats/HeatList';
-import HeatCalendar from '../../components/heats/HeatCalendar';
+import { format, parseISO } from 'date-fns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { debugLog, debugError } from '../../config';
 import { apiGet, apiDelete } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 
 const ManageHeats = () => {
-  const [view, setView] = useState('list'); // 'list' or 'calendar'
   const [heats, setHeats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Load heats when component mounts
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    dog_id: '',
+    start_date_from: null,
+    start_date_to: null
+  });
+  const [dogs, setDogs] = useState([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [heatToDelete, setHeatToDelete] = useState(null);
+  
+  // Load heats on mount
   useEffect(() => {
-    const loadHeats = async () => {
-      try {
-        const response = await apiGet('heats');
-        if (response.ok) {
-          setHeats(response.data);
-        } else {
-          throw new Error(response.error || 'Failed to fetch heats');
-        }
-      } catch (err) {
-        debugError("Error fetching heats:", err);
-        setError("Failed to load heats data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadHeats();
+    loadDogs();
   }, []);
-
-  const fetchFilteredHeats = async (filters) => {
+  
+  // Load all heats
+  const loadHeats = async () => {
     try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const response = await apiGet(`heats?${queryParams}`);
-      if (response.ok) {
-        setHeats(response.data);
-      } else {
-        throw new Error(response.error || 'Failed to fetch heats');
-      }
+      setLoading(true);
+      setError(null);
+      const response = await apiGet('/heats/');
+      debugLog('Heats loaded:', response);
+      setHeats(response);
     } catch (error) {
-      setError(error.message);
+      debugError('Error loading heats:', error);
+      setError(`Failed to load heat cycles: ${error.message}`);
+      showError(`Failed to load heat cycles: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleDeleteHeat = async (heatId, dogName) => {
+  
+  // Load dogs for filtering
+  const loadDogs = async () => {
     try {
-      const response = await apiDelete(`heats/${heatId}`);
+      const response = await apiGet('/dogs/');
+      debugLog('Dogs loaded for filtering:', response);
+      setDogs(response);
+    } catch (error) {
+      debugError('Error loading dogs for filtering:', error);
+    }
+  };
+  
+  // Apply filters
+  const fetchFilteredHeats = async (filters) => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      if (response.ok) {
-        showSuccess(`Successfully deleted heat cycle for ${dogName}`);
-        refreshHeats(); // Refresh the heats list
-      } else {
-        throw new Error(response.error || 'Failed to delete heat cycle');
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      
+      if (filters.dog_id) {
+        queryParams.append('dog_id', filters.dog_id);
       }
+      
+      if (filters.start_date_from) {
+        queryParams.append('start_date_gte', format(filters.start_date_from, 'yyyy-MM-dd'));
+      }
+      
+      if (filters.start_date_to) {
+        queryParams.append('start_date_lte', format(filters.start_date_to, 'yyyy-MM-dd'));
+      }
+      
+      const queryString = queryParams.toString();
+      const endpoint = queryString ? `/heats/?${queryString}` : '/heats/';
+      
+      const response = await apiGet(endpoint);
+      debugLog('Filtered heats loaded:', response);
+      setHeats(response);
+    } catch (error) {
+      debugError('Error fetching filtered heats:', error);
+      setError(`Failed to apply filters: ${error.message}`);
+      showError(`Failed to apply filters: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Confirm and delete a heat
+  const handleDeleteClick = (heat) => {
+    setHeatToDelete(heat);
+    setDeleteDialogOpen(true);
+  };
+  
+  // Cancel delete
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setHeatToDelete(null);
+  };
+  
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!heatToDelete) return;
+    
+    try {
+      setLoading(true);
+      setDeleteDialogOpen(false);
+      
+      debugLog(`Deleting heat cycle ${heatToDelete.id}`);
+      const response = await apiDelete(`/heats/${heatToDelete.id}`);
+      
+      debugLog('Delete response:', response);
+      showSuccess(`Successfully deleted heat cycle for ${heatToDelete.dog_name || 'dog'}`);
+      
+      // Refresh the heats list
+      await refreshHeats();
     } catch (error) {
       debugError("Error deleting heat cycle:", error);
       showError(`Failed to delete heat cycle: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setHeatToDelete(null);
     }
   };
-
-  // Add this function to refresh the heats data
+  
+  // Refresh heats list
   const refreshHeats = async () => {
     try {
       setLoading(true);
-      const response = await apiGet('heats');
-      if (response.ok) {
-        setHeats(response.data);
-      } else {
-        throw new Error(response.error || 'Failed to fetch heats');
-      }
-      setLoading(false);
+      setError(null);
+      
+      const response = await apiGet('/heats/');
+      debugLog('Heats refreshed:', response);
+      setHeats(response);
     } catch (err) {
       debugError("Error refreshing heats:", err);
-      setError(err.message || "Failed to refresh heats data");
+      setError(`Failed to refresh heats data: ${err.message}`);
+      showError(`Failed to refresh heat cycles: ${err.message}`);
+    } finally {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 2 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
-  }
-
-  // Empty state
-  if (heats.length === 0) {
-    return (
-      <Container maxWidth="sm">
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 4, 
-            mt: 4, 
-            textAlign: 'center',
-            backgroundColor: 'transparent'
-          }}
-        >
-          <PetsIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h5" gutterBottom>
-            No Heat Records Yet
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Start tracking your dog&apos;s heat cycles to better manage breeding schedules.
-          </Typography>
-          <Button
-            component={Link}
-            to="/dashboard/heats/add"
-            variant="contained"
-            startIcon={<AddIcon />}
-            size="large"
-          >
-            Add First Heat Record
-          </Button>
-        </Paper>
-      </Container>
-    );
-  }
-
+  
+  // Handle filter change
+  const handleFilterChange = (name, value) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value
+    }));
+  };
+  
+  // Apply filters
+  const applyFilters = () => {
+    fetchFilteredHeats(filters);
+    setFilterOpen(false);
+  };
+  
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      dog_id: '',
+      start_date_from: null,
+      start_date_to: null
+    });
+    loadHeats();
+    setFilterOpen(false);
+  };
+  
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(parseISO(dateString), 'MMM d, yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  };
+  
+  // Calculate cycle length
+  const calculateCycleLength = (heat) => {
+    if (!heat.start_date || !heat.end_date) return 'N/A';
+    try {
+      const start = parseISO(heat.start_date);
+      const end = parseISO(heat.end_date);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      return `${diffDays} days`;
+    } catch (e) {
+      return 'Error';
+    }
+  };
+  
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Manage Heats</h1>
-        <div className="flex items-center gap-4">
-          <div className="inline-flex rounded-md shadow-sm">
-            <button
-              onClick={() => setView('list')}
-              className={`inline-flex items-center px-4 py-2 rounded-l-lg border ${
-                view === 'list'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
+    <Container maxWidth="lg">
+      <Box sx={{ my: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">Manage Heat Cycles</Typography>
+          <Box>
+            <Button
+              variant="outlined"
+              startIcon={<FilterIcon />}
+              onClick={() => setFilterOpen(!filterOpen)}
+              sx={{ mr: 1 }}
             >
-              List View
-            </button>
-            <button
-              onClick={() => setView('calendar')}
-              className={`inline-flex items-center px-4 py-2 rounded-r-lg border-t border-r border-b -ml-px ${
-                view === 'calendar'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
+              Filter
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={refreshHeats}
+              sx={{ mr: 1 }}
+              disabled={loading}
             >
-              Calendar View
-            </button>
-          </div>
-          <Link
-            to="/dashboard/heats/add"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              Refresh
+            </Button>
+            <Button
+              component={Link}
+              to="/dashboard/heats/add"
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+            >
+              Add Heat Cycle
+            </Button>
+          </Box>
+        </Box>
+        
+        {filterOpen && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Filter Heat Cycles
+            </Typography>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Dog</InputLabel>
+                  <Select
+                    value={filters.dog_id}
+                    onChange={(e) => handleFilterChange('dog_id', e.target.value)}
+                    label="Dog"
+                  >
+                    <MenuItem value="">All Dogs</MenuItem>
+                    {dogs.map(dog => (
+                      <MenuItem key={dog.id} value={dog.id}>
+                        {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Start Date From"
+                    value={filters.start_date_from}
+                    onChange={(date) => handleFilterChange('start_date_from', date)}
+                    renderInput={(params) => <TextField {...params} fullWidth />}
+                  />
+                </LocalizationProvider>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Start Date To"
+                    value={filters.start_date_to}
+                    onChange={(date) => handleFilterChange('start_date_to', date)}
+                    renderInput={(params) => <TextField {...params} fullWidth />}
+                  />
+                </LocalizationProvider>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={applyFilters}
+                    fullWidth
+                  >
+                    Apply Filters
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={resetFilters}
+                    fullWidth
+                  >
+                    Reset
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+        )}
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : heats.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="body1" gutterBottom>
+              No heat cycles found.
+            </Typography>
+            <Button
+              component={Link}
+              to="/dashboard/heats/add"
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              sx={{ mt: 2 }}
+            >
+              Add Your First Heat Cycle
+            </Button>
+          </Paper>
+        ) : (
+          <Paper>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Dog</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                  <TableCell>Length</TableCell>
+                  <TableCell>Notes</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {heats.map(heat => (
+                  <TableRow key={heat.id}>
+                    <TableCell>{heat.dog_name || `Dog #${heat.dog_id}`}</TableCell>
+                    <TableCell>{formatDate(heat.start_date)}</TableCell>
+                    <TableCell>{formatDate(heat.end_date)}</TableCell>
+                    <TableCell>{calculateCycleLength(heat)}</TableCell>
+                    <TableCell>
+                      {heat.notes ? (
+                        heat.notes.length > 50 
+                          ? `${heat.notes.substring(0, 50)}...` 
+                          : heat.notes
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          No notes
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        component={Link}
+                        to={`/dashboard/heats/edit/${heat.id}`}
+                        color="primary"
+                        size="small"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        size="small"
+                        onClick={() => handleDeleteClick(heat)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Paper>
+        )}
+      </Box>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCancelDelete}
+      >
+        <DialogTitle>
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete the heat cycle for{' '}
+            {heatToDelete ? (heatToDelete.dog_name || `Dog #${heatToDelete.dog_id}`) : 'this dog'}?
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            color="error" 
+            variant="contained"
           >
-            Add Heat
-          </Link>
-        </div>
-      </div>
-
-      {/* Render either list or calendar based on view state */}
-      {view === 'list' ? (
-        <HeatList heats={heats} setHeats={setHeats} />
-      ) : (
-        <HeatCalendar heats={heats} />
-      )}
-    </div>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 };
 
-export default ManageHeats; 
+export default ManageHeats;

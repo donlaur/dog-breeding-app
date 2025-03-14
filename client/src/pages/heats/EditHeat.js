@@ -1,94 +1,153 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  Box, 
-  Typography, 
-  Alert, 
-  CircularProgress, 
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import {
   Container,
-  Breadcrumbs,
-  Paper
+  Typography,
+  Box,
+  Button,
+  Paper,
+  CircularProgress,
+  Alert,
+  Divider
 } from '@mui/material';
+import { ArrowBack } from '@mui/icons-material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import HeatForm from '../../components/heats/HeatForm';
-import { API_URL, debugLog, debugError } from "../../config";
-import { apiGet, apiPut } from '../../utils/apiUtils';
+import { debugLog, debugError } from "../../config";
 import { showSuccess, showError } from '../../utils/notifications';
+import { apiGet, apiPut } from '../../utils/apiUtils';
+import PropTypes from 'prop-types';
 
 const EditHeat = () => {
   const { heatId } = useParams();
   const navigate = useNavigate();
   const [heat, setHeat] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
+  
+  // Load heat data on mount
   useEffect(() => {
     const fetchHeat = async () => {
       try {
-        const response = await apiGet(`heats/${heatId}`);
-        if (response.ok) {
-          setHeat(response.data);
-        } else {
-          throw new Error(response.error || "Failed to fetch heat data");
-        }
+        debugLog(`Fetching heat with id ${heatId}`);
+        const response = await apiGet(`/heats/${heatId}`);
+        debugLog('Heat data fetched:', response);
+        setHeat(response);
       } catch (error) {
         debugError("Error fetching heat:", error);
-        setError("Failed to load heat data");
+        setError(`Failed to load heat data: ${error.message}`);
+        showError(`Failed to load heat data: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
-    fetchHeat();
+    
+    if (heatId) {
+      fetchHeat();
+    }
   }, [heatId]);
-
-  const handleUpdateHeat = async (heatData) => {
+  
+  // Handle form submission
+  const handleSubmit = async (heatData) => {
+    debugLog("Saving updated heat:", heatData);
     try {
-      setLoading(true);
+      setSaving(true);
+      setError(null);
       
-      const response = await apiPut(`heats/${heatId}`, heatData);
+      // Remove any non-schema fields that might cause database errors
+      const sanitizedData = { ...heatData };
+      delete sanitizedData.dog_name;
+      delete sanitizedData.dog_info;
       
-      if (response.ok) {
-        showSuccess("Heat cycle updated successfully!");
-        navigate('/dashboard/heats');
-      } else {
-        throw new Error(response.error || "Failed to update heat cycle");
-      }
+      const response = await apiPut(`/heats/${heatId}`, sanitizedData);
+      
+      debugLog("Heat update response:", response);
+      
+      showSuccess("Heat cycle updated successfully!");
+      
+      // Navigate back to heat management
+      navigate('/dashboard/heats');
     } catch (error) {
-      debugError("Error updating heat:", error);
+      debugError("Error updating heat cycle:", error);
       setError(`Failed to update heat cycle: ${error.message}`);
       showError(`Failed to update heat cycle: ${error.message}`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
-
-  if (loading) return <CircularProgress />;
-  if (error) return <Alert severity="error">{error}</Alert>;
-
+  
+  // Show loading state
+  if (loading) {
+    return (
+      <Container maxWidth="md">
+        <Paper elevation={2} sx={{ p: 3, mt: 3, textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Loading heat cycle data...
+          </Typography>
+        </Paper>
+      </Container>
+    );
+  }
+  
+  // Show error state if heat not found
+  if (!heat && !loading) {
+    return (
+      <Container maxWidth="md">
+        <Paper elevation={2} sx={{ p: 3, mt: 3 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            Heat cycle not found or could not be loaded
+          </Alert>
+          <Button
+            component={Link}
+            to="/dashboard/heats"
+            variant="contained"
+          >
+            Back to Heat Cycles
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
+  
   return (
     <Container maxWidth="md">
-      <Box sx={{ mt: 3, mb: 4 }}>
-        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-          <Link to="/dashboard/heats" style={{ textDecoration: 'none', color: 'inherit' }}>
-            Back to Heats
-          </Link>
-          <Typography color="text.primary">Edit Heat Record</Typography>
-        </Breadcrumbs>
-      </Box>
-
-      <Typography variant="h4" component="h1" gutterBottom>
-        Edit Heat Record
-      </Typography>
-
-      <Paper sx={{ p: 3, mt: 3 }}>
+      <Paper elevation={2} sx={{ p: 3, mt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Button
+            component={Link}
+            to="/dashboard/heats"
+            startIcon={<ArrowBack />}
+            sx={{ mr: 2 }}
+          >
+            Back
+          </Button>
+          <Typography variant="h5">Edit Heat Cycle</Typography>
+        </Box>
+        
+        <Divider sx={{ mb: 3 }} />
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
         <HeatForm 
-          initialData={heat} 
-          onSave={handleUpdateHeat} 
-          isEdit={true} // Add this prop to indicate edit mode
+          initialData={heat}
+          onSubmit={handleSubmit} 
+          isSubmitting={saving}
+          submitButtonText={saving ? "Saving..." : "Update Heat Cycle"}
+          submitButtonIcon={saving ? <CircularProgress size={20} /> : <NavigateNextIcon />}
         />
       </Paper>
     </Container>
   );
 };
 
-export default EditHeat; 
+EditHeat.propTypes = {
+  onSuccess: PropTypes.func
+};
+
+export default EditHeat;
