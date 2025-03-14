@@ -23,7 +23,7 @@ import {
   Female as FemaleIcon,
   Male as MaleIcon
 } from '@mui/icons-material';
-import { getLitterPuppies } from '../../utils/apiUtils';
+import { apiGet, apiDelete } from '../../utils/apiUtils';
 import { formatDate } from '../../utils/dateUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 import { API_URL, debugLog, debugError } from '../../config';
@@ -39,7 +39,7 @@ function ManagePuppies() {
     const fetchPuppies = async () => {
       setLoading(true);
       try {
-        const response = await getLitterPuppies(litterId);
+        const response = await apiGet(`litters/${litterId}/puppies`);
         if (response.ok) {
           setPuppies(response.data);
         } else {
@@ -58,20 +58,16 @@ function ManagePuppies() {
 
   const handleDeletePuppy = async (puppyId, puppyName) => {
     try {
-      const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`litters/puppies/${puppyId}`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        showSuccess(`Successfully deleted puppy "${puppyName}"`);
+        refreshPuppies(); // Refresh the puppies list
+      } else {
+        throw new Error(response.error || "Failed to delete puppy");
       }
-      
-      showSuccess(`Successfully deleted puppy "${puppyName}"`);
-      refreshPuppies(); // Refresh the puppies list
-      
     } catch (error) {
-      console.error("Error deleting puppy:", error);
+      debugError("Error deleting puppy:", error);
       showError(`Failed to delete puppy: ${error.message}`);
     }
   };
@@ -79,7 +75,7 @@ function ManagePuppies() {
   const refreshPuppies = async () => {
     setLoading(true);
     try {
-      const response = await getLitterPuppies(litterId);
+      const response = await apiGet(`litters/${litterId}/puppies`);
       if (response.ok) {
         setPuppies(response.data);
       } else {

@@ -12,6 +12,7 @@ import {
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet, apiPut } from '../../utils/apiUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 
 const EditHeat = () => {
@@ -24,10 +25,12 @@ const EditHeat = () => {
   useEffect(() => {
     const fetchHeat = async () => {
       try {
-        const response = await fetch(`${API_URL}/heats/${heatId}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setHeat(data);
+        const response = await apiGet(`heats/${heatId}`);
+        if (response.ok) {
+          setHeat(response.data);
+        } else {
+          throw new Error(response.error || "Failed to fetch heat data");
+        }
       } catch (error) {
         debugError("Error fetching heat:", error);
         setError("Failed to load heat data");
@@ -42,30 +45,18 @@ const EditHeat = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_URL}/heats/${heatId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(heatData),
-      });
+      const response = await apiPut(`heats/${heatId}`, heatData);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      showSuccess("Heat cycle updated successfully!");
-      
-      // Navigate back to heat management after a short delay
-      setTimeout(() => {
+      if (response.ok) {
+        showSuccess("Heat cycle updated successfully!");
         navigate('/dashboard/heats');
-      }, 1500);
-      
+      } else {
+        throw new Error(response.error || "Failed to update heat cycle");
+      }
     } catch (error) {
-      console.error("Error updating heat cycle:", error);
+      debugError("Error updating heat:", error);
+      setError(`Failed to update heat cycle: ${error.message}`);
       showError(`Failed to update heat cycle: ${error.message}`);
-      setError(error.message);
     } finally {
       setLoading(false);
     }

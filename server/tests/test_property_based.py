@@ -145,7 +145,7 @@ def test_puppies_dogs_separation_property(mock_db):
         
         # Property: find_by_field_values on dogs table should NOT return these puppies
         # (even if we incorrectly query the dogs table)
-dogs = mock_db.find_by_field_values("puppies", {"litter_id": litter["id"]})
+        dogs = mock_db.find_by_field_values("dogs", {"litter_id": litter["id"]})
         assert len(dogs) == 0
     
     test_separation()

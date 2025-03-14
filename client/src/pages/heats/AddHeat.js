@@ -11,6 +11,7 @@ import {
 import { ArrowBack } from '@mui/icons-material';
 import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiPost } from '../../utils/apiUtils';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { showSuccess, showError } from '../../utils/notifications';
 
@@ -23,29 +24,19 @@ const AddHeat = () => {
     debugLog("Saving new heat:", heat);
     try {
       setLoading(true);
+      setError(null);
       
-      const response = await fetch(`${API_URL}/heats`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(heat),
-      });
+      const response = await apiPost('heats', heat);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      showSuccess("Heat cycle added successfully!");
-      
-      // Navigate back to heat management
-      setTimeout(() => {
+      if (response.ok) {
+        showSuccess("Heat cycle added successfully!");
         navigate('/dashboard/heats');
-      }, 1500);
-      
+      } else {
+        throw new Error(response.error || "Failed to add heat cycle");
+      }
     } catch (error) {
-      console.error("Error adding heat cycle:", error);
+      debugError("Error adding heat cycle:", error);
+      setError(`Failed to add heat cycle: ${error.message}`);
       showError(`Failed to add heat cycle: ${error.message}`);
     } finally {
       setLoading(false);

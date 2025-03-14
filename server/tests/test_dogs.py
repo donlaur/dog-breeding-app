@@ -16,8 +16,8 @@ def test_get_all_dogs(client, mock_db):
         "breed_id": 1,
         "birth_date": "2023-01-01"
     })
-    
-dogs = mock_db.find_by_field_values("dogs")
+    # Fix indentation error here
+    dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     
     # Make the request
@@ -32,7 +32,7 @@ dogs = mock_db.find_by_field_values("dogs")
 def test_get_dog_by_id_success(client, mock_db):
     """Test successful retrieval of a dog by ID."""
     # Get the first dog from the mock database
-dogs = mock_db.find_by_field_values("dogs")
+    dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     dog_id = dogs[0]["id"]
     
@@ -109,7 +109,7 @@ def test_create_dog_missing_fields(client):
 def test_update_dog_success(client, mock_db):
     """Test successful update of a dog."""
     # Get the first dog from the mock database
-dogs = mock_db.find_by_field_values("dogs")
+    dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     dog_id = dogs[0]["id"]
     
@@ -192,7 +192,7 @@ def test_delete_dog_not_found(client):
 def test_upload_dog_file(client, mock_db):
     """Test file upload for a dog."""
     # Get the first dog from the mock database
-dogs = mock_db.find_by_field_values("dogs")
+    dogs = mock_db.find_by_field_values("dogs", {})
     assert len(dogs) > 0
     dog_id = dogs[0]["id"]
     

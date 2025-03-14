@@ -1,5 +1,5 @@
 // src/pages/litters/ManageLitters.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Box,
@@ -13,7 +13,6 @@ import {
   Grid,
   Container,
   Paper,
-  Divider,
   Avatar,
   IconButton,
   Tooltip,
@@ -24,36 +23,34 @@ import {
   MenuItem,
   Stack
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
+import { 
+  Add as AddIcon, 
   Pets as PetsIcon,
-  Female as FemaleIcon,
-  Male as MaleIcon,
-  Warning as WarningIcon,
-  Delete as DeleteIcon,
-  FilterList as FilterListIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
-import { formatDate } from '../../utils/dateUtils';
 import { useDog } from '../../context/DogContext';
-import { API_URL, debugLog, debugError } from '../../config';
+import { useNotifications } from '../../context/NotificationContext';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
-import { showSuccess, showError } from '../../utils/notifications';
+import { formatDate } from '../../utils/dateUtils';
 import { apiGet, apiDelete } from '../../utils/apiUtils';
+import { API_URL, debugLog, debugError } from '../../config';
+import { getPhotoUrl, handleImageError } from '../../utils/photoUtils';
 
 const ManageLitters = () => {
   const { litters, loading, error, refreshLitters } = useDog();
+  const { showSuccess, showError } = useNotifications();
   const [breeds, setBreeds] = useState([]);
   const [sires, setSires] = useState([]);
   const [dams, setDams] = useState([]);
   const [errorBreeds, setErrorBreeds] = useState(null);
+  const [errorDogs, setErrorDogs] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   
   // Filter states
   const [selectedDam, setSelectedDam] = useState('');
   const [selectedSire, setSelectedSire] = useState('');
-  const [filteredLitters, setFilteredLitters] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
   
   // State for confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -76,6 +73,7 @@ const ManageLitters = () => {
     return () => clearInterval(intervalId);
   }, []); // Empty dependency array - only run on mount
 
+  // Fetch breeds on component mount
   useEffect(() => {
     const fetchBreeds = async () => {
       setLocalLoading(true);
@@ -104,19 +102,35 @@ const ManageLitters = () => {
       try {
         const response = await apiGet('dogs');
         if (response && response.ok) {
-          const data = response.data || [];
+          const dogs = response.data || [];
           
-          // Filter for male and female dogs
-          const males = data.filter(dog => dog.gender === 'Male');
-          const females = data.filter(dog => dog.gender === 'Female');
+          // Filter and sort dams (females) by call_name
+          const sortedDams = dogs
+            .filter(dog => dog.gender === 'Female')
+            .sort((a, b) => {
+              const nameA = (a.call_name || a.name || '').toLowerCase();
+              const nameB = (b.call_name || b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
           
-          setSires(males);
-          setDams(females);
+          // Filter and sort sires (males) by call_name
+          const sortedSires = dogs
+            .filter(dog => dog.gender === 'Male')
+            .sort((a, b) => {
+              const nameA = (a.call_name || a.name || '').toLowerCase();
+              const nameB = (b.call_name || b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB);
+            });
+          
+          setDams(sortedDams);
+          setSires(sortedSires);
         } else {
           debugError("Error fetching dogs:", response?.error);
+          setErrorDogs("Failed to load dogs. Please try again later.");
         }
       } catch (error) {
         debugError("Exception fetching dogs:", error);
+        setErrorDogs("Failed to load dogs. Please try again later.");
       } finally {
         setLocalLoading(false);
       }
@@ -125,76 +139,7 @@ const ManageLitters = () => {
     fetchDogs();
   }, []);
 
-  // Apply filters when litters or filter selections change
-  useEffect(() => {
-    if (!litters) {
-      setFilteredLitters([]);
-      return;
-    }
-    
-    let filtered = [...litters];
-    
-    // Apply dam filter if selected
-    if (selectedDam) {
-      filtered = filtered.filter(litter => litter.dam_id === selectedDam);
-    }
-    
-    // Apply sire filter if selected
-    if (selectedSire) {
-      filtered = filtered.filter(litter => litter.sire_id === selectedSire);
-    }
-    
-    setFilteredLitters(filtered);
-  }, [litters, selectedDam, selectedSire]);
-
-  const handleRefresh = () => {
-    refreshLitters(true);
-  };
-
-  const handleClearFilters = () => {
-    setSelectedDam('');
-    setSelectedSire('');
-  };
-
-  // Function to handle deleting a litter
-  const handleDeleteClick = (litter) => {
-    setLitterToDelete(litter);
-    setDeleteDialogOpen(true);
-  };
-
-  // Function to confirm deletion
-  const handleConfirmDelete = async () => {
-    if (!litterToDelete) return;
-    
-    try {
-      setDeleteLoading(true);
-      
-      const response = await apiDelete(`litters/${litterToDelete.id}`);
-      
-      if (response && response.ok) {
-        showSuccess(`Successfully deleted litter "${litterToDelete.litter_name}"`);
-        refreshLitters(true); // Force refresh after deletion
-      } else {
-        throw new Error(response?.error || "Unknown error");
-      }
-      
-    } catch (error) {
-      debugError("Error deleting litter:", error);
-      showError(`Failed to delete litter: ${error.message}`);
-    } finally {
-      setDeleteLoading(false);
-      setDeleteDialogOpen(false);
-      setLitterToDelete(null);
-    }
-  };
-
-  // Function to close the dialog
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setLitterToDelete(null);
-  };
-
-  // Get status color for chip
+  // Function to get status color for chip
   const getStatusColor = (status) => {
     switch (status) {
       case 'Planned':
@@ -212,10 +157,111 @@ const ManageLitters = () => {
     }
   };
 
-  // Render the breed name from the ID
-  const getBreedName = (breedId) => {
-    const breed = breeds.find(b => b.id === breedId);
-    return breed ? breed.name : 'Unknown';
+  // Group litters by their status category
+  const getLitterCategory = (status) => {
+    if (status === 'Planned' || status === 'Expected') {
+      return 'planned';
+    } else if (status === 'Born' || status === 'Available') {
+      return 'current';
+    } else {
+      return 'past';
+    }
+  };
+
+  // Format litter name according to user preference: "Dam x Sire - Date"
+  const formatLitterName = (litter) => {
+    if (litter.litter_name && litter.litter_name.trim() !== '') {
+      return litter.litter_name;
+    }
+    
+    const damName = litter.dam_name || 'Unknown';
+    const sireName = litter.sire_name || 'Unknown';
+    const date = litter.whelp_date ? formatDate(litter.whelp_date) : 
+                (litter.expected_date ? formatDate(litter.expected_date) : 'No Date');
+    
+    return `${damName} (${sireName}) - ${date}`;
+  };
+
+  // Apply all filters and get filtered litters
+  const getFilteredLitters = () => {
+    // First filter by dam and sire
+    let filtered = litters.filter(litter => {
+      const matchesDam = !selectedDam || litter.dam_id === parseInt(selectedDam);
+      const matchesSire = !selectedSire || litter.sire_id === parseInt(selectedSire);
+      return matchesDam && matchesSire;
+    });
+    
+    // Then apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(litter => getLitterCategory(litter.status) === statusFilter);
+    }
+    
+    // Sort by date (newest first)
+    filtered.sort((a, b) => {
+      // Use whelp_date if available, otherwise use expected_date
+      const dateA = a.whelp_date || a.expected_date || '';
+      const dateB = b.whelp_date || b.expected_date || '';
+      
+      // Sort in descending order (newest first)
+      if (dateA && dateB) {
+        return new Date(dateB) - new Date(dateA);
+      }
+      // If only one has a date, prioritize the one with a date
+      if (dateA && !dateB) return -1;
+      if (!dateA && dateB) return 1;
+      
+      // If neither has a date, sort by ID (newest first)
+      return b.id - a.id;
+    });
+    
+    return filtered;
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSelectedDam('');
+    setSelectedSire('');
+    setStatusFilter('all');
+  };
+
+  const handleRefresh = () => {
+    refreshLitters(true);
+  };
+
+  // Function to handle deleting a litter
+  const handleDeleteClick = (litter) => {
+    setLitterToDelete(litter);
+    setDeleteDialogOpen(true);
+  };
+
+  // Function to confirm deletion
+  const handleConfirmDelete = async () => {
+    if (!litterToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      const response = await apiDelete(`litters/${litterToDelete.id}`);
+      
+      if (response && response.ok) {
+        showSuccess(`Litter "${litterToDelete.litter_name || `#${litterToDelete.id}`}" has been deleted.`);
+        refreshLitters(true);
+      } else {
+        showError(`Failed to delete litter: ${response?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      debugError('Error deleting litter:', error);
+      showError(`Failed to delete litter: ${error.message || 'Unknown error'}`);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+      setLitterToDelete(null);
+    }
+  };
+
+  // Function to close the dialog
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setLitterToDelete(null);
   };
 
   return (
@@ -247,11 +293,28 @@ const ManageLitters = () => {
       
       {/* Filter controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <FilterListIcon sx={{ mr: 1 }} />
             <Typography variant="subtitle1">Filter Litters</Typography>
           </Box>
+          
+          {/* Status filter */}
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel id="status-filter-label">Status</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              id="status-filter"
+              value={statusFilter}
+              label="Status"
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <MenuItem value="all">All Litters</MenuItem>
+              <MenuItem value="planned">Planned</MenuItem>
+              <MenuItem value="current">Current</MenuItem>
+              <MenuItem value="past">Past</MenuItem>
+            </Select>
+          </FormControl>
           
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel id="dam-filter-label">Dam (Mother)</InputLabel>
@@ -265,11 +328,17 @@ const ManageLitters = () => {
               <MenuItem value="">
                 <em>All Dams</em>
               </MenuItem>
-              {dams.map((dam) => (
-                <MenuItem key={dam.id} value={dam.id}>
-                  {dam.call_name || dam.name || `Dog #${dam.id}`}
+              {dams && dams.length > 0 ? (
+                dams.map((dam) => (
+                  <MenuItem key={dam.id} value={dam.id}>
+                    {dam.call_name || dam.name || `Dog #${dam.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No female dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
           </FormControl>
           
@@ -285,11 +354,17 @@ const ManageLitters = () => {
               <MenuItem value="">
                 <em>All Sires</em>
               </MenuItem>
-              {sires.map((sire) => (
-                <MenuItem key={sire.id} value={sire.id}>
-                  {sire.call_name || sire.name || `Dog #${sire.id}`}
+              {sires && sires.length > 0 ? (
+                sires.map((sire) => (
+                  <MenuItem key={sire.id} value={sire.id}>
+                    {sire.call_name || sire.name || `Dog #${sire.id}`}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  <em>No male dogs available</em>
                 </MenuItem>
-              ))}
+              )}
             </Select>
           </FormControl>
           
@@ -297,22 +372,22 @@ const ManageLitters = () => {
             variant="outlined" 
             startIcon={<ClearIcon />} 
             onClick={handleClearFilters}
-            disabled={!selectedDam && !selectedSire}
+            disabled={!selectedDam && !selectedSire && statusFilter === 'all'}
           >
             Clear Filters
           </Button>
           
-          {(selectedDam || selectedSire) && (
+          {(selectedDam || selectedSire || statusFilter !== 'all') && (
             <Typography variant="body2" color="text.secondary">
-              Showing {filteredLitters.length} of {litters.length} litters
+              Showing {getFilteredLitters().length} of {litters.length} litters
             </Typography>
           )}
         </Stack>
       </Paper>
       
-      {error && (
+      {(error || errorBreeds || errorDogs) && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+          {error || errorBreeds || errorDogs}
         </Alert>
       )}
       
@@ -320,110 +395,116 @@ const ManageLitters = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
-      ) : filteredLitters && filteredLitters.length > 0 ? (
-        <Grid container spacing={3}>
-          {filteredLitters.map(litter => (
-            <Grid item xs={12} sm={6} md={4} key={litter.id}>
-              <Card 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: 6,
-                  }
-                }}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" component="h2">
-                      {litter.litter_name || `Litter #${litter.id}`}
+      ) : getFilteredLitters().length > 0 ? (
+        <Grid container spacing={2}>
+          {getFilteredLitters().map(litter => {
+            // Find the actual dam and sire objects to get their photos
+            const dam = dams.find(d => d.id === litter.dam_id) || {};
+            const sire = sires.find(s => s.id === litter.sire_id) || {};
+            const isLitterBorn = litter.status === 'Born' || litter.status === 'Available' || litter.status === 'Completed';
+            const totalPuppies = litter.num_puppies || litter.puppy_count || 0;
+            const availablePuppies = litter.available_puppies || 0;
+            
+            return (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={litter.id}>
+                <Card 
+                  sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    height: '100%',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: 3,
+                    },
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => navigate(`/dashboard/litters/${litter.id}`)}
+                >
+                  <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography 
+                      variant="body1" 
+                      color="text.primary"
+                      sx={{ fontWeight: 'medium', fontSize: '1.2rem' }}
+                    >
+                      {isLitterBorn ? formatDate(litter.whelp_date) : `Expected: ${formatDate(litter.expected_date)}`}
                     </Typography>
-                    <Chip 
-                      label={litter.status || 'Unknown'} 
-                      color={getStatusColor(litter.status)}
+                    <Chip
+                      label={`${availablePuppies}/${totalPuppies}`}
                       size="small"
+                      color={availablePuppies > 0 ? "primary" : "default"}
+                      sx={{ height: 24, minWidth: 40 }}
                     />
                   </Box>
                   
-                  <Divider sx={{ mb: 2 }} />
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Breed:</strong> {getBreedName(litter.breed_id)}
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <MaleIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="body2">
-                      <strong>Sire:</strong> {litter.sire_name || 'Unknown'}
+                  <CardContent sx={{ flexGrow: 1, pt: 1, pb: 1 }}>
+                    <Typography variant="h6" component="h2" sx={{ mb: 1, fontSize: '1rem', fontWeight: 600 }}>
+                      {formatLitterName(litter)}
                     </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <FemaleIcon color="secondary" sx={{ mr: 1 }} />
-                    <Typography variant="body2">
-                      <strong>Dam:</strong> {litter.dam_name || 'Unknown'}
-                    </Typography>
-                  </Box>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Date of Birth:</strong> {litter.whelp_date ? formatDate(litter.whelp_date) : 'Not yet born'}
-                  </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Expected Date:</strong> {litter.expected_date ? formatDate(litter.expected_date) : 'Unknown'}
-                  </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>Puppies:</strong> {litter.num_puppies || litter.puppy_count || 0}
-                  </Typography>
-                  
-                  {litter.notes && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      <strong>Notes:</strong> {litter.notes}
-                    </Typography>
-                  )}
-                </CardContent>
-                <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-                  <Button 
-                    size="small" 
-                    variant="outlined"
-                    component={Link}
-                    to={`/dashboard/litters/${litter.id}`}
-                  >
-                    View Details
-                  </Button>
-                  <Box>
-                    <Tooltip title="Edit Litter">
-                      <IconButton 
-                        size="small"
-                        component={Link}
-                        to={`/dashboard/litters/edit/${litter.id}`}
-                        sx={{ mr: 1 }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete Litter">
-                      <IconButton 
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteClick(litter)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
+                    
+                    {/* Slightly overlapping dog photos (10% overlap) */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      mb: 1.5,
+                      position: 'relative',
+                      height: 80,
+                      width: '100%'
+                    }}>
+                      {/* Dam photo (left) */}
+                      <Avatar 
+                        src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        alt={dam.call_name || 'Dam'}
+                        sx={{ 
+                          width: 80, 
+                          height: 80, 
+                          border: '2px solid #f0f0f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          position: 'absolute',
+                          left: 'calc(50% - 88px)',
+                          zIndex: 1
+                        }} 
+                      />
+                      
+                      {/* Sire photo (right) - slightly overlapping (10%) */}
+                      <Avatar 
+                        src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        alt={sire.call_name || 'Sire'}
+                        sx={{ 
+                          width: 80, 
+                          height: 80, 
+                          border: '2px solid #f0f0f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          position: 'absolute',
+                          left: 'calc(50% - 8px)',
+                          zIndex: 0
+                        }} 
+                      />
+                    </Box>
+                    
+                    {/* Dog names - adjusted to align with photos */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      px: 2,
+                      mb: 1
+                    }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'medium', ml: 1 }}>
+                        {dam.call_name || 'Unknown Dam'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mr: 1 }}>
+                        {sire.call_name || 'Unknown Sire'}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       ) : (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
-          {selectedDam || selectedSire ? (
+          {selectedDam || selectedSire || statusFilter !== 'all' ? (
             <>
               <Typography variant="h6" gutterBottom>No Matching Litters</Typography>
               <Typography variant="body1" color="text.secondary" paragraph>

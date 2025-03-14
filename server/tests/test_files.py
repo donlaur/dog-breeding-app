@@ -10,7 +10,7 @@ import os
 import io
 from flask import Flask
 from server.files import create_files_bp
-from server.auth.auth import token_required
+from server.auth import token_required
 from server.database.db_interface import DatabaseInterface
 
 class TestFilesAPI:

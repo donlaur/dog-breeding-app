@@ -1,30 +1,38 @@
 import React, { useState } from 'react';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiPost } from '../utils/apiUtils';
 
 function ContactPage() {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    fetch('http://127.0.0.1:5000/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    })
-      .then(response => {
-        if (!response.ok) throw new Error('Something went wrong!');
-        return response.json();
-      })
-      .then(() => {
+    setLoading(true);
+    
+    try {
+      debugLog("Submitting contact form:", formData);
+      const response = await apiPost('contact', formData);
+      
+      if (response.ok) {
         setSubmitted(true);
         setFormData({ name: '', email: '', message: '' });
-      })
-      .catch(err => setError(err.message));
+        debugLog("Contact form submitted successfully");
+      } else {
+        throw new Error(response.error || 'Something went wrong!');
+      }
+    } catch (err) {
+      debugError("Error submitting contact form:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,8 +55,13 @@ function ContactPage() {
             <textarea name="message" className="form-control" rows="4" required value={formData.message} onChange={handleChange}></textarea>
           </div>
           {error && <p className="text-danger">{error}</p>}
-          <button type="submit" className="btn btn-primary">
-            <i className="fas fa-paper-plane"></i> Send Message
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? (
+              <i className="fas fa-spinner fa-spin"></i>
+            ) : (
+              <i className="fas fa-paper-plane"></i>
+            )}
+            Send Message
           </button>
         </form>
       )}

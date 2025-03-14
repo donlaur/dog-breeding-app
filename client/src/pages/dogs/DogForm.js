@@ -4,6 +4,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
 import DogContext from "../../context/DogContext";
 import { useNotifications } from "../../context/NotificationContext";
+import { apiGet } from "../../utils/apiUtils";
 import "../../styles/DogForm.css";
 import { 
   Box, 
@@ -68,6 +69,8 @@ function DogForm() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    
     if (!id) {
       debugLog("Initializing new dog form");
       setDog({
@@ -94,30 +97,32 @@ function DogForm() {
       return;
     }
 
-    debugLog("Fetching dog data for editing:", id);
-    fetch(`${API_URL}/dogs/${id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+    const fetchDogData = async () => {
+      try {
+        debugLog("Fetching dog data for editing:", id);
+        const response = await apiGet(`dogs/${id}`);
+        
+        if (response.ok) {
+          debugLog("Dog data received for editing:", response.data);
+          // Ensure IDs are properly formatted
+          const formattedData = {
+            ...response.data,
+            sire_id: response.data.sire_id ? parseInt(response.data.sire_id, 10) : '',
+            dam_id: response.data.dam_id ? parseInt(response.data.dam_id, 10) : ''
+          };
+          setDog(formattedData);
+        } else {
+          throw new Error(response.error || "Failed to fetch dog data");
         }
-        return res.json();
-      })
-      .then((data) => {
-        debugLog("Dog data received for editing:", data);
-        // Ensure IDs are properly formatted
-        const formattedData = {
-          ...data,
-          sire_id: data.sire_id ? parseInt(data.sire_id, 10) : '',
-          dam_id: data.dam_id ? parseInt(data.dam_id, 10) : ''
-        };
-        setDog(formattedData);
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         debugError("Error fetching dog:", err);
         debugError("Error details:", err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchDogData();
   }, [id]);
 
   if (loading) {
@@ -130,8 +135,22 @@ function DogForm() {
 
   // Optional sire/dam options - exclude current dog from potential parents
   const currentDogId = id ? parseInt(id, 10) : null;
-  const sireOptions = dogs.filter((d) => d.gender === "Male" && d.id !== currentDogId);
-  const damOptions = dogs.filter((d) => d.gender === "Female" && d.id !== currentDogId);
+  
+  const sireOptions = dogs
+    .filter((d) => d.gender === "Male" && d.id !== currentDogId)
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+  const damOptions = dogs
+    .filter((d) => d.gender === "Female" && d.id !== currentDogId)
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
   const handleChange = (e) => {
     // For select fields with IDs, ensure they're properly formatted

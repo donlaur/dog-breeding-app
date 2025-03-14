@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { API_URL, debugLog, debugError } from "../config";
+import { apiGet } from "../utils/apiUtils";
 
 function AdminMessages() {
   const [messages, setMessages] = useState([]);
@@ -7,25 +8,27 @@ function AdminMessages() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    debugLog("Fetching admin messages...");
-    fetch(`${API_URL}/dashboard/messages`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+    const fetchMessages = async () => {
+      try {
+        debugLog("Fetching admin messages...");
+        const response = await apiGet('dashboard/messages');
+        
+        if (response.ok) {
+          debugLog("Messages received:", response.data);
+          setMessages(response.data);
+        } else {
+          throw new Error(response.error || "Failed to fetch messages");
         }
-        return response.json();
-      })
-      .then(data => {
-        debugLog("Messages received:", data);
-        setMessages(data);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         debugError("Error fetching messages:", err);
         debugError("Error details:", err.message);
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchMessages();
   }, []);
 
   if (loading) return <p className="text-center mt-4">Loading messages...</p>;

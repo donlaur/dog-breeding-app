@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 def test_get_all_puppies(client, mock_db):
     """Test successful retrieval of all puppies."""
     # Get all puppies from the mock database
-puppies = mock_db.find_by_field_values("puppies")
+    puppies = mock_db.find_by_field_values("puppies", {})
     assert len(puppies) > 0
     
     # Make the request
@@ -23,7 +23,7 @@ puppies = mock_db.find_by_field_values("puppies")
 def test_get_puppy_by_id_success(client, mock_db):
     """Test successful retrieval of a puppy by ID."""
     # Get the first puppy from the mock database
-puppies = mock_db.find_by_field_values("puppies")
+    puppies = mock_db.find_by_field_values("puppies", {})
     assert len(puppies) > 0
     puppy_id = puppies[0]["id"]
     
@@ -52,7 +52,7 @@ def test_get_puppy_by_id_not_found(client, mock_db):
 def test_get_puppies_by_litter_id(client, mock_db):
     """Test getting puppies by litter ID."""
     # Get the first litter from the mock database
-litters = mock_db.find_by_field_values("litters")
+    litters = mock_db.find_by_field_values("litters", {})
     assert len(litters) > 0
     litter_id = litters[0]["id"]
     
@@ -71,7 +71,7 @@ litters = mock_db.find_by_field_values("litters")
 def test_create_puppy_success(client, mock_db):
     """Test successful creation of a puppy."""
     # Get the first litter from the mock database
-litters = mock_db.find_by_field_values("litters")
+    litters = mock_db.find_by_field_values("litters", {})
     assert len(litters) > 0
     litter_id = litters[0]["id"]
     
@@ -123,7 +123,7 @@ def test_create_puppy_missing_fields(client):
 def test_update_puppy_success(client, mock_db):
     """Test successful update of a puppy."""
     # Get the first puppy from the mock database
-puppies = mock_db.find_by_field_values("puppies")
+    puppies = mock_db.find_by_field_values("puppies", {})
     assert len(puppies) > 0
     puppy_id = puppies[0]["id"]
     
@@ -172,7 +172,7 @@ def test_update_puppy_not_found(client):
 def test_delete_puppy_success(client, mock_db):
     """Test successful deletion of a puppy."""
     # Get the first puppy from the mock database
-puppies = mock_db.find_by_field_values("puppies")
+    puppies = mock_db.find_by_field_values("puppies", {})
     assert len(puppies) > 0
     puppy_id = puppies[0]["id"]
     

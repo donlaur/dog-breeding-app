@@ -15,6 +15,8 @@ import {
   Alert
 } from '@mui/material';
 import { Send as SendIcon } from '@mui/icons-material';
+import { apiPost } from '../../utils/apiUtils';
+import { debugLog, debugError } from '../../config';
 
 const ContactForm = () => {
   const [formData, setFormData] = useState({
@@ -44,20 +46,13 @@ const ContactForm = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/public/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      debugLog('Submitting public contact form:', formData);
+      const response = await apiPost('public/contact', formData);
       
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok) {
+        debugLog('Contact form submitted successfully');
         setSuccess(true);
         setOpenSnackbar(true);
-        // Reset form
         setFormData({
           name: '',
           email: '',
@@ -66,10 +61,10 @@ const ContactForm = () => {
           message: ''
         });
       } else {
-        throw new Error(data.error || 'Failed to submit contact form');
+        throw new Error(response.error || 'Failed to send message. Please try again.');
       }
     } catch (err) {
-      console.error('Error submitting contact form:', err);
+      debugError('Error submitting contact form:', err);
       setError(err.message || 'Something went wrong. Please try again later.');
       setOpenSnackbar(true);
     } finally {

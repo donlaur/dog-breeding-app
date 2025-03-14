@@ -21,6 +21,8 @@ import {
   Pets
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { apiPost } from '../../utils/apiUtils';
+import { debugLog, debugError } from '../../config';
 
 const ChatWidget = () => {
   const theme = useTheme();
@@ -69,19 +71,14 @@ const ChatWidget = () => {
         throw new Error('Name and email are required');
       }
       
+      debugLog('Registering chat user:', userInfo);
+      
       // Create a lead & initialize chat session
-      const response = await fetch('/api/public/chat/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userInfo)
-      });
+      const response = await apiPost('public/chat/register', userInfo);
       
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok && response.data) {
         setRegistered(true);
+        debugLog('Chat registration successful:', response.data);
         
         // Add welcome message from system
         setMessages([
@@ -94,11 +91,11 @@ const ChatWidget = () => {
         ]);
         
         // Store chat session ID in local storage
-        if (data.sessionId) {
-          localStorage.setItem('chatSessionId', data.sessionId);
+        if (response.data.sessionId) {
+          localStorage.setItem('chatSessionId', response.data.sessionId);
         }
       } else {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(response.error || 'Registration failed');
       }
     } catch (err) {
       console.error('Error registering for chat:', err);
@@ -128,42 +125,34 @@ const ChatWidget = () => {
     try {
       const sessionId = localStorage.getItem('chatSessionId');
       
-      const response = await fetch('/api/public/chat/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionId,
-          message: currentMessage
-        })
+      const response = await apiPost('public/chat/message', {
+        sessionId,
+        message: currentMessage
       });
       
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok && response.data) {
         // Update the message to show it's been sent successfully
         setMessages(prev => 
           prev.map(msg => 
             msg.id === newMessage.id 
-              ? { ...msg, pending: false, id: data.messageId || msg.id } 
+              ? { ...msg, pending: false, id: response.data.messageId || msg.id } 
               : msg
           )
         );
         
         // If there's an auto-response, add it
-        if (data.autoResponse) {
+        if (response.data.autoResponse) {
           setTimeout(() => {
             setMessages(prev => [...prev, {
               id: `system-${Date.now()}`,
-              content: data.autoResponse,
+              content: response.data.autoResponse,
               sender: 'system',
               timestamp: new Date().toISOString()
             }]);
           }, 1000); // Slight delay to make it feel natural
         }
       } else {
-        throw new Error(data.error || 'Failed to send message');
+        throw new Error(response.error || 'Failed to send message');
       }
     } catch (err) {
       console.error('Error sending message:', err);

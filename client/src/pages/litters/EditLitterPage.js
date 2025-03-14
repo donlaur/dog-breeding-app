@@ -19,18 +19,33 @@ import { apiGet, apiPut } from '../../utils/apiUtils';
 const EditLitterPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { dogs, breeds: contextBreeds, refreshBreeds } = useContext(DogContext);
+  const { dogs, breeds: contextBreeds, refreshBreeds, refreshDogs } = useContext(DogContext);
   
   // Create a local breeds array that defaults to an empty array if contextBreeds is undefined
   const [breeds, setBreeds] = useState([]);
   const [litter, setLitter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dogsLoaded, setDogsLoaded] = useState(false);
   const isNewLitter = !id || id === 'new';
 
   console.log("EditLitterPage: ID from params:", id);
   console.log("EditLitterPage: isNewLitter:", isNewLitter);
   console.log("EditLitterPage: Context breeds:", contextBreeds);
+  console.log("EditLitterPage: Context dogs count:", dogs ? dogs.length : 0);
+  
+  // Ensure dogs are loaded
+  useEffect(() => {
+    if (!dogs || dogs.length === 0) {
+      console.log("No dogs found in context, refreshing dogs data...");
+      if (refreshDogs) {
+        refreshDogs(true);
+      }
+    } else {
+      console.log("Dogs data available:", dogs.length, "dogs");
+      setDogsLoaded(true);
+    }
+  }, [dogs, refreshDogs]);
   
   // Update local breeds when contextBreeds changes
   useEffect(() => {
@@ -64,9 +79,22 @@ const EditLitterPage = () => {
     }
   }, [litter, breeds]);
   
-  // Filter dogs by gender for sire and dam options
-  const sireOptions = dogs.filter((d) => d.gender === "Male");
-  const damOptions = dogs.filter((d) => d.gender === "Female");
+  // Filter dogs by gender for sire and dam options and sort by call_name
+  const sireOptions = dogsLoaded ? dogs
+    .filter((d) => d.gender === "Male")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }) : [];
+    
+  const damOptions = dogsLoaded ? dogs
+    .filter((d) => d.gender === "Female")
+    .sort((a, b) => {
+      const nameA = (a.call_name || a.name || '').toLowerCase();
+      const nameB = (b.call_name || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }) : [];
   
   // Debug logging
   console.log("Available breeds:", breeds);
@@ -183,64 +211,57 @@ const EditLitterPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 2 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
-  }
-
-  if (!litter) {
-    return (
-      <Box sx={{ p: 2 }}>
-        <Alert severity="error">Could not load litter details.</Alert>
-      </Box>
-    );
-  }
-
-  // Debug the litter data being passed to the form
-  console.log("Litter data being passed to form:", litter);
-  console.log("Breed ID type:", typeof litter.breed_id, "Value:", litter.breed_id);
-
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="lg">
       <Box sx={{ mt: 3, mb: 4 }}>
         <Breadcrumbs 
           separator={<NavigateNextIcon fontSize="small" />}
           aria-label="breadcrumb"
         >
-          <Link 
-            to="/dashboard/litters"
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
+          <Link to="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
+            Dashboard
+          </Link>
+          <Link to="/dashboard/litters" style={{ textDecoration: 'none', color: 'inherit' }}>
             Litters
           </Link>
-          <Typography color="text.primary">Edit Litter</Typography>
+          <Typography color="text.primary">
+            {isNewLitter ? "New Litter" : "Edit Litter"}
+          </Typography>
         </Breadcrumbs>
-
-        <Typography variant="h4" component="h1" sx={{ mt: 2, mb: 4 }}>
-          Edit Litter: {litter.litter_name || `Litter #${id}`}
+      </Box>
+      
+      <Paper elevation={3} sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          {isNewLitter ? "Create New Litter" : `Edit Litter: ${litter?.litter_name || ''}`}
         </Typography>
-
-        <Paper sx={{ p: 3 }}>
-          <LitterForm
-            onSave={handleSave}
-            initialData={litter}
-            breedOptions={breeds || []}
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : !dogsLoaded ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3, flexDirection: 'column', alignItems: 'center' }}>
+            <CircularProgress sx={{ mb: 2 }} />
+            <Typography>Loading dogs data...</Typography>
+          </Box>
+        ) : litter ? (
+          <LitterForm 
+            onSave={handleSave} 
+            initialData={litter} 
+            breedOptions={breeds} 
             sireOptions={sireOptions}
             damOptions={damOptions}
           />
-        </Paper>
-      </Box>
+        ) : (
+          <Alert severity="error">Failed to load litter data</Alert>
+        )}
+      </Paper>
     </Container>
   );
 };

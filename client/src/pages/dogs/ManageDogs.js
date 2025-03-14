@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiDelete } from "../../utils/apiUtils";
 import { 
   Box,
   Card,
@@ -98,17 +99,14 @@ const ManageDogs = () => {
     try {
       setDeleteLoading(true);
       
-      const response = await fetch(`${API_URL}/dogs/${dogId}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`dogs/${dogId}`);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        showSuccess(`Successfully deleted dog "${dogName || 'Unknown'}"`);
+        refreshDogs();
+      } else {
+        throw new Error(response.error || "Failed to delete dog");
       }
-      
-      showSuccess(`Successfully deleted dog "${dogName || 'Unknown'}"`);
-      refreshDogs();
       
     } catch (error) {
       debugError("Error deleting dog:", error);
