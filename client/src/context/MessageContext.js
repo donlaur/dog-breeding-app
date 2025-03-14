@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
+import { API_URL, debugLog, debugError } from '../config';
 
 export const MessageContext = createContext();
 
@@ -16,89 +18,112 @@ export const MessageProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Helper function for authenticated API calls
-  const fetchWithAuth = useCallback(async (endpoint, options = {}) => {
+  // Use API utility functions for API calls
+  const messagesApi = useCallback(async (endpoint, method = 'GET', data = null) => {
     if (!isAuthenticated) {
       throw new Error('User not authenticated');
     }
     
     try {
-      const token = await getToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...(options.headers || {})
-      };
+      const fullEndpoint = `messages/${endpoint}`;
+      debugLog(`Making ${method} request to ${fullEndpoint}`, data);
       
-      const response = await fetch(`/api/messages/${endpoint}`, {
-        ...options,
-        headers
-      });
+      let response;
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
+      switch (method) {
+        case 'GET': {
+          response = await apiGet(fullEndpoint);
+          break;
+        }
+        case 'POST': {
+          response = await apiPost(fullEndpoint, data);
+          break;
+        }
+        case 'PUT': {
+          response = await apiPut(fullEndpoint, data);
+          break;
+        }
+        case 'DELETE': {
+          response = await apiDelete(fullEndpoint);
+          break;
+        }
+        default: {
+          throw new Error(`Unsupported HTTP method: ${method}`);
+        }
       }
       
-      return data;
+      if (!response.ok) {
+        throw new Error(response.error || 'API request failed');
+      }
+      
+      return response.data;
     } catch (error) {
-      console.error(`Error fetching from /api/messages/${endpoint}:`, error);
+      debugError(`Error in messagesApi for ${endpoint}:`, error);
       throw error;
     }
-  }, [isAuthenticated, getToken]);
+  }, [isAuthenticated]);
 
   // Conversations
   const fetchConversations = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth('conversations');
-      if (response.success) {
-        setConversations(response.data);
+      setError(null);
+      
+      debugLog('Fetching conversations');
+      const data = await messagesApi('conversations');
+      
+      if (data) {
+        setConversations(data);
         
         // Calculate unread count
-        const unreadTotal = response.data.reduce((total, conv) => total + (conv.unread_count || 0), 0);
+        const unreadTotal = data.reduce((total, conv) => total + (conv.unread_count || 0), 0);
         setUnreadCount(unreadTotal);
+        debugLog(`Updated conversations: ${data.length}, unread count: ${unreadTotal}`);
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error fetching conversations:', error);
+      debugError('Error fetching conversations:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [messagesApi]);
 
   const createConversation = useCallback(async (conversationData) => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth('conversations', {
-        method: 'POST',
-        body: JSON.stringify(conversationData)
-      });
+      setError(null);
       
-      if (response.success) {
+      debugLog('Creating new conversation:', conversationData);
+      const data = await messagesApi('conversations', 'POST', conversationData);
+      
+      if (data) {
         // Update local state
-        setConversations(prev => [response.data, ...prev]);
-        return response.data;
+        setConversations(prev => [data, ...prev]);
+        debugLog('Conversation created successfully:', data);
+        return data;
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error creating conversation:', error);
+      debugError('Error creating conversation:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth]);
+  }, [messagesApi]);
 
   // Messages for a specific conversation
   const fetchMessages = useCallback(async (conversationId) => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth(`conversations/${conversationId}/messages`);
-      if (response.success) {
+      setError(null);
+      
+      debugLog(`Fetching messages for conversation ${conversationId}`);
+      const data = await messagesApi(`conversations/${conversationId}/messages`);
+      
+      if (data) {
         setMessages(prev => ({
           ...prev,
-          [conversationId]: response.data
+          [conversationId]: data
         }));
         
         // Set as current conversation
@@ -119,56 +144,56 @@ export const MessageProvider = ({ children }) => {
           conv.id === conversationId ? total : total + (conv.unread_count || 0), 0);
         setUnreadCount(unreadTotal);
         
-        return response.data;
+        return data;
       }
     } catch (error) {
       setError(error.message);
-      console.error(`Error fetching messages for conversation ${conversationId}:`, error);
+      debugError(`Error fetching messages for conversation ${conversationId}:`, error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, conversations]);
+  }, [messagesApi, conversations]);
 
   const sendMessage = useCallback(async (conversationId, messageContent) => {
     try {
       setIsLoading(true);
-      const response = await fetchWithAuth(`conversations/${conversationId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({
-          content: messageContent,
-          sender_id: userId
-        })
+      setError(null);
+      
+      debugLog(`Sending message to conversation ${conversationId}:`, messageContent);
+      const data = await messagesApi(`conversations/${conversationId}/messages`, 'POST', {
+        content: messageContent,
+        sender_id: userId
       });
       
-      if (response.success) {
+      if (data) {
         // Update local state
         setMessages(prev => {
           const conversationMessages = prev[conversationId] || [];
           return {
             ...prev,
-            [conversationId]: [...conversationMessages, response.data]
+            [conversationId]: [...conversationMessages, data]
           };
         });
-        return response.data;
+        debugLog('Message sent successfully:', data);
+        return data;
       }
     } catch (error) {
       setError(error.message);
-      console.error('Error sending message:', error);
+      debugError('Error sending message:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, userId]);
+  }, [messagesApi, userId]);
 
   // Mark a conversation as read
   const markConversationAsRead = useCallback(async (conversationId) => {
     try {
-      const response = await fetchWithAuth(`conversations/${conversationId}/read`, {
-        method: 'PUT'
-      });
+      debugLog(`Marking conversation ${conversationId} as read`);
+      const data = await messagesApi(`conversations/${conversationId}/read`, 'PUT');
       
-      if (response.success) {
+      if (data) {
         // Update local state
         setConversations(prev => 
           prev.map(conv => {
@@ -183,11 +208,12 @@ export const MessageProvider = ({ children }) => {
         const unreadTotal = conversations.reduce((total, conv) => 
           conv.id === conversationId ? total : total + (conv.unread_count || 0), 0);
         setUnreadCount(unreadTotal);
+        debugLog(`Conversation ${conversationId} marked as read`);
       }
     } catch (error) {
-      console.error(`Error marking conversation ${conversationId} as read:`, error);
+      debugError(`Error marking conversation ${conversationId} as read:`, error);
     }
-  }, [fetchWithAuth, conversations]);
+  }, [messagesApi, conversations]);
 
   // Fetch initial data when authenticated
   useEffect(() => {
@@ -196,19 +222,37 @@ export const MessageProvider = ({ children }) => {
     }
   }, [isAuthenticated, fetchConversations]);
 
+  // Poll for new messages
+  useEffect(() => {
+    let intervalId;
+    
+    if (isAuthenticated) {
+      // Check for new messages every 30 seconds
+      intervalId = setInterval(() => {
+        fetchConversations();
+        
+        // Also update current conversation messages if one is selected
+        if (currentConversation) {
+          fetchMessages(currentConversation);
+        }
+      }, 30000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isAuthenticated, currentConversation, fetchConversations, fetchMessages]);
+
   // Context value
   const contextValue = {
-    // Data states
     conversations,
     messages,
     unreadCount,
     currentConversation,
-    
-    // Status
     isLoading,
     error,
-    
-    // Functions
     fetchConversations,
     createConversation,
     fetchMessages,
@@ -216,7 +260,7 @@ export const MessageProvider = ({ children }) => {
     markConversationAsRead,
     setCurrentConversation
   };
-
+  
   return (
     <MessageContext.Provider value={contextValue}>
       {children}
@@ -224,4 +268,5 @@ export const MessageProvider = ({ children }) => {
   );
 };
 
+// Custom hook for easy context usage
 export const useMessage = () => useContext(MessageContext);
