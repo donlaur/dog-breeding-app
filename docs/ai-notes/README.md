@@ -27,6 +27,7 @@ Each file follows a similar structure:
 - [AI Feature Opportunities](ai-feature-opportunities.md) - Practical AI integrations for the breeding application (Added March 6, 2025)
 - [Image Handling Improvements](image-handling-improvements.md) - Robust image fallback system for missing or broken images (Added March 6, 2025)
 - [Customer Account Management](customer-account-management.md) - Comprehensive customer journey from prospect to puppy owner (Added March 6, 2025)
+- [API Standardization](api-standardization.md) - Standardization of API communication patterns and error handling (Added March 14, 2025)
 
 ## Performance Optimization Strategies (March 6, 2025)
 
