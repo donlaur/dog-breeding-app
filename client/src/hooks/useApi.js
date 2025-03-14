@@ -1,85 +1,77 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiPut, apiDelete, sanitizeApiData } from '../utils/apiUtils';
 
 const useApi = () => {
   const { token } = useAuth();
-  const apiBaseUrl = API_URL || '/api';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Generic fetch function - memoized with useCallback
-  const fetchWithAuth = useCallback(async (endpoint, options = {}) => {
-    const url = endpoint.startsWith('http') ? endpoint : `${apiBaseUrl}${endpoint}`;
-    
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+  // Generic fetch function using apiUtils methods - memoized with useCallback
+  const fetchWithAuth = useCallback(async (endpoint, method, data = null) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(url, {
-        ...options,
-        headers
-      });
+      let response;
+      let sanitizedPostData;
+      let sanitizedPutData;
       
-      if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `API request failed with status ${response.status}`);
-        } catch (jsonError) {
-          // If response.json() fails, use a generic error message with status code
-          throw new Error(`API request failed with status ${response.status}`);
-        }
+      switch (method) {
+        case 'GET':
+          response = await apiGet(endpoint);
+          break;
+        case 'POST':
+          // Sanitize the data before sending to the server
+          sanitizedPostData = sanitizeApiData(data);
+          response = await apiPost(endpoint, sanitizedPostData);
+          break;
+        case 'PUT':
+          // Sanitize the data before sending to the server
+          sanitizedPutData = sanitizeApiData(data);
+          response = await apiPut(endpoint, sanitizedPutData);
+          break;
+        case 'DELETE':
+          response = await apiDelete(endpoint);
+          break;
+        default:
+          throw new Error(`Unsupported method: ${method}`);
       }
       
-      // Use try/catch for response.json() to handle invalid JSON
-      try {
-        const data = await response.json();
-        return data;
-      } catch (jsonParseError) {
-        console.error('Failed to parse JSON response:', jsonParseError);
-        throw new Error('Invalid response format from API');
+      if (!response.success) {
+        throw new Error(response.error || 'API request failed');
       }
+      
+      return response.data;
     } catch (err) {
       setError(err.message);
+      debugError(`API Error (${method} ${endpoint}):`, err);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [apiBaseUrl, token]);
+  }, [token]);
   
   // HTTP methods
-  const get = useCallback((endpoint) => fetchWithAuth(endpoint, { method: 'GET' }), [fetchWithAuth]);
+  const get = useCallback((endpoint) => 
+    fetchWithAuth(endpoint, 'GET'), [fetchWithAuth]);
   
   const post = useCallback((endpoint, data) => 
-    fetchWithAuth(endpoint, { 
-      method: 'POST', 
-      body: JSON.stringify(data) 
-    }), [fetchWithAuth]);
+    fetchWithAuth(endpoint, 'POST', data), [fetchWithAuth]);
   
   const put = useCallback((endpoint, data) => 
-    fetchWithAuth(endpoint, { 
-      method: 'PUT', 
-      body: JSON.stringify(data) 
-    }), [fetchWithAuth]);
+    fetchWithAuth(endpoint, 'PUT', data), [fetchWithAuth]);
   
   const remove = useCallback((endpoint) => 
-    fetchWithAuth(endpoint, { method: 'DELETE' }), [fetchWithAuth]);
+    fetchWithAuth(endpoint, 'DELETE'), [fetchWithAuth]);
   
   // Additional specialized API calls
   const getFullDogData = useCallback(async () => {
     try {
-      return await get('/dogs/full');
+      return await get('dogs/full');
     } catch (error) {
-      console.error('API Error:', error);
+      debugError('API Error in getFullDogData:', error);
       return { ok: false, error: { message: error.message } };
     }
   }, [get]);

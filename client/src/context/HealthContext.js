@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { useAuth } from './AuthContext';
 import { useDog } from './DogContext';
 import { formatISO } from 'date-fns';
@@ -747,6 +748,10 @@ export const HealthProvider = ({ children }) => {
       {children}
     </HealthContext.Provider>
   );
+};
+
+HealthProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export const useHealth = () => useContext(HealthContext);
