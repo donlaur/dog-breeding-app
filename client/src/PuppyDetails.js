@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { apiGet } from './utils/apiUtils';
+import { debugLog, debugError } from './config';
 
 function PuppyDetails() {
   let { id } = useParams();
@@ -8,16 +10,20 @@ function PuppyDetails() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:5000/api/puppy/${id}`)
-      .then(response => response.json())
-      .then(data => {
+    const fetchPuppyDetails = async () => {
+      try {
+        const data = await apiGet(`/puppy/${id}`);
+        debugLog('Puppy details fetched:', data);
         setPuppy(data);
         setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
+      } catch (err) {
+        debugError('Error fetching puppy details:', err);
+        setError(err.message || 'Failed to fetch puppy details');
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchPuppyDetails();
   }, [id]);
 
   if (loading) return <p className="text-center mt-4">Loading puppy details...</p>;

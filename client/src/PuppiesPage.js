@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { apiGet } from './utils/apiUtils';
+import { debugLog, debugError } from './config';
 
 function PuppiesPage() {
   const [puppies, setPuppies] = useState([]);
@@ -7,16 +9,19 @@ function PuppiesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/puppies')
-      .then(response => response.json())
-      .then(data => {
+    const fetchPuppies = async () => {
+      try {
+        const data = await apiGet('/puppies');
         setPuppies(data);
         setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
+      } catch (err) {
+        debugError('Error fetching puppies:', err);
+        setError(err.message || 'Failed to fetch puppies');
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchPuppies();
   }, []);
 
   const handleImageError = (e) => {
@@ -39,13 +44,13 @@ function PuppiesPage() {
         {puppies.map((puppy) => (
           <div key={puppy.id} className="col-md-4">
             <div className="card shadow-sm p-3 mb-4">
-              {/* ✅ If the image fails to load, fall back to the FontAwesome icon */}
+              {/* If the image fails to load, fall back to the FontAwesome icon */}
               {puppy.image ? (
                 <img
                   src={`/images/${puppy.image}`}
                   alt={puppy.name}
                   className="card-img-top"
-                  onError={handleImageError}  // ✅ Handles broken images
+                  onError={handleImageError}  // Handles broken images
                 />
               ) : (
                 <div className="text-center py-3">
