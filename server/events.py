@@ -39,7 +39,7 @@ def create_events_bp(db: DatabaseInterface) -> Blueprint:
                 })
             else:
                 # No date filter, get all events
-events = db.find_by_field_values("events")
+                events = db.find_by_field_values("events")
             
             # Sort events by start date
             events.sort(key=lambda x: x.get('start_date', ''))
@@ -345,7 +345,7 @@ events = db.find_by_field_values("events")
     def get_event_rules():
         try:
             debug_log("Fetching all event rules...")
-rules = db.find_by_field_values("event_rules")
+            rules = db.find_by_field_values("event_rules")
             return jsonify(rules)
         except Exception as e:
             debug_log(f"Error fetching event rules: {str(e)}")
