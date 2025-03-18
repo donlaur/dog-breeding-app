@@ -109,21 +109,25 @@ class SupabaseDatabase(DatabaseInterface):
             return []
     
     @retry_on_disconnect(max_retries=5, delay=2)
-    def find_by_field_values(self, table: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Find records in a table by multiple field values (AND condition)"""
+    def find_by_field_values(self, table_name: str, filters: dict = None):
+        """
+        Find records in a table matching the given field values
+        """
+        if filters is None:
+            filters = {}
+        
         try:
-            query = self.supabase.table(table).select("*")
+            query = self.supabase.table(table_name)
             
-            # Apply each filter as an AND condition
+            # Apply filters if any
             for field, value in filters.items():
                 query = query.eq(field, value)
             
             response = query.execute()
-            debug_log(f"Found {len(response.data)} records in {table} with filters {filters}")
             return response.data
         except Exception as e:
-            debug_log(f"Error in find_by_field_values operation for table {table}, filters {filters}: {str(e)}")
-            return []
+            print(f"Error in find_by_field_values: {str(e)}")
+            raise
     
     @retry_on_disconnect(max_retries=5, delay=2)
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
