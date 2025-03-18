@@ -345,3 +345,60 @@ def test_applications_api_contract(client, mock_db):
         assert "applicant_name" in submission
         assert "applicant_email" in submission
         assert "submission_date" in submission
+
+def test_database_function_call_patterns():
+    """Test that all API modules use the correct database function call patterns."""
+    # Mock the database interface
+    mock_db = MagicMock()
+
+    # Import all API modules and patch their db dependencies
+    from .. import dogs, litters, puppies, breeds, health, applications
+
+    # Store original db references
+    original_dogs_db = dogs.db
+    original_litters_db = litters.db
+    original_puppies_db = puppies.db
+    original_breeds_db = breeds.db
+    original_health_db = health.db
+    original_applications_db = applications.db
+
+    try:
+        # Replace with mocks
+        dogs.db = mock_db
+        litters.db = mock_db
+        puppies.db = mock_db
+        breeds.db = mock_db
+        health.db = mock_db
+        applications.db = mock_db
+
+        # Test Dogs API
+        dogs.get_dogs()
+        mock_db.find_by_field_values.assert_called_with("dogs", {})
+        mock_db.reset_mock()
+
+        # Test Litters API
+        litters.get_all_litters()
+        mock_db.find_by_field_values.assert_called_with("litters", {})
+        mock_db.reset_mock()
+
+        # Test Puppies API with no parameters
+        puppies.get_all_puppies()
+        mock_db.find_by_field_values.assert_called_with("puppies", {})
+        mock_db.reset_mock()
+
+        # Test Breeds API
+        breeds.get_all_breeds()
+        mock_db.find_by_field_values.assert_called_with("breeds", {})
+        mock_db.reset_mock()
+
+        # Verify no db.find() calls were made instead of find_by_field_values
+        assert not mock_db.find.called, "db.find() was called when find_by_field_values should be used"
+
+    finally:
+        # Restore original db references
+        dogs.db = original_dogs_db
+        litters.db = original_litters_db
+        puppies.db = original_puppies_db
+        breeds.db = original_breeds_db
+        health.db = original_health_db
+        applications.db = original_applications_db

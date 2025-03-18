@@ -19,6 +19,12 @@ PATTERNS = {
                   "Please use find_by_field_values() for retrieving multiple records.",
         "severity": "ERROR"
     },
+    "find_by_field_values_without_filters": {
+        "pattern": r"\.find_by_field_values\s*\(\s*['\"](\w+)['\"][ \t]*\)",
+        "message": "Using db.find_by_field_values() without a filters parameter. "
+                  "Please provide an empty dictionary {} for no filters.",
+        "severity": "ERROR"
+    },
     "dogs_instead_of_puppies_for_litter": {
         "pattern": r"\.find_by_field_values\s*\(\s*['\"]dogs['\"].*?['\"]litter_id['\"]",
         "message": "Querying 'dogs' table with litter_id. "
@@ -41,6 +47,7 @@ def parse_args():
     parser.add_argument("--dir", default="../", help="Directory to scan (default: ../)")
     parser.add_argument("--fix", action="store_true", help="Attempt to fix issues automatically")
     parser.add_argument("--verbose", action="store_true", help="Show more detailed output")
+    parser.add_argument("--exit-on-error", action="store_true", help="Exit with non-zero code if errors are found")
     return parser.parse_args()
 
 def find_python_files(directory: str) -> List[str]:
@@ -95,6 +102,11 @@ def suggest_fix(violation: Dict) -> Tuple[bool, str]:
     if pattern_name == "find_instead_of_find_by_field_values":
         # Replace db.find with db.find_by_field_values
         fixed = re.sub(r"\.find\s*\(", ".find_by_field_values(", content)
+        return True, fixed
+    
+    elif pattern_name == "find_by_field_values_without_filters":
+        # Add an empty dictionary as the filters parameter
+        fixed = re.sub(r"\.find_by_field_values\s*\(\s*['\"](\w+)['\"][ \t]*\)", r".find_by_field_values('\1', {})", content)
         return True, fixed
     
     elif pattern_name == "dogs_instead_of_puppies_for_litter":
@@ -166,6 +178,10 @@ def main():
     if args.fix:
         print(f"Fixed {fixed_count} issues automatically.")
     
+    # Return non-zero exit code if errors are found and exit-on-error flag is set
+    if args.exit_on_error and error_count > 0:
+        return 1
+
     # Return non-zero exit code if there are errors
     if error_count > 0:
         return 1

@@ -109,7 +109,7 @@ class SupabaseDatabase(DatabaseInterface):
             return []
     
     @retry_on_disconnect(max_retries=5, delay=2)
-    def find_by_field_values(self, table_name: str, filters: dict = None):
+    def find_by_field_values(self, table_name, filters=None, select="*"):
         """
         Find records in a table matching the given field values
         """
@@ -117,7 +117,7 @@ class SupabaseDatabase(DatabaseInterface):
             filters = {}
         
         try:
-            query = self.supabase.table(table_name)
+            query = self.supabase.table(table_name).select(select)
             
             # Apply filters if any
             for field, value in filters.items():

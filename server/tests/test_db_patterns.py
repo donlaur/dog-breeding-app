@@ -169,7 +169,7 @@ def test_puppies_dogs_separation():
     # Test function that simulates an incorrect implementation
     def get_litter_puppies_incorrect(db, litter_id):
         # Incorrectly queries the dogs table
-return db.find_by_field_values("puppies", {"litter_id": litter_id})
+        return db.find_by_field_values("dogs", {"litter_id": litter_id})
     
     # Call the function
     get_litter_puppies_incorrect(mock_db, 1)
@@ -178,3 +178,33 @@ return db.find_by_field_values("puppies", {"litter_id": litter_id})
     mock_db.find_by_field_values.assert_called_once_with("dogs", {"litter_id": 1})
     
     # This test demonstrates how to detect the incorrect pattern
+
+def test_find_by_field_values_requires_filters():
+    """Test that find_by_field_values is always called with a filters parameter."""
+    # Create a mock database
+    mock_db = MagicMock()
+
+    # Test functions that simulate different API endpoints
+
+    # Correct usage with filters
+    def get_all_with_empty_filters(db):
+        return db.find_by_field_values("table", {})
+
+    # Correct usage with specific filters
+    def get_filtered_records(db, filter_value):
+        return db.find_by_field_values("table", {"field": filter_value})
+
+    # Call the functions
+    get_all_with_empty_filters(mock_db)
+    get_filtered_records(mock_db, "value")
+
+    # Verify that find_by_field_values was called with the correct arguments
+    assert mock_db.find_by_field_values.call_count == 2
+    mock_db.find_by_field_values.assert_has_calls([
+        call("table", {}),
+        call("table", {"field": "value"})
+    ])
+
+    # Test that calling without filters parameter raises TypeError
+    with pytest.raises(TypeError):
+        mock_db.find_by_field_values("table")
