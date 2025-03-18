@@ -19,6 +19,20 @@ The Dog Breeding App uses a clear separation between different entities in its d
 └─────────────┘     └─────────────┘     │ status      │
                                         │ ...         │
                                         └─────────────┘
+
+┌─────────────────┐     ┌───────────────────────┐     ┌────────────────────┐
+│    Customers    │     │ CustomerCommunication │     │  CustomerContract  │
+├─────────────────┤     ├───────────────────────┤     ├────────────────────┤
+│ id              │◄────┤ customer_id           │     │ id                 │
+│ name            │     │ communication_type    │     │ customer_id        │
+│ email           │     │ subject              │     │ contract_type      │
+│ phone           │     │ content              │     │ start_date         │
+│ lead_status     │     │ initiated_by         │     │ end_date           │
+│ lead_source     │     │ follow_up_date       │     │ amount             │
+│ pref_contact    │     │ notes                │     │ status             │
+│ interests       │     │ created_at           │     │ terms              │
+│ ...             │     │ ...                  │     │ file_path          │
+└─────────────────┘     └───────────────────────┘     └────────────────────┘
 ```
 
 ## Key Tables and Relationships
@@ -43,6 +57,26 @@ The Dog Breeding App uses a clear separation between different entities in its d
 - Key fields: `litter_id`, `name`, `gender`, `birth_date`, `color`, `status`
 - Relationships:
   - `litter_id` references `Litters.id` (the litter the puppy belongs to)
+
+### Customers Table
+- Stores information about customers
+- Primary identifier: `id`
+- Key fields: `name`, `email`, `phone`, `lead_status`, `lead_source`
+- Used for: Managing customer interactions and sales
+
+### CustomerCommunication Table
+- Stores information about customer communications
+- Primary identifier: `id`
+- Key fields: `customer_id`, `communication_type`, `subject`, `content`
+- Relationships:
+  - `customer_id` references `Customers.id` (the customer)
+
+### CustomerContract Table
+- Stores information about customer contracts
+- Primary identifier: `id`
+- Key fields: `customer_id`, `contract_type`, `start_date`, `end_date`, `amount`
+- Relationships:
+  - `customer_id` references `Customers.id` (the customer)
 
 ## Critical Distinction: Dogs vs. Puppies
 

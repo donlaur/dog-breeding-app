@@ -172,7 +172,7 @@ class Customer:
         return response.data[0] if response.data else None
     
     @staticmethod
-    def create_customer(name, email=None, phone=None, address=None, city=None, state=None, zip_code=None, country=None, notes=None):
+    def create_customer(name, email=None, phone=None, address=None, city=None, state=None, zip_code=None, country=None, notes=None, lead_status=None, lead_source=None, preferred_contact_method=None, interests=None):
         data = {
             "name": name,
             "email": email,
@@ -183,6 +183,10 @@ class Customer:
             "zip_code": zip_code,
             "country": country,
             "notes": notes,
+            "lead_status": lead_status,
+            "lead_source": lead_source,
+            "preferred_contact_method": preferred_contact_method,
+            "interests": interests,
             "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         }
@@ -204,6 +208,133 @@ class Customer:
     def get_customer_puppies(customer_id):
         response = supabase.table("puppies").select("*").eq("customer_id", customer_id).execute()
         return response.data if response.data else []
+        
+    @staticmethod
+    def get_by_lead_status(lead_status):
+        response = supabase.table("customers").select("*").eq("lead_status", lead_status).execute()
+        return response.data if response.data else []
+        
+    @staticmethod
+    def get_by_lead_source(lead_source):
+        response = supabase.table("customers").select("*").eq("lead_source", lead_source).execute()
+        return response.data if response.data else []
+        
+    @staticmethod
+    def get_recent_leads(days=30):
+        # Calculate date from days ago
+        from datetime import timedelta
+        date_from = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        response = supabase.table("customers").select("*").gte("created_at", date_from).execute()
+        return response.data if response.data else []
+
+# Customer Communication Model
+class CustomerCommunication:
+    @staticmethod
+    def get_all():
+        response = supabase.table("customer_communications").select("*").execute()
+        return response.data if response.data else []
+    
+    @staticmethod
+    def get_by_id(communication_id):
+        response = supabase.table("customer_communications").select("*").eq("id", communication_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def get_for_customer(customer_id):
+        response = supabase.table("customer_communications").select("*").eq("customer_id", customer_id).order("created_at", desc=True).execute()
+        return response.data if response.data else []
+    
+    @staticmethod
+    def create_communication(customer_id, communication_type, subject=None, content=None, initiated_by=None, follow_up_date=None, notes=None):
+        data = {
+            "customer_id": customer_id,
+            "communication_type": communication_type,
+            "subject": subject,
+            "content": content,
+            "initiated_by": initiated_by,
+            "follow_up_date": follow_up_date.strftime("%Y-%m-%d %H:%M:%S") if follow_up_date else None,
+            "notes": notes,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        response = supabase.table("customer_communications").insert(data).execute()
+        return response.data
+    
+    @staticmethod
+    def update_communication(communication_id, data):
+        if "follow_up_date" in data and data["follow_up_date"] and isinstance(data["follow_up_date"], datetime):
+            data["follow_up_date"] = data["follow_up_date"].strftime("%Y-%m-%d %H:%M:%S")
+            
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("customer_communications").update(data).eq("id", communication_id).execute()
+        return response.data
+    
+    @staticmethod
+    def delete_communication(communication_id):
+        response = supabase.table("customer_communications").delete().eq("id", communication_id).execute()
+        return response.data
+    
+    @staticmethod
+    def get_upcoming_follow_ups(days=7):
+        # Calculate date range
+        from datetime import timedelta
+        date_from = datetime.utcnow().strftime("%Y-%m-%d")
+        date_to = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        response = supabase.table("customer_communications").select("*").gte("follow_up_date", date_from).lte("follow_up_date", date_to).execute()
+        return response.data if response.data else []
+
+# Customer Contract Model
+class CustomerContract:
+    @staticmethod
+    def get_all():
+        response = supabase.table("customer_contracts").select("*").execute()
+        return response.data if response.data else []
+    
+    @staticmethod
+    def get_by_id(contract_id):
+        response = supabase.table("customer_contracts").select("*").eq("id", contract_id).execute()
+        return response.data[0] if response.data else None
+    
+    @staticmethod
+    def get_for_customer(customer_id):
+        response = supabase.table("customer_contracts").select("*").eq("customer_id", customer_id).execute()
+        return response.data if response.data else []
+    
+    @staticmethod
+    def create_contract(customer_id, contract_type, start_date, end_date=None, amount=None, status="draft", terms=None, file_path=None):
+        data = {
+            "customer_id": customer_id,
+            "contract_type": contract_type,
+            "start_date": start_date.strftime("%Y-%m-%d") if isinstance(start_date, datetime) else start_date,
+            "end_date": end_date.strftime("%Y-%m-%d") if isinstance(end_date, datetime) and end_date else end_date,
+            "amount": amount,
+            "status": status,
+            "terms": terms,
+            "file_path": file_path,
+            "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        response = supabase.table("customer_contracts").insert(data).execute()
+        return response.data
+    
+    @staticmethod
+    def update_contract(contract_id, data):
+        if "start_date" in data and data["start_date"] and isinstance(data["start_date"], datetime):
+            data["start_date"] = data["start_date"].strftime("%Y-%m-%d")
+            
+        if "end_date" in data and data["end_date"] and isinstance(data["end_date"], datetime):
+            data["end_date"] = data["end_date"].strftime("%Y-%m-%d")
+            
+        data["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        response = supabase.table("customer_contracts").update(data).eq("id", contract_id).execute()
+        return response.data
+    
+    @staticmethod
+    def delete_contract(contract_id):
+        response = supabase.table("customer_contracts").delete().eq("id", contract_id).execute()
+        return response.data
 
 # Health Record Model
 class HealthRecord:

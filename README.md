@@ -58,6 +58,29 @@ This application helps breeders track dogs, litters, puppies, health records, an
 - `POST /api/events/generate/litter/<litter_id>` — Generate events for a litter
 - `POST /api/events/generate/birthdays` — Generate birthday events for all dogs
 
+**Customers** (`/api/customers`)
+- `GET /api/customers` — Retrieve all customers
+- `GET /api/customers?lead_status=X&lead_source=Y` — Filter customers by lead status or source
+- `GET /api/customers/<id>` — Retrieve a specific customer
+- `POST /api/customers` — Create a new customer
+- `PUT /api/customers/<id>` — Update an existing customer
+- `DELETE /api/customers/<id>` — Delete a customer
+- `GET /api/customers/recent_leads` — Retrieve recently added leads
+- `GET /api/customers/<id>/puppies` — Get puppies associated with a customer
+
+**Customer Communications** (`/api/customers`)
+- `GET /api/customers/<id>/communications` — Get all communications for a customer
+- `POST /api/customers/<id>/communications` — Create a new communication for a customer
+- `PUT /api/communications/<id>` — Update a communication
+- `DELETE /api/communications/<id>` — Delete a communication
+- `GET /api/communications/upcoming` — Get upcoming follow-ups
+
+**Customer Contracts** (`/api/customers`)
+- `GET /api/customers/<id>/contracts` — Get all contracts for a customer
+- `POST /api/customers/<id>/contracts` — Create a new contract for a customer
+- `PUT /api/contracts/<id>` — Update a contract
+- `DELETE /api/contracts/<id>` — Delete a contract
+
 **Search** (`/api/search`)
 - `GET /api/search` — Search across multiple entity types
   - Query parameters:

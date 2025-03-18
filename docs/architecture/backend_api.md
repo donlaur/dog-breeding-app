@@ -125,3 +125,26 @@ def endpoint():
 - `DELETE /api/notifications/<id>`: Delete a notification
 - `DELETE /api/notifications`: Delete all notifications for the current user
 - `PUT /api/notifications/read-all`: Mark all notifications as read
+
+### Customers
+- `GET /api/customers`: Get all customers
+- `GET /api/customers?lead_status=X&lead_source=Y`: Filter customers by lead status or source
+- `GET /api/customers/<id>`: Get customer by ID
+- `POST /api/customers`: Create a new customer
+- `PUT /api/customers/<id>`: Update a customer
+- `DELETE /api/customers/<id>`: Delete a customer
+- `GET /api/customers/recent_leads`: Get recently added leads
+- `GET /api/customers/<id>/puppies`: Get puppies associated with a customer
+
+### Customer Communications
+- `GET /api/customers/<id>/communications`: Get all communications for a customer
+- `POST /api/customers/<id>/communications`: Create a new communication for a customer
+- `PUT /api/communications/<id>`: Update a communication
+- `DELETE /api/communications/<id>`: Delete a communication
+- `GET /api/communications/upcoming`: Get upcoming follow-ups
+
+### Customer Contracts
+- `GET /api/customers/<id>/contracts`: Get all contracts for a customer
+- `POST /api/customers/<id>/contracts`: Create a new contract for a customer
+- `PUT /api/contracts/<id>`: Update a contract
+- `DELETE /api/contracts/<id>`: Delete a contract
