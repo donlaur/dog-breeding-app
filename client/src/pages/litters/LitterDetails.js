@@ -389,22 +389,6 @@ function LitterDetail() {
           >
             Refresh Data
           </Button>
-          <Button 
-            variant="outlined" 
-            startIcon={<EditIcon />} 
-            onClick={handleEditLitter}
-            sx={{ mr: 2 }}
-          >
-            Edit Litter
-          </Button>
-          <Button 
-            variant="outlined" 
-            color="error" 
-            startIcon={<DeleteIcon />} 
-            onClick={handleDeleteLitter}
-          >
-            Delete Litter
-          </Button>
         </Box>
       </Box>
       
@@ -418,16 +402,6 @@ function LitterDetail() {
             sx={{ ml: 2 }}
           />
         </Typography>
-        <Box>
-          <Button 
-            variant="outlined" 
-            startIcon={<EditIcon />} 
-            onClick={handleEditLitter}
-            sx={{ mr: 2 }}
-          >
-            Edit Litter
-          </Button>
-        </Box>
       </Box>
       
       {litter.num_puppies > 0 && puppies.length === 0 && (
