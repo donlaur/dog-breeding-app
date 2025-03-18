@@ -14,6 +14,7 @@ import {
   Typography
 } from '@mui/material';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet } from '../../utils/apiUtils';
 
 const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   const [dogs, setDogs] = useState({ females: [], males: [] });
@@ -35,7 +36,7 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs`);
+        const response = await apiGet(`dogs`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -221,4 +222,4 @@ const HeatForm = ({ onSave, initialData = null, isEdit = false }) => {
   );
 };
 
-export default HeatForm; 
+export default HeatForm;

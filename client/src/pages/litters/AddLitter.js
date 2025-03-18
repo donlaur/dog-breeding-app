@@ -12,6 +12,7 @@ import {
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import LitterForm from './LitterForm';
 import { API_URL, debugLog, debugError } from '../../config';
+import { apiGet, apiPost } from '../../utils/apiUtils';
 import { useDog } from '../../context/DogContext';
 import { showSuccess, showError, showWarning } from '../../utils/notifications';
 
@@ -30,7 +31,7 @@ const AddLitter = () => {
     const fetchBreeds = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/breeds`);
+        const response = await apiGet(`${API_URL}/breeds`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -60,7 +61,7 @@ const AddLitter = () => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs`);
+        const response = await apiGet(`${API_URL}/dogs`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -89,10 +90,7 @@ const AddLitter = () => {
       
       debugLog("Submitting litter data:", formData);
       
-      const response = await fetch(`${API_URL}/litters`, {
-        method: 'POST',
-        body: formData, // FormData handles the Content-Type header automatically
-      });
+      const response = await apiPost(`${API_URL}/litters`, formData);
       
       if (!response.ok) {
         const errorData = await response.json();

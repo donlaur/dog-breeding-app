@@ -4,6 +4,7 @@ import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './HeatCalendar.css'; // Updated CSS path
 import { API_URL } from '../../config';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../utils/apiUtils';
 import { CircularProgress, Box } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
@@ -24,7 +25,7 @@ const HeatCalendar = ({ heats: propHeats }) => {
 
     const fetchHeats = async () => {
       try {
-        const response = await fetch(`${API_URL}/heats`);
+        const response = await apiGet(`${API_URL}/heats`);
         if (!response.ok) throw new Error('Failed to fetch heats');
         const data = await response.json();
         setHeats(data);
@@ -42,7 +43,7 @@ const HeatCalendar = ({ heats: propHeats }) => {
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
+        const response = await apiGet(`${API_URL}/dogs/`);
         if (!response.ok) throw new Error('Failed to fetch dogs');
         const data = await response.json();
         setDogList(data);

@@ -23,7 +23,7 @@ import {
   Female as FemaleIcon,
   Male as MaleIcon
 } from '@mui/icons-material';
-import { getLitterPuppies } from '../../utils/apiUtils';
+import { getLitterPuppies, apiDelete } from '../../utils/apiUtils';
 import { formatDate } from '../../utils/dateUtils';
 import { showSuccess, showError } from '../../utils/notifications';
 import { API_URL, debugLog, debugError } from '../../config';
@@ -58,9 +58,7 @@ function ManagePuppies() {
 
   const handleDeletePuppy = async (puppyId, puppyName) => {
     try {
-      const response = await fetch(`${API_URL}/litters/puppies/${puppyId}`, {
-        method: 'DELETE',
-      });
+      const response = await apiDelete(`${API_URL}/litters/puppies/${puppyId}`);
       
       if (!response.ok) {
         const errorData = await response.json();

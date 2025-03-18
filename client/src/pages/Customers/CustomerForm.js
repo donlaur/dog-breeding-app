@@ -18,8 +18,8 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
-import { API_URL, debugLog, debugError } from '../../config';
-import { apiPost, apiPut } from '../../utils/apiUtils';
+import { debugLog, debugError } from '../../config';
+import { apiPost, apiPut, apiGet } from '../../utils/apiUtils';
 import { createCustomer, fetchCustomerById, updateCustomer } from '../../utils/customerApiUtils';
 
 // Lead status options
@@ -86,7 +86,7 @@ const CustomerForm = () => {
     setError(null);
     
     try {
-      const response = await apiGet(`${API_URL}/customers/${customerId}`);
+      const response = await apiGet(`customers/${customerId}`);
       
       if (response.success) {
         // Populate form with customer data
@@ -141,20 +141,20 @@ const CustomerForm = () => {
       
       if (isEditMode) {
         // Update existing customer
-        response = await apiPut(`${API_URL}/customers/${customerId}`, formData);
+        response = await apiPut(`customers/${customerId}`, formData);
       } else {
         // Create new customer
-        response = await apiPost(`${API_URL}/customers`, formData);
+        response = await apiPost('customers', formData);
       }
       
       if (response.success) {
         // Navigate to customer detail page or customer list
         if (isEditMode) {
-          navigate(`/customers/${customerId}`);
+          navigate(`/dashboard/customers/${customerId}`);
         } else if (response.data?.id) {
-          navigate(`/customers/${response.data.id}`);
+          navigate(`/dashboard/customers/${response.data.id}`);
         } else {
-          navigate('/customers');
+          navigate('/dashboard/customers');
         }
       } else {
         throw new Error(response.error || 'Failed to save customer');
@@ -179,7 +179,7 @@ const CustomerForm = () => {
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Button 
           startIcon={<ArrowBackIcon />} 
-          onClick={() => navigate(isEditMode ? `/customers/${customerId}` : '/customers')}
+          onClick={() => navigate(isEditMode ? `/dashboard/customers/${customerId}` : '/dashboard/customers')}
           sx={{ mr: 2 }}
         >
           Back

@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { API_URL } from '../../config';
+import { apiGet } from '../../utils/apiUtils';
 import { CircularProgress, Box, Typography, Button } from '@mui/material';
 
 const localizer = momentLocalizer(moment);
@@ -44,7 +45,7 @@ const EventCalendar = ({
         // Fetch custom events from the events API
         if (fetchEvents) {
           try {
-            const eventsResponse = await fetch(`${API_URL}/events/`);
+            const eventsResponse = await apiGet(`events/`);
             if (eventsResponse.ok) {
               const eventsData = await eventsResponse.json();
               
@@ -75,7 +76,7 @@ const EventCalendar = ({
         
         // Fetch heats if requested
         if (fetchHeats) {
-          const heatsResponse = await fetch(`${API_URL}/heats`);
+          const heatsResponse = await apiGet(`heats`);
           if (heatsResponse.ok) {
             const heatsData = await heatsResponse.json();
             // Add heat events
@@ -94,7 +95,7 @@ const EventCalendar = ({
 
         // Fetch litters if requested
         if (fetchLitters) {
-          const littersResponse = await fetch(`${API_URL}/litters/`);
+          const littersResponse = await apiGet(`litters/`);
           if (littersResponse.ok) {
             const littersData = await littersResponse.json();
             // Add litter events like whelp date, go-home date, etc.
@@ -157,7 +158,7 @@ const EventCalendar = ({
   useEffect(() => {
     const fetchDogs = async () => {
       try {
-        const response = await fetch(`${API_URL}/dogs/`);
+        const response = await apiGet(`dogs/`);
         if (!response.ok) throw new Error('Failed to fetch dogs');
         const data = await response.json();
         setDogList(data);

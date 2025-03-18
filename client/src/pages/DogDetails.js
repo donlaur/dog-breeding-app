@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDog } from '../context/DogContext';
 import { formatDate, formatAge } from '../utils/dateUtils';
 import { API_URL, debugLog, debugError } from '../config';
-import { apiGet } from '../utils/apiUtils';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
 import {
   Box,
   Container,
@@ -119,7 +119,7 @@ function DogDetails() {
       try {
         debugLog(`Fetching dog details for ID: ${dogId}`);
         // Add a cache-busting parameter to avoid cached responses
-        const response = await fetch(`${API_URL}/dogs/${dogId}?_=${Date.now()}`);
+        const response = await apiGet(`${API_URL}/dogs/${dogId}?_=${Date.now()}`);
         
         if (!response.ok) {
           const status = response.status;
@@ -378,7 +378,7 @@ function DogDetails() {
       console.log(`Fetching ${gender === 'Male' ? 'sired' : 'dam'} litters for dog ID: ${dogId}`);
       
       // First get all litters
-      const response = await fetch(`${API_URL}/litters`);
+      const response = await apiGet(`${API_URL}/litters`);
       
       if (!response.ok) {
         console.error(`Error fetching litters: ${response.status}`);

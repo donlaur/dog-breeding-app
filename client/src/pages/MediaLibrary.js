@@ -36,7 +36,8 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon
 } from '@mui/icons-material';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '../utils/apiUtils';
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
@@ -79,9 +80,9 @@ const MediaLibrary = () => {
   const fetchEntities = async () => {
     try {
       const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        fetch(`${API_URL}/dogs`),
-        fetch(`${API_URL}/litters`),
-        fetch(`${API_URL}/puppies`)
+        apiGet(`${API_URL}/dogs`),
+        apiGet(`${API_URL}/litters`),
+        apiGet(`${API_URL}/puppies`)
       ]);
       
       if (dogsRes.ok) {
@@ -140,7 +141,7 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its photos
       const photosPromises = entities.map(entity => 
-        fetch(`${API_URL}/photos/${entityType}/${entity.id}`)
+        apiGet(`${API_URL}/photos/${entityType}/${entity.id}`)
           .then(res => res.ok ? res.json() : [])
           .then(photos => photos.map(photo => ({
             ...photo,
@@ -194,7 +195,7 @@ const MediaLibrary = () => {
       
       // For each entity, fetch its documents
       const docsPromises = entities.map(entity => 
-        fetch(`${API_URL}/files/documents/${entityType}/${entity.id}`)
+        apiGet(`${API_URL}/files/documents/${entityType}/${entity.id}`)
           .then(res => res.ok ? res.json() : [])
           .then(docs => docs.map(doc => ({
             ...doc,
@@ -261,10 +262,7 @@ const MediaLibrary = () => {
         // This way, if it's the first photo, it will be the cover, and if not, the cover won't change
         
         // Upload to photos endpoint
-        const response = await fetch(`${API_URL}/photos/`, {
-          method: 'POST',
-          body: formData
-        });
+        const response = await apiUpload(`${API_URL}/photos/`, formData);
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -275,10 +273,7 @@ const MediaLibrary = () => {
         formData.append('description', uploadDescription);
         
         // Upload to files endpoint
-        const response = await fetch(`${API_URL}/files/`, {
-          method: 'POST',
-          body: formData
-        });
+        const response = await apiUpload(`${API_URL}/files/`, formData);
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -322,9 +317,7 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE'
-      });
+      const response = await apiDelete(`${API_URL}/photos/${photoId}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete photo');
@@ -349,9 +342,7 @@ const MediaLibrary = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/files/documents/${documentId}`, {
-        method: 'DELETE'
-      });
+      const response = await apiDelete(`${API_URL}/files/documents/${documentId}`);
       
       if (!response.ok) {
         throw new Error('Failed to delete document');

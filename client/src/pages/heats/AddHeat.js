@@ -11,6 +11,7 @@ import {
 import { ArrowBack } from '@mui/icons-material';
 import HeatForm from '../../components/heats/HeatForm';
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiPost } from '../../utils/apiUtils';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { showSuccess, showError } from '../../utils/notifications';
 
@@ -24,13 +25,7 @@ const AddHeat = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_URL}/heats`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(heat),
-      });
+      const response = await apiPost(`${API_URL}/heats`, heat);
       
       if (!response.ok) {
         const errorData = await response.json();

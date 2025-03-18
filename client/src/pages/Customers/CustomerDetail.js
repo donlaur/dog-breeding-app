@@ -86,7 +86,7 @@ const CustomerDetail = () => {
         <Box my={4}>
           <Button 
             startIcon={<ArrowBackIcon />} 
-            onClick={() => navigate('/customers')}
+            onClick={() => navigate('/dashboard/customers')}
             sx={{ mb: 2 }}
           >
             Back to Customers
@@ -107,7 +107,7 @@ const CustomerDetail = () => {
           <Grid item>
             <Button 
               startIcon={<ArrowBackIcon />} 
-              onClick={() => navigate('/customers')}
+              onClick={() => navigate('/dashboard/customers')}
             >
               Back to Customers
             </Button>
@@ -117,7 +117,7 @@ const CustomerDetail = () => {
             <Button 
               variant="outlined" 
               startIcon={<EditIcon />}
-              onClick={() => navigate(`/customers/${customerId}/edit`)}
+              onClick={() => navigate(`/dashboard/customers/${customerId}/edit`)}
             >
               Edit Customer
             </Button>

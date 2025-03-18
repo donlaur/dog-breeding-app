@@ -86,7 +86,13 @@ const ManagePages = lazy(() => import('./pages/cms/ManagePages'));
 const PageForm = lazy(() => import('./pages/cms/PageForm'));
 const PagePreview = lazy(() => import('./pages/cms/PagePreview'));
 
-// GlobalSearchShortcut moved to its own file for cleaner organization
+// Customer Management
+const CustomersIndex = lazy(() => import('./pages/Customers/CustomersIndex'));
+const CustomerDetail = lazy(() => import('./pages/Customers/CustomerDetail'));
+const CustomerForm = lazy(() => import('./pages/Customers/CustomerForm'));
+const CustomerLeads = lazy(() => import('./pages/Customers/CustomerLeads'));
+const CustomerCommunications = lazy(() => import('./pages/Customers/CustomerCommunications'));
+const CustomerContracts = lazy(() => import('./pages/Customers/CustomerContracts'));
 
 function App() {
   // Use a ref to track if interceptors are installed
@@ -299,7 +305,43 @@ function App() {
                         <AddHealthRecord />
                       </Suspense>
                     } />
-                    
+
+                    {/* Customer Management Routes */}
+                    <Route path="customers" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomersIndex />
+                      </Suspense>
+                    } />
+                    <Route path="customers/new" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerForm />
+                      </Suspense>
+                    } />
+                    <Route path="customers/edit/:id" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerForm />
+                      </Suspense>
+                    } />
+                    <Route path="customers/leads" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerLeads />
+                      </Suspense>
+                    } />
+                    <Route path="customers/communications" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerCommunications />
+                      </Suspense>
+                    } />
+                    <Route path="customers/contracts" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerContracts />
+                      </Suspense>
+                    } />
+                    <Route path="customers/:id" element={
+                      <Suspense fallback={<LoadingFallback />}>
+                        <CustomerDetail />
+                      </Suspense>
+                    } />
                     {/* CMS Pages Management */}
                     <Route path="pages" element={
                       <Suspense fallback={<LoadingFallback />}>

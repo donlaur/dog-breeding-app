@@ -47,7 +47,8 @@ import {
 } from '@mui/icons-material';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
-import { API_URL } from '../config';
+import { API_URL, debugLog, debugError } from '../config';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
 
 // Helper function to determine event icon
 const getEventIcon = (eventType) => {
@@ -136,9 +137,9 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       try {
         // Fetch from multiple endpoints in parallel
         const [eventsResponse, heatsResponse, littersResponse] = await Promise.all([
-          fetch(`${API_URL}/events/`),
-          fetch(`${API_URL}/heats/`),
-          fetch(`${API_URL}/litters/`)
+          apiGet(`${API_URL}/events/`),
+          apiGet(`${API_URL}/heats/`),
+          apiGet(`${API_URL}/litters/`)
         ]);
         
         // Process custom events from events table
@@ -241,9 +242,9 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
   useEffect(() => {
     const fetchRelatedEntities = async () => {
       try {
-        const dogRes = fetch(`${API_URL}/dogs/`);
-        const litterRes = fetch(`${API_URL}/litters/`);
-        const puppyRes = fetch(`${API_URL}/puppies/`);
+        const dogRes = apiGet(`${API_URL}/dogs/`);
+        const litterRes = apiGet(`${API_URL}/litters/`);
+        const puppyRes = apiGet(`${API_URL}/puppies/`);
         
         const [dogsResponse, littersResponse, puppiesResponse] = await Promise.all([
           dogRes, litterRes, puppyRes
@@ -392,9 +393,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
       if (selectedEvent.sourceType === 'heat') {
         // For heat events, we need to delete the heat cycle
         const heatId = selectedEvent.id.replace('heat-', '');
-        response = await fetch(`${API_URL}/heats/${heatId}`, {
-          method: 'DELETE'
-        });
+        response = await apiDelete(`${API_URL}/heats/${heatId}`);
       } else if (selectedEvent.sourceType === 'litter') {
         // For litter events, we don't want to delete the litter
         // Instead, we'll just remove the event from the UI
@@ -404,9 +403,7 @@ const EventsListView = ({ onEventCreated, onEventDeleted }) => {
         return;
       } else {
         // For regular events, delete from the events API
-        response = await fetch(`${API_URL}/events/${selectedEvent.id}`, {
-          method: 'DELETE'
-        });
+        response = await apiDelete(`${API_URL}/events/${selectedEvent.id}`);
       }
       
       if (!response.ok) {

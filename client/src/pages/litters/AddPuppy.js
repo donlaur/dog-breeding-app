@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { API_URL, debugLog, debugError } from "../../config";
+import { apiGet, apiPost } from "../../utils/apiUtils";
 import {
   Container,
   Box,
@@ -61,11 +62,7 @@ const AddPuppy = () => {
 
   // Fetch litter details first
   useEffect(() => {
-    fetch(`${API_URL}/litters/${litterId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch litter details');
-        return res.json();
-      })
+    apiGet(`${API_URL}/litters/${litterId}`)
       .then(litterData => {
         setLitter(litterData);
         // Pre-fill puppy data from litter
@@ -95,13 +92,7 @@ const AddPuppy = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_URL}/litters/${litterId}/puppies`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(puppy),
-      });
+      const response = await apiPost(`${API_URL}/litters/${litterId}/puppies`, puppy);
 
       if (!response.ok) throw new Error('Failed to create puppy');
       

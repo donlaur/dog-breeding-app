@@ -44,6 +44,7 @@ import {
   CalendarMonth as CalendarIcon,
   ChildCare as PuppyIcon,
   Person as ProfileIcon,
+  Person as PersonIcon,
   Menu as MenuIcon,
   LogoutOutlined as LogoutIcon,
   NotificationsOutlined as NotificationsIcon,
@@ -65,6 +66,9 @@ import {
   Description as DocumentIcon,
   ContactMail as CRMIcon,
   Settings as SettingsIcon2,
+  TrendingUp as TrendingUpIcon,
+  Email as EmailIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -179,9 +183,13 @@ const DashboardLayout = () => {
     { 
       id: 'crm',
       label: 'Customer Management', 
-      icon: <CRMIcon />, 
+      icon: <PersonIcon />, 
       isExpandable: true,
       children: [
+        { path: '/dashboard/customers', label: 'Manage Customers', icon: <PeopleIcon /> },
+        { path: '/dashboard/customers/leads', label: 'Manage Leads', icon: <TrendingUpIcon /> },
+        { path: '/dashboard/customers/communications', label: 'Communications', icon: <EmailIcon /> },
+        { path: '/dashboard/customers/contracts', label: 'Contracts', icon: <DocumentIcon /> },
         { path: '/dashboard/applications', label: 'Applications', icon: <ArticleIcon /> }
       ]
     },

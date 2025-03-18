@@ -84,21 +84,25 @@ def endpoint():
         return jsonify({"error": str(e)}), 500
 ```
 
-## Key API Endpoints
+## API Endpoints
 
 ### Authentication
-- `POST /api/auth/login`: User login
-- `POST /api/auth/register`: User registration
-- `POST /api/auth/logout`: User logout
+
+- `POST /api/auth/login`: Authenticate a user
+- `POST /api/auth/register`: Register a new user
+- `POST /api/auth/refresh`: Refresh an authentication token
+- `GET /api/auth/user`: Get the current user's profile
 
 ### Dogs
+
 - `GET /api/dogs`: Get all dogs
-- `GET /api/dogs/<id>`: Get dog by ID
+- `GET /api/dogs/<id>`: Get a specific dog
 - `POST /api/dogs`: Create a new dog
 - `PUT /api/dogs/<id>`: Update a dog
 - `DELETE /api/dogs/<id>`: Delete a dog
 
 ### Litters
+
 - `GET /api/litters`: Get all litters
 - `GET /api/litters/<id>`: Get litter by ID
 - `POST /api/litters`: Create a new litter
@@ -106,6 +110,7 @@ def endpoint():
 - `DELETE /api/litters/<id>`: Delete a litter
 
 ### Puppies
+
 - `GET /api/puppies`: Get all puppies
 - `GET /api/puppies/<id>`: Get puppy by ID
 - `POST /api/puppies`: Create a new puppy
@@ -113,12 +118,14 @@ def endpoint():
 - `DELETE /api/puppies/<id>`: Delete a puppy
 
 ### Health
+
 - `GET /api/health/records`: Get all health records
 - `POST /api/health/records`: Create a new health record
 - `GET /api/health/vaccinations`: Get all vaccinations
 - `POST /api/health/vaccinations`: Create a new vaccination
 
 ### Notifications
+
 - `GET /api/notifications`: Get all notifications for the current user
 - `POST /api/notifications`: Create a new notification
 - `PUT /api/notifications/<id>`: Update a notification (mark as read)
@@ -126,25 +133,52 @@ def endpoint():
 - `DELETE /api/notifications`: Delete all notifications for the current user
 - `PUT /api/notifications/read-all`: Mark all notifications as read
 
-### Customers
+### Customer Management
+
+#### Customers
+
 - `GET /api/customers`: Get all customers
-- `GET /api/customers?lead_status=X&lead_source=Y`: Filter customers by lead status or source
-- `GET /api/customers/<id>`: Get customer by ID
+- `GET /api/customers?lead_status=X&lead_source=Y`: Filter customers by lead status/source
+- `GET /api/customers/recent_leads`: Get recently added leads
+- `GET /api/customers/<id>`: Get a specific customer
 - `POST /api/customers`: Create a new customer
 - `PUT /api/customers/<id>`: Update a customer
 - `DELETE /api/customers/<id>`: Delete a customer
-- `GET /api/customers/recent_leads`: Get recently added leads
-- `GET /api/customers/<id>/puppies`: Get puppies associated with a customer
 
-### Customer Communications
+#### Customer Communications
+
 - `GET /api/customers/<id>/communications`: Get all communications for a customer
-- `POST /api/customers/<id>/communications`: Create a new communication for a customer
+- `POST /api/customers/<id>/communications`: Add a new communication for a customer
+- `GET /api/communications`: Get all communications
+- `GET /api/communications?type=X`: Filter communications by type
+- `GET /api/communications/upcoming`: Get upcoming follow-ups
 - `PUT /api/communications/<id>`: Update a communication
 - `DELETE /api/communications/<id>`: Delete a communication
-- `GET /api/communications/upcoming`: Get upcoming follow-ups
 
-### Customer Contracts
+#### Customer Contracts
+
 - `GET /api/customers/<id>/contracts`: Get all contracts for a customer
 - `POST /api/customers/<id>/contracts`: Create a new contract for a customer
+- `GET /api/contracts`: Get all contracts
+- `GET /api/contracts?status=X`: Filter contracts by status
+- `GET /api/contracts/<id>`: Get a specific contract
 - `PUT /api/contracts/<id>`: Update a contract
+- `POST /api/contracts/<id>/send`: Send a contract to the customer
 - `DELETE /api/contracts/<id>`: Delete a contract
+
+#### Leads
+
+- `GET /api/leads`: Get all leads
+- `GET /api/leads?status=X`: Filter leads by status
+- `POST /api/leads`: Create a new lead
+- `PUT /api/leads/<id>`: Update a lead
+- `PUT /api/leads/<id>/status`: Update a lead's status
+- `POST /api/leads/<id>/convert`: Convert a lead to a customer
+- `DELETE /api/leads/<id>`: Delete a lead
+
+### Events
+- `GET /api/events`: Get all events
+- `GET /api/events/<id>`: Get event by ID
+- `POST /api/events`: Create a new event
+- `PUT /api/events/<id>`: Update an event
+- `DELETE /api/events/<id>`: Delete an event

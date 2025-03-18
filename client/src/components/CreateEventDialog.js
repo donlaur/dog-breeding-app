@@ -11,7 +11,7 @@ import {
   Select,
   MenuItem,
   FormControlLabel,
-  Checkbox,
+  Switch,
   Grid,
   Typography,
   Box,
@@ -24,7 +24,7 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import moment from 'moment';
-import { API_URL } from '../config';
+import { apiGet, apiPost } from '../utils/apiUtils';
 
 /**
  * A dialog for creating and editing calendar events
@@ -75,8 +75,8 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
     try {
       // Fetch dogs and litters in parallel
       const [dogsResponse, littersResponse] = await Promise.all([
-        fetch(`${API_URL}/dogs/`),
-        fetch(`${API_URL}/litters/`)
+        apiGet('dogs/'),
+        apiGet('litters/')
       ]);
       
       if (dogsResponse.ok) {
@@ -150,11 +150,7 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
       }
       
       // Send the request to create the event
-      const response = await fetch(`${API_URL}/events/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
-      });
+      const response = await apiPost('events/', eventData);
       
       if (!response.ok) {
         let errorMsg = 'Failed to create event';
@@ -273,7 +269,7 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
               <Grid item xs={12}>
                 <FormControlLabel
                   control={
-                    <Checkbox
+                    <Switch
                       checked={allDay}
                       onChange={(e) => setAllDay(e.target.checked)}
                     />
@@ -451,7 +447,7 @@ const CreateEventDialog = ({ open, onClose, selectedDate, onEventCreated }) => {
               <Grid item xs={12} sm={6}>
                 <FormControlLabel
                   control={
-                    <Checkbox
+                    <Switch
                       checked={notify}
                       onChange={(e) => setNotify(e.target.checked)}
                     />

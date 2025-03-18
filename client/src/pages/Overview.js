@@ -21,6 +21,7 @@ import UpcomingEvents from '../components/overview/UpcomingEvents';
 // Import utility functions
 import { getImageUrl, getGenderDisplay } from '../utils/imageUtils';
 import { formatAdultAge } from '../utils/ageUtils';
+import { apiGet } from '../utils/apiUtils';
 
 function Overview() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ function Overview() {
     const fetchPuppiesDirectly = async () => {
       try {
         console.log('Directly fetching puppies from API...');
-        const response = await fetch('/api/puppies');
+        const response = await apiGet('puppies');
         if (response.ok) {
           const data = await response.json();
           console.log('Direct puppies fetch successful:', data);

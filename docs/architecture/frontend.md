@@ -23,7 +23,8 @@ client/
     │   ├── dogs/
     │   ├── health/
     │   ├── layout/
-    │   └── litters/
+    │   ├── litters/
+    │   └── customers/
     ├── context/
     ├── hooks/
     ├── pages/
@@ -32,6 +33,7 @@ client/
     │   ├── dogs/
     │   ├── health/
     │   ├── litters/
+    │   ├── Customers/
     │   └── user/
     ├── utils/
     ├── App.js
@@ -47,6 +49,7 @@ The application uses React Context for state management. Key contexts include:
 - **LitterContext**: Manages litter and puppy-related state
 - **HealthContext**: Manages health records, vaccinations, and medications
 - **NotificationContext**: Manages user notifications
+- **CustomerContext**: Manages customer-related state and operations
 
 ## API Communication Pattern
 
@@ -68,9 +71,14 @@ import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiUtils';
 const fetchData = async () => {
   try {
     // Use the utility functions instead of direct fetch
-    const result = await apiGet('endpoint');
-    const data = result.data || result;
-    return data;
+    const response = await apiGet('endpoint');
+    
+    if (response.success) {
+      // Access data from the response object
+      return response.data || [];
+    } else {
+      throw new Error(response.error || 'Failed to fetch data');
+    }
   } catch (error) {
     console.error('Error fetching data:', error);
     throw error;
@@ -118,3 +126,31 @@ Notifications are triggered for events such as:
 - Litter additions
 - Health record updates
 - Puppy status changes
+- Customer lead status changes
+- New contract events
+- Communication follow-ups
+
+## Customer Management System
+
+The customer management system includes several key components:
+
+1. **Customer Dashboard**: Main entry point for customer management
+2. **Lead Management**: For tracking potential customers through the sales pipeline
+   - Lead statuses: new, contacted, qualified, negotiating, sold, lost
+   - Conversion of leads to customers
+   
+3. **Customer Communications**: For tracking all interactions with customers
+   - Communication types: email, phone, message, meeting
+   - Timeline view of all communications
+   - Follow-up scheduling
+   
+4. **Contract Management**: For creating and managing customer contracts
+   - Contract templates for common agreement types
+   - Contract statuses: draft, sent, viewed, signed, pending, completed
+   - Digital signature workflow
+   
+The customer management features are integrated with the sidebar navigation and use the same API utility functions as the rest of the application.
+
+## Authentication and Authorization
+
+The application uses AuthContext to manage user authentication state. The AuthContext is used to authenticate users and authorize access to protected routes and features.

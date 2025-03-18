@@ -12,7 +12,7 @@ import {
   Container,
   Grid
 } from '@mui/material';
-import { API_URL, debugLog, debugError } from '../config';
+import { debugLog, debugError } from '../config';
 import { apiGet, apiPut } from '../utils/apiUtils';
 import { showSuccess, showError } from '../utils/notifications';
 
@@ -43,7 +43,7 @@ const BreederProfile = () => {
     
     try {
       // Using the correct endpoint from program.py
-      const response = await fetch(`${API_URL}/program/`);
+      const response = await apiGet('program');
       
       if (!response.ok) {
         if (response.status === 404) {
