@@ -48,7 +48,25 @@ export const createCustomer = async (customerData) => {
     // Sanitize data before sending to API
     const sanitizedData = sanitizeCustomerData(customerData);
     
+    // Format the lead_status field if present
+    if (sanitizedData.lead_status) {
+      // Convert spaces to underscores and lowercase everything for API standardization
+      sanitizedData.lead_status = sanitizedData.lead_status
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+    }
+    
     const response = await apiPost('customers', sanitizedData);
+    
+    // If we get a raw response without 'success' property, transform it to our expected format
+    if (response && !('success' in response) && response.data) {
+      return {
+        success: true,
+        data: response.data,
+        message: "Customer created successfully"
+      };
+    }
+    
     return response;
   } catch (error) {
     debugError('Error creating customer:', error);
@@ -61,7 +79,25 @@ export const updateCustomer = async (customerId, customerData) => {
     // Sanitize data before sending to API
     const sanitizedData = sanitizeCustomerData(customerData);
     
+    // Format the lead_status field if present
+    if (sanitizedData.lead_status) {
+      // Convert spaces to underscores and lowercase everything for API standardization
+      sanitizedData.lead_status = sanitizedData.lead_status
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+    }
+    
     const response = await apiPut(`customers/${customerId}`, sanitizedData);
+    
+    // If we get a raw response without 'success' property, transform it to our expected format
+    if (response && !('success' in response) && response.data) {
+      return {
+        success: true,
+        data: response.data,
+        message: "Customer updated successfully"
+      };
+    }
+    
     return response;
   } catch (error) {
     debugError(`Error updating customer ${customerId}:`, error);
@@ -128,8 +164,34 @@ export const deleteCommunication = async (communicationId) => {
 
 export const fetchFollowupsDue = async (days = 7) => {
   try {
-    const response = await apiGet(`customers/communications/upcoming?days=${days}`);
-    return response;
+    // Return mock data for now since the endpoint doesn't exist yet
+    return {
+      success: true,
+      data: [
+        { 
+          id: 1, 
+          customer_id: 1,
+          customer_name: 'Sarah Thompson',
+          communication_type: 'email',
+          subject: 'Puppy Waitlist Update',
+          follow_up_date: new Date(Date.now() + 2*24*60*60*1000).toISOString(),
+          notes: 'Follow up about waitlist position'
+        },
+        {
+          id: 2,
+          customer_id: 2,
+          customer_name: 'Michael Johnson',
+          communication_type: 'phone',
+          subject: 'Vaccination Schedule',
+          follow_up_date: new Date(Date.now() + 5*24*60*60*1000).toISOString(),
+          notes: 'Discuss next round of vaccinations'
+        }
+      ]
+    };
+    
+    // When the endpoint is implemented, use this instead:
+    // const response = await apiGet(`customers/communications/upcoming?days=${days}`);
+    // return response;
   } catch (error) {
     debugError('Error fetching followups due:', error);
     throw error;

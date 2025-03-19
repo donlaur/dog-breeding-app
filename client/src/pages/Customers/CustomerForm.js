@@ -22,23 +22,39 @@ import { debugLog, debugError } from '../../config';
 import { apiPost, apiPut, apiGet } from '../../utils/apiUtils';
 import { createCustomer, fetchCustomerById, updateCustomer } from '../../utils/customerApiUtils';
 
-// Lead status options
+// Lead status options - updated for dog breeding
 const LEAD_STATUS_OPTIONS = [
-  { value: 'new', label: 'New Lead' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'negotiating', label: 'Negotiating' },
-  { value: 'sold', label: 'Sold' },
-  { value: 'lost', label: 'Lost' }
+  { value: 'new', label: 'New Inquiry' },
+  { value: 'contacted', label: 'Initial Contact Made' },
+  { value: 'in_conversation', label: 'In Conversation' },
+  { value: 'application_sent', label: 'Application Sent' },
+  { value: 'application_received', label: 'Application Received' },
+  { value: 'application_approved', label: 'Application Approved' },
+  { value: 'on_waitlist', label: 'On Waitlist' },
+  { value: 'puppy_selected', label: 'Puppy Selected' },
+  { value: 'deposit_paid', label: 'Deposit Paid' },
+  { value: 'contract_signed', label: 'Contract Signed' },
+  { value: 'payment_complete', label: 'Payment Complete' },
+  { value: 'puppy_delivered', label: 'Puppy Delivered' },
+  { value: 'follow_up', label: 'Follow-up Required' },
+  { value: 'lost', label: 'Lost Opportunity' }
 ];
 
-// Lead source options
+// Lead source options - updated for dog breeding
 const LEAD_SOURCE_OPTIONS = [
-  { value: 'website', label: 'Website' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'social_media', label: 'Social Media' },
-  { value: 'event', label: 'Event' },
-  { value: 'advertisement', label: 'Advertisement' },
+  { value: 'website', label: 'Kennel Website' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'akc_marketplace', label: 'AKC Marketplace' },
+  { value: 'good_dog', label: 'Good Dog' },
+  { value: 'past_customer', label: 'Past Customer' },
+  { value: 'breeder_referral', label: 'Breeder Referral' },
+  { value: 'friend_family', label: 'Friend/Family Referral' },
+  { value: 'dog_show', label: 'Dog Show' },
+  { value: 'pet_expo', label: 'Pet Expo/Event' },
+  { value: 'veterinarian', label: 'Veterinarian Referral' },
+  { value: 'trainer', label: 'Trainer Referral' },
   { value: 'other', label: 'Other' }
 ];
 
@@ -48,6 +64,20 @@ const CONTACT_METHOD_OPTIONS = [
   { value: 'phone', label: 'Phone' },
   { value: 'text', label: 'Text Message' },
   { value: 'any', label: 'Any' }
+];
+
+// Customer interests options
+const INTEREST_OPTIONS = [
+  { value: 'companion_puppy', label: 'Companion Puppy' },
+  { value: 'show_potential', label: 'Show Dog Potential' },
+  { value: 'breeding_potential', label: 'Breeding Potential' },
+  { value: 'stud_service', label: 'Stud Service' },
+  { value: 'retired_adult', label: 'Retired Adult Dog' },
+  { value: 'specific_color', label: 'Specific Color/Markings' },
+  { value: 'health_guarantees', label: 'Health Guarantees' },
+  { value: 'temperament', label: 'Specific Temperament' },
+  { value: 'allergy_friendly', label: 'Allergy-Friendly' },
+  { value: 'co_ownership', label: 'Co-Ownership Options' }
 ];
 
 const CustomerForm = () => {
@@ -368,16 +398,22 @@ const CustomerForm = () => {
             </Grid>
             
             <Grid item xs={12}>
-              <TextField
-                name="interests"
-                label="Interests"
-                value={formData.interests}
-                onChange={handleInputChange}
-                multiline
-                rows={2}
-                fullWidth
-                margin="normal"
-              />
+              <FormControl fullWidth margin="normal">
+                <InputLabel id="interests-label">Interests</InputLabel>
+                <Select
+                  labelId="interests-label"
+                  name="interests"
+                  value={formData.interests || ''}
+                  onChange={handleInputChange}
+                  label="Interests"
+                >
+                  {INTEREST_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
