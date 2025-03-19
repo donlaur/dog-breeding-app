@@ -188,8 +188,12 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
-                    View All
+                  <Button 
+                    size="small" 
+                    onClick={() => navigate('/dashboard/customers/new')}
+                    sx={{ width: '100%' }}
+                  >
+                    Add Customer
                   </Button>
                 </CardActions>
               </Card>
@@ -207,7 +211,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/dashboard/customers/leads')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
                     Manage Leads
                   </Button>
                 </CardActions>
@@ -226,7 +230,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/dashboard/customers/contracts')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
                     View Contracts
                   </Button>
                 </CardActions>
@@ -247,7 +251,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/dashboard/customers/communications')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
                     View Calendar
                   </Button>
                 </CardActions>
@@ -266,7 +270,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/dashboard/customers/communications')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
                     View All
                   </Button>
                 </CardActions>
@@ -285,7 +289,7 @@ const CustomersIndex = () => {
                   <Button 
                     size="small" 
                     endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate('/dashboard/customers/leads')}
+                    onClick={() => navigate('/dashboard/customers')}
                   >
                     View All
                   </Button>
@@ -301,7 +305,7 @@ const CustomersIndex = () => {
                       <ListItem 
                         key={lead.id}
                         secondaryAction={
-                          <IconButton edge="end" onClick={() => navigate(`/dashboard/customers/${lead.id}`)}>
+                          <IconButton edge="end" onClick={() => navigate(`/dashboard/customers/${lead.id}`)} aria-label="View customer">
                             <ArrowForwardIcon />
                           </IconButton>
                         }
@@ -347,7 +351,7 @@ const CustomersIndex = () => {
                   <Button 
                     size="small" 
                     endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate('/dashboard/customers/communications')}
+                    onClick={() => navigate('/dashboard/customers')}
                   >
                     View All
                   </Button>
@@ -363,7 +367,7 @@ const CustomersIndex = () => {
                       <ListItem 
                         key={followUp.id}
                         secondaryAction={
-                          <IconButton edge="end" onClick={() => navigate(`/customers/communications`)}>
+                          <IconButton edge="end" onClick={() => navigate(`/dashboard/customers`)}>
                             <ArrowForwardIcon />
                           </IconButton>
                         }

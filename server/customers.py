@@ -70,7 +70,7 @@ def create_customers_bp(db):
                 address=data.get('address'),
                 city=data.get('city'),
                 state=data.get('state'),
-                zip_code=data.get('zip'),
+                zip_code=data.get('zip_code'),  # Changed from 'zip' to match frontend
                 country=data.get('country'),
                 notes=data.get('notes'),
                 lead_status=data.get('lead_status', 'new'),

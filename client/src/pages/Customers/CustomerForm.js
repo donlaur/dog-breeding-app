@@ -184,6 +184,7 @@ const CustomerForm = () => {
         } else if (response.data?.id) {
           navigate(`/dashboard/customers/${response.data.id}`);
         } else {
+          console.log('Customer saved successfully but no ID returned:', response);
           navigate('/dashboard/customers');
         }
       } else {

@@ -78,14 +78,27 @@ const CustomerLeads = () => {
       let response;
       
       if (status === 'all') {
-        response = await apiGet('customers/recent_leads');
+        // Use the customers endpoint instead of leads 
+        response = await apiGet('customers');
       } else {
+        // Filter customers by lead_status
         response = await apiGet(`customers?lead_status=${status}`);
       }
       
       if (response.success) {
         const data = response.data || [];
-        setLeads(data);
+        // Map customer data to match lead format expected by the UI
+        const formattedLeads = data.map(customer => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          status: customer.lead_status || 'new',
+          interest: customer.interests,
+          created_at: customer.created_at,
+          notes: customer.notes
+        }));
+        setLeads(formattedLeads);
       } else {
         throw new Error(response.error || 'Failed to load leads');
       }
@@ -102,15 +115,15 @@ const CustomerLeads = () => {
   };
   
   const handleAddLead = () => {
-    navigate('/dashboard/customers/leads/new');
+    navigate('/dashboard/customers/new');
   };
   
   const handleViewLead = (id) => {
-    navigate(`/dashboard/customers/leads/${id}`);
+    navigate(`/dashboard/customers/${id}`);
   };
   
   const handleEditLead = (id) => {
-    navigate(`/dashboard/customers/leads/edit/${id}`);
+    navigate(`/dashboard/customers/edit/${id}`);
   };
   
   const handleMenuOpen = (event, lead) => {
@@ -134,13 +147,14 @@ const CustomerLeads = () => {
   
   const handleStatusChange = async () => {
     try {
-      const response = await apiPut(`leads/${selectedLead.id}/status`, { status: newStatus });
+      // Update customer lead_status instead of lead status
+      const response = await apiPut(`customers/${selectedLead.id}`, { lead_status: newStatus });
       
-      if (response.ok) {
+      if (response.success) {
         showSuccess('Lead status updated successfully');
         loadLeads(currentTab);
       } else {
-        throw new Error(`Failed to update lead status: ${response.status}`);
+        throw new Error(response.error || 'Failed to update lead status');
       }
     } catch (error) {
       debugError('Error updating lead status:', error);
@@ -152,13 +166,17 @@ const CustomerLeads = () => {
   
   const handleConvertToCustomer = async () => {
     try {
-      const response = await apiPost(`leads/${selectedLead.id}/convert`, {});
+      // Since we're already using customers table, we just update the status
+      const response = await apiPut(`customers/${selectedLead.id}`, { 
+        lead_status: 'converted',
+        customer_type: 'full'  // Mark as full customer
+      });
       
-      if (response.ok) {
+      if (response.success) {
         showSuccess('Lead converted to customer successfully');
         loadLeads(currentTab);
       } else {
-        throw new Error(`Failed to convert lead: ${response.status}`);
+        throw new Error(response.error || 'Failed to convert lead');
       }
     } catch (error) {
       debugError('Error converting lead:', error);
@@ -169,19 +187,20 @@ const CustomerLeads = () => {
   };
   
   const handleDeleteLead = async () => {
-    if (window.confirm('Are you sure you want to delete this lead?')) {
+    if (window.confirm('Are you sure you want to delete this customer record?')) {
       try {
-        const response = await apiDelete(`leads/${selectedLead.id}`);
+        // Delete the customer record
+        const response = await apiDelete(`customers/${selectedLead.id}`);
         
-        if (response.ok) {
-          showSuccess('Lead deleted successfully');
+        if (response.success) {
+          showSuccess('Customer record deleted successfully');
           loadLeads(currentTab);
         } else {
-          throw new Error(`Failed to delete lead: ${response.status}`);
+          throw new Error(response.error || 'Failed to delete customer record');
         }
       } catch (error) {
-        debugError('Error deleting lead:', error);
-        showError(`Failed to delete lead: ${error.message}`);
+        debugError('Error deleting customer:', error);
+        showError(`Failed to delete customer: ${error.message}`);
       } finally {
         handleMenuClose();
       }
