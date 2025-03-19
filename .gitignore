@@ -81,6 +81,8 @@ instance/
 *personal*
 *credentials*
 *secret*
+SECURITY_PLAN_PRIVATE.md
+*SECURITY_PRIVATE*
 
 # Database
 *.db

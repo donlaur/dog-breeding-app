@@ -38,6 +38,9 @@ from server.routes.messages import messages_bp
 from server.notifications import notifications_bp
 from server.system_health import create_system_health_bp
 from server.uploads import create_uploads_bp
+from server.contracts import create_contracts_bp
+from server.application_forms import create_application_forms_bp
+from server.customer_leads import create_customer_leads_bp
 
 # Try importing pages blueprint with exception handling
 try:
@@ -198,6 +201,9 @@ def register_blueprints(app, db):
         (notifications_bp, '/api'),  # Changed from empty string to '/api'
         (create_system_health_bp(), '/api/system'),
         (create_uploads_bp(db), '/api/uploads'),
+        (create_contracts_bp(db), '/api/contracts'),
+        (create_application_forms_bp(db), '/api/application-forms'),
+        (create_customer_leads_bp(db), '/api/customers/recent_leads'),
     ]
     
     for blueprint, url_prefix in blueprints:

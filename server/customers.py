@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 from server.supabase_client import supabase
 from server.middleware.auth import token_required
+from server.config import debug_log, debug_error
 import importlib.util
 import os
 spec = importlib.util.spec_from_file_location("models", os.path.join(os.path.dirname(__file__), "models.py"))
@@ -26,16 +27,22 @@ def create_customers_bp(db):
         try:
             lead_status = request.args.get('lead_status')
             lead_source = request.args.get('lead_source')
+            
+            debug_log(f"GET /customers with params: lead_status={lead_status}, lead_source={lead_source}")
 
             if lead_status:
                 customers = Customer.get_by_lead_status(lead_status)
+                debug_log(f"Fetched customers by lead_status={lead_status}, count: {len(customers)}")
             elif lead_source:
                 customers = Customer.get_by_lead_source(lead_source)
+                debug_log(f"Fetched customers by lead_source={lead_source}, count: {len(customers)}")
             else:
                 customers = Customer.get_all()
+                debug_log(f"Fetched all customers, count: {len(customers)}")
 
             return jsonify({"success": True, "data": customers}), 200
         except Exception as e:
+            debug_error(f"Error fetching customers: {str(e)}")
             return jsonify({"success": False, "error": str(e)}), 500
 
     @customers_bp.route('/<int:customer_id>', methods=['GET'])
@@ -70,7 +77,7 @@ def create_customers_bp(db):
                 address=data.get('address'),
                 city=data.get('city'),
                 state=data.get('state'),
-                zip_code=data.get('zip'),
+                zip_code=data.get('zip_code'),  # Changed from 'zip' to match frontend
                 country=data.get('country'),
                 notes=data.get('notes'),
                 lead_status=data.get('lead_status', 'new'),
@@ -366,9 +373,12 @@ def create_customers_bp(db):
         """Get recent leads"""
         try:
             days = request.args.get('days', default=30, type=int)
+            debug_log(f"GET /customers/recent_leads with days={days}")
             leads = Customer.get_recent_leads(days)
+            debug_log(f"Found {len(leads)} recent leads in the last {days} days")
             return jsonify({"success": True, "data": leads}), 200
         except Exception as e:
+            debug_error(f"Error fetching recent leads: {str(e)}")
             return jsonify({"success": False, "error": str(e)}), 500
 
     return customers_bp

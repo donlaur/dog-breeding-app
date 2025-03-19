@@ -29,16 +29,24 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import FolderIcon from '@mui/icons-material/Folder';
 import { apiGet, apiDelete } from '../../utils/apiUtils';
+import { fetchCustomers, fetchRecentLeads, deleteCustomer } from '../../utils/customerApiUtils';
 import { API_URL, debugLog, debugError } from '../../config';
 
-// Define customer lead status options
+// Define customer lead status options for dog breeding
 const LEAD_STATUS_OPTIONS = [
   'all',
   'new',
   'contacted',
-  'qualified',
-  'negotiating',
-  'sold',
+  'in_conversation',
+  'application_sent',
+  'application_approved',
+  'on_waitlist',
+  'puppy_selected',
+  'deposit_paid',
+  'contract_signed',
+  'payment_complete',
+  'puppy_delivered',
+  'follow_up',
   'lost'
 ];
 
@@ -62,11 +70,11 @@ const CustomersPage = () => {
       let response;
       
       if (status === 'all') {
-        response = await apiGet('customers');
+        response = await fetchCustomers();
       } else if (status === 'recent') {
-        response = await apiGet('customers/recent');
+        response = await fetchRecentLeads(30);
       } else {
-        response = await apiGet(`customers?leadStatus=${status}`);
+        response = await fetchCustomers({ leadStatus: status });
       }
       
       if (response.success) {
@@ -87,15 +95,15 @@ const CustomersPage = () => {
   };
   
   const handleAddCustomer = () => {
-    navigate('/customers/new');
+    navigate('/dashboard/customers/new');
   };
   
   const handleEditCustomer = (customerId) => {
-    navigate(`/customers/${customerId}/edit`);
+    navigate(`/dashboard/customers/${customerId}/edit`);
   };
   
   const handleViewCustomer = (customerId) => {
-    navigate(`/customers/${customerId}`);
+    navigate(`/dashboard/customers/${customerId}`);
   };
   
   const handleDeleteCustomer = async (customerId, customerName) => {
@@ -105,7 +113,7 @@ const CustomersPage = () => {
     
     try {
       setLoading(true);
-      const response = await apiDelete(`customers/${customerId}`);
+      const response = await deleteCustomer(customerId);
       
       if (response.success) {
         // Refresh the customer list
@@ -163,13 +171,15 @@ const CustomersPage = () => {
       )}
       
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={currentTab} onChange={handleTabChange}>
-          <Tab label="All Customers" value="all" />
-          <Tab label="New Leads" value="new" />
+        <Tabs value={currentTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
+          <Tab label="All" value="all" />
+          <Tab label="New Inquiries" value="new" />
           <Tab label="Contacted" value="contacted" />
-          <Tab label="Qualified" value="qualified" />
-          <Tab label="Negotiating" value="negotiating" />
-          <Tab label="Sold" value="sold" />
+          <Tab label="Applications" value="application_approved" />
+          <Tab label="Waitlist" value="on_waitlist" />
+          <Tab label="Deposits Paid" value="deposit_paid" />
+          <Tab label="Delivered" value="puppy_delivered" />
+          <Tab label="Follow-ups" value="follow_up" />
           <Tab label="Recent (30 days)" value="recent" />
         </Tabs>
       </Box>
@@ -264,7 +274,7 @@ const CustomersPage = () => {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Customer Files">
-                        <IconButton onClick={() => navigate(`/customers/${customer.id}/files`)} size="small">
+                        <IconButton onClick={() => navigate(`/dashboard/customers/${customer.id}/files`)} size="small">
                           <FolderIcon />
                         </IconButton>
                       </Tooltip>
@@ -295,13 +305,29 @@ const getLeadStatusColor = (status) => {
     case 'new':
       return 'rgb(25, 118, 210)'; // Primary blue
     case 'contacted':
+      return 'rgb(121, 85, 72)'; // Brown
+    case 'in_conversation':
       return 'rgb(156, 39, 176)'; // Purple
-    case 'qualified':
+    case 'application_sent':
+      return 'rgb(186, 104, 200)'; // Light purple
+    case 'application_received':
+      return 'rgb(123, 31, 162)'; // Deep purple
+    case 'application_approved':
+      return 'rgb(84, 110, 122)'; // Blue gray
+    case 'on_waitlist':
+      return 'rgb(0, 137, 123)'; // Teal
+    case 'puppy_selected':
       return 'rgb(46, 125, 50)'; // Green
-    case 'negotiating':
-      return 'rgb(237, 108, 2)'; // Orange
-    case 'sold':
+    case 'deposit_paid':
+      return 'rgb(0, 150, 136)'; // Teal
+    case 'contract_signed':
       return 'rgb(0, 200, 83)'; // Success green
+    case 'payment_complete':
+      return 'rgb(30, 136, 229)'; // Light blue
+    case 'puppy_delivered':
+      return 'rgb(3, 169, 244)'; // Light blue
+    case 'follow_up':
+      return 'rgb(255, 152, 0)'; // Orange
     case 'lost':
       return 'rgb(211, 47, 47)'; // Error red
     default:

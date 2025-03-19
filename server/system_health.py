@@ -7,7 +7,7 @@ This is separate from the dog health records functionality.
 
 from flask import Blueprint, jsonify
 from flask_cors import CORS
-from .database import db
+from server.database.supabase_db import SupabaseDatabase
 
 def create_system_health_bp():
     """Create the system health blueprint"""
@@ -24,13 +24,15 @@ def create_system_health_bp():
         """
         try:
             # Check database connection by performing a simple query
-            # Using the established pattern for database queries
             db_status = "connected"
             db_error = None
 
             try:
-                # Use find_by_field_values following the established pattern
-                db.find_by_field_values("dog_breeds", {}, limit=1)
+                # Try to initialize the database connection
+                # This will throw an exception if it fails
+                db = SupabaseDatabase()
+                # Try a simple query
+                db.find("dog_breeds")
             except Exception as e:
                 db_status = "error"
                 db_error = str(e)
