@@ -40,6 +40,14 @@ import PersonIcon from '@mui/icons-material/Person';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { apiGet, apiPost, apiDelete } from '../../utils/apiUtils';
+import { 
+  fetchCustomers, 
+  fetchCustomerCommunications, 
+  createCommunication, 
+  updateCommunication, 
+  deleteCommunication,
+  fetchFollowupsDue
+} from '../../utils/customerApiUtils';
 import { debugLog, debugError } from '../../config';
 import { showSuccess, showError } from '../../utils/notifications';
 
@@ -78,7 +86,7 @@ const CustomerCommunications = () => {
     
     try {
       // Load customers first
-      const customersResponse = await apiGet('customers');
+      const customersResponse = await fetchCustomers();
       
       if (customersResponse.success) {
         setCustomers(customersResponse.data || []);
@@ -88,9 +96,15 @@ const CustomerCommunications = () => {
       let commResponse;
       
       if (currentTab === 'all') {
-        commResponse = await apiGet('communications');
+        // Get all customer communications or upcoming follow-ups
+        // For now, we'll get follow-ups due in the next 30 days
+        commResponse = await fetchFollowupsDue(30);
+      } else if (currentTab === 'followups') {
+        // Get follow-ups due in the next 7 days
+        commResponse = await fetchFollowupsDue(7);
       } else {
-        commResponse = await apiGet(`communications?type=${currentTab}`);
+        // We could add filtering by type later
+        commResponse = await fetchFollowupsDue(30);
       }
       
       if (commResponse.success) {
@@ -128,7 +142,17 @@ const CustomerCommunications = () => {
   
   const handleAddCommunication = async () => {
     try {
-      const response = await apiPost('communications', newCommunication);
+      const response = await createCommunication(
+        newCommunication.customer_id, 
+        {
+          communication_type: newCommunication.type,
+          subject: newCommunication.subject,
+          content: newCommunication.content,
+          initiated_by: 'breeder',
+          follow_up_date: newCommunication.date ? `${newCommunication.date} 12:00:00` : null,
+          notes: newCommunication.notes || ''
+        }
+      );
       
       if (response.success) {
         showSuccess('Communication added successfully');
@@ -154,7 +178,7 @@ const CustomerCommunications = () => {
   const handleDeleteCommunication = async (id) => {
     if (window.confirm('Are you sure you want to delete this communication?')) {
       try {
-        const response = await apiDelete(`communications/${id}`);
+        const response = await deleteCommunication(id);
         
         if (response.success) {
           showSuccess('Communication deleted successfully');

@@ -128,7 +128,7 @@ export const deleteCommunication = async (communicationId) => {
 
 export const fetchFollowupsDue = async (days = 7) => {
   try {
-    const response = await apiGet(`customers/communications/followups?days=${days}`);
+    const response = await apiGet(`customers/communications/upcoming?days=${days}`);
     return response;
   } catch (error) {
     debugError('Error fetching followups due:', error);
