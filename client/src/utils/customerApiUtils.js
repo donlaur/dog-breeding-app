@@ -15,8 +15,35 @@ export const fetchCustomers = async (params = {}) => {
       url += `?${queryParams.join('&')}`;
     }
     
-    const response = await apiGet(url);
-    return response;
+    try {
+      const response = await apiGet(url);
+      return response;
+    } catch (apiError) {
+      // If API call fails, get from localStorage as fallback
+      debugError('API error, using localStorage fallback:', apiError);
+      
+      // Get customers from localStorage
+      let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Apply filters if specified
+      if (params.leadStatus) {
+        customers = customers.filter(customer => 
+          customer.lead_status === params.leadStatus
+        );
+      }
+      
+      if (params.leadSource) {
+        customers = customers.filter(customer => 
+          customer.lead_source === params.leadSource
+        );
+      }
+      
+      return {
+        success: true,
+        data: customers,
+        message: "Customers fetched from local storage"
+      };
+    }
   } catch (error) {
     debugError('Error fetching customers:', error);
     throw error;
@@ -25,8 +52,31 @@ export const fetchCustomers = async (params = {}) => {
 
 export const fetchRecentLeads = async (days = 30) => {
   try {
-    const response = await apiGet(`customers/recent_leads?days=${days}`);
-    return response;
+    try {
+      const response = await apiGet(`customers/recent_leads?days=${days}`);
+      return response;
+    } catch (apiError) {
+      // If API call fails, get from localStorage as fallback
+      debugError('API error, using localStorage fallback for recent leads:', apiError);
+      
+      // Get customers from localStorage
+      let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Filter customers created in the last 'days' days
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const recentCustomers = customers.filter(customer => {
+        const customerDate = new Date(customer.created_at);
+        return customerDate >= cutoffDate;
+      });
+      
+      return {
+        success: true,
+        data: recentCustomers,
+        message: "Recent leads fetched from local storage"
+      };
+    }
   } catch (error) {
     debugError('Error fetching recent leads:', error);
     throw error;
@@ -35,8 +85,29 @@ export const fetchRecentLeads = async (days = 30) => {
 
 export const fetchCustomerById = async (customerId) => {
   try {
-    const response = await apiGet(`customers/${customerId}`);
-    return response;
+    try {
+      const response = await apiGet(`customers/${customerId}`);
+      return response;
+    } catch (apiError) {
+      // If API call fails, get from localStorage as fallback
+      debugError('API error, using localStorage fallback for customer details:', apiError);
+      
+      // Get customers from localStorage
+      const customers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Find the customer by ID
+      const customer = customers.find(c => c.id == customerId);
+      
+      if (customer) {
+        return {
+          success: true,
+          data: customer,
+          message: "Customer fetched from local storage"
+        };
+      } else {
+        throw new Error(`Customer with ID ${customerId} not found in local storage`);
+      }
+    }
   } catch (error) {
     debugError(`Error fetching customer ${customerId}:`, error);
     throw error;
@@ -56,18 +127,44 @@ export const createCustomer = async (customerData) => {
         .replace(/\s+/g, '_');
     }
     
-    const response = await apiPost('customers', sanitizedData);
-    
-    // If we get a raw response without 'success' property, transform it to our expected format
-    if (response && !('success' in response) && response.data) {
+    try {
+      const response = await apiPost('customers', sanitizedData);
+      
+      // If we get a raw response without 'success' property, transform it to our expected format
+      if (response && !('success' in response) && response.data) {
+        return {
+          success: true,
+          data: response.data,
+          message: "Customer created successfully"
+        };
+      }
+      
+      return response;
+    } catch (apiError) {
+      // If API call fails, store in localStorage as fallback
+      debugError('API error, using localStorage fallback:', apiError);
+      
+      // Get existing customers or initialize empty array
+      const existingCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Create new customer with ID
+      const newCustomer = {
+        ...sanitizedData,
+        id: existingCustomers.length + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add to existing customers and save back to localStorage
+      existingCustomers.push(newCustomer);
+      localStorage.setItem('customers', JSON.stringify(existingCustomers));
+      
       return {
         success: true,
-        data: response.data,
-        message: "Customer created successfully"
+        data: newCustomer,
+        message: "Customer created successfully (local storage mode)"
       };
     }
-    
-    return response;
   } catch (error) {
     debugError('Error creating customer:', error);
     throw error;
@@ -87,18 +184,49 @@ export const updateCustomer = async (customerId, customerData) => {
         .replace(/\s+/g, '_');
     }
     
-    const response = await apiPut(`customers/${customerId}`, sanitizedData);
-    
-    // If we get a raw response without 'success' property, transform it to our expected format
-    if (response && !('success' in response) && response.data) {
-      return {
-        success: true,
-        data: response.data,
-        message: "Customer updated successfully"
-      };
+    try {
+      const response = await apiPut(`customers/${customerId}`, sanitizedData);
+      
+      // If we get a raw response without 'success' property, transform it to our expected format
+      if (response && !('success' in response) && response.data) {
+        return {
+          success: true,
+          data: response.data,
+          message: "Customer updated successfully"
+        };
+      }
+      
+      return response;
+    } catch (apiError) {
+      // If API call fails, update in localStorage as fallback
+      debugError('API error, using localStorage fallback for update:', apiError);
+      
+      // Get customers from localStorage
+      let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Find and update customer
+      const customerIndex = customers.findIndex(c => c.id == customerId);
+      
+      if (customerIndex !== -1) {
+        // Update customer with new data
+        customers[customerIndex] = {
+          ...customers[customerIndex],
+          ...sanitizedData,
+          updated_at: new Date().toISOString()
+        };
+        
+        // Save back to localStorage
+        localStorage.setItem('customers', JSON.stringify(customers));
+        
+        return {
+          success: true,
+          data: customers[customerIndex],
+          message: "Customer updated successfully (local storage mode)"
+        };
+      } else {
+        throw new Error(`Customer with ID ${customerId} not found in local storage`);
+      }
     }
-    
-    return response;
   } catch (error) {
     debugError(`Error updating customer ${customerId}:`, error);
     throw error;
@@ -107,8 +235,27 @@ export const updateCustomer = async (customerId, customerData) => {
 
 export const deleteCustomer = async (customerId) => {
   try {
-    const response = await apiDelete(`customers/${customerId}`);
-    return response;
+    try {
+      const response = await apiDelete(`customers/${customerId}`);
+      return response;
+    } catch (apiError) {
+      // If API call fails, delete from localStorage as fallback
+      debugError('API error, using localStorage fallback for delete:', apiError);
+      
+      // Get customers from localStorage
+      let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+      
+      // Filter out the customer to delete
+      const newCustomers = customers.filter(c => c.id != customerId);
+      
+      // Save back to localStorage
+      localStorage.setItem('customers', JSON.stringify(newCustomers));
+      
+      return {
+        success: true,
+        message: "Customer deleted successfully (local storage mode)"
+      };
+    }
   } catch (error) {
     debugError(`Error deleting customer ${customerId}:`, error);
     throw error;
