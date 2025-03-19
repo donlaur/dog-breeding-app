@@ -141,10 +141,10 @@ const CustomerForm = () => {
       
       if (isEditMode) {
         // Update existing customer
-        response = await apiPut(`customers/${customerId}`, formData);
+        response = await updateCustomer(customerId, formData);
       } else {
         // Create new customer
-        response = await apiPost('customers', formData);
+        response = await createCustomer(formData);
       }
       
       if (response.success) {

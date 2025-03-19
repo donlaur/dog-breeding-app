@@ -158,7 +158,7 @@ const CustomersIndex = () => {
           variant="contained" 
           color="primary" 
           startIcon={<PersonAddIcon />}
-          onClick={() => navigate('/customers/new')}
+          onClick={() => navigate('/dashboard/customers/new')}
         >
           Add New Customer
         </Button>
@@ -188,7 +188,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/customers/list')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers')} sx={{ width: '100%' }}>
                     View All
                   </Button>
                 </CardActions>
@@ -207,7 +207,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/customers/leads')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers/leads')} sx={{ width: '100%' }}>
                     Manage Leads
                   </Button>
                 </CardActions>
@@ -226,7 +226,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/customers/contracts')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers/contracts')} sx={{ width: '100%' }}>
                     View Contracts
                   </Button>
                 </CardActions>
@@ -247,7 +247,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/customers/communications')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers/communications')} sx={{ width: '100%' }}>
                     View Calendar
                   </Button>
                 </CardActions>
@@ -266,7 +266,7 @@ const CustomersIndex = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => navigate('/customers/communications')} sx={{ width: '100%' }}>
+                  <Button size="small" onClick={() => navigate('/dashboard/customers/communications')} sx={{ width: '100%' }}>
                     View All
                   </Button>
                 </CardActions>
@@ -285,7 +285,7 @@ const CustomersIndex = () => {
                   <Button 
                     size="small" 
                     endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate('/customers/leads')}
+                    onClick={() => navigate('/dashboard/customers/leads')}
                   >
                     View All
                   </Button>
@@ -301,7 +301,7 @@ const CustomersIndex = () => {
                       <ListItem 
                         key={lead.id}
                         secondaryAction={
-                          <IconButton edge="end" onClick={() => navigate(`/customers/${lead.id}`)}>
+                          <IconButton edge="end" onClick={() => navigate(`/dashboard/customers/${lead.id}`)}>
                             <ArrowForwardIcon />
                           </IconButton>
                         }
@@ -347,7 +347,7 @@ const CustomersIndex = () => {
                   <Button 
                     size="small" 
                     endIcon={<ArrowForwardIcon />}
-                    onClick={() => navigate('/customers/communications')}
+                    onClick={() => navigate('/dashboard/customers/communications')}
                   >
                     View All
                   </Button>
