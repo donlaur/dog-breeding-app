@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './utils/errorBoundary';
 import { installInterceptors } from './utils/interceptors';
 import DebugRouteInfo from './components/DebugRouteInfo';
+import SystemHealthMonitor from './components/SystemHealthMonitor';
 
 // Always imported (critical components)
 import HomePage from './HomePage';
@@ -124,6 +125,7 @@ function App() {
             <HealthProvider>
               <NotificationProvider>
                 <ErrorBoundary>
+                  <SystemHealthMonitor />
                   <DebugRouteInfo />
                   <Routes>
                   {/* Public site routes */}
