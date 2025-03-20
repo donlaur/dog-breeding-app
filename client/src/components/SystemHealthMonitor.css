@@ -1,0 +1,35 @@
+.health-monitor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  z-index: 1000;
+  text-align: center;
+  font-weight: bold;
+}
+
+.health-monitor.error {
+  background-color: #ff4444;
+  color: white;
+}
+
+.health-monitor.warning {
+  background-color: #ffbb33;
+  color: black;
+}
+
+.health-monitor.healthy {
+  display: none;
+}
+
+.warning-message {
+  margin: 5px 0;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+} 

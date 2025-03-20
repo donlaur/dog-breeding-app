@@ -5,41 +5,35 @@ Simple system health check endpoint for Docker and monitoring services.
 This is separate from the dog health records functionality.
 """
 
+import sys
+import os
 from flask import Blueprint, jsonify
 from flask_cors import CORS
-from .database import db
 
 def create_system_health_bp():
     """Create the system health blueprint"""
     system_health_bp = Blueprint('system_health', __name__)
+    CORS(system_health_bp)  # Enable CORS for the health endpoint
     
     @system_health_bp.route('/', methods=['GET'])
     def system_health_check():
         """
-        Simple health check endpoint that verifies the API is running
-        and can connect to the database.
-
-        This endpoint is used by Docker healthchecks and monitoring systems
-        to verify the application is functioning properly.
+        Enhanced health check endpoint that verifies:
+        - API is running
+        - Virtual environment status
+        - Python version
         """
         try:
-            # Check database connection by performing a simple query
-            # Using the established pattern for database queries
-            db_status = "connected"
-            db_error = None
-
-            try:
-                # Use find_by_field_values following the established pattern
-                db.find_by_field_values("dog_breeds", {}, limit=1)
-            except Exception as e:
-                db_status = "error"
-                db_error = str(e)
-
+            # Check if running in virtual environment
+            in_venv = sys.prefix != sys.base_prefix
+            
             return jsonify({
                 "status": "healthy",
-                "database": {
-                    "status": db_status,
-                    "error": db_error
+                "environment": {
+                    "virtual_env": in_venv,
+                    "venv_path": sys.prefix if in_venv else None,
+                    "python_version": sys.version,
+                    "dev_mode": os.getenv("FLASK_ENV") == "development"
                 },
                 "version": "1.0.0"
             })

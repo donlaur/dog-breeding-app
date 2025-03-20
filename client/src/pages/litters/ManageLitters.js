@@ -64,13 +64,7 @@ const ManageLitters = () => {
     debugLog("ManageLitters: Initial data load");
     refreshLitters(true);
     
-    // Set up an interval to periodically refresh litters data (every 30 seconds)
-    const intervalId = setInterval(() => {
-      refreshLitters(true); // Force refresh to ensure we always get fresh data
-    }, 30000);
-    
-    // Clean up interval on component unmount
-    return () => clearInterval(intervalId);
+    // Note: Automatic refresh every 30 seconds was removed to avoid disrupting user experience
   }, []); // Empty dependency array - only run on mount
 
   // Fetch breeds on component mount
@@ -453,7 +447,7 @@ const ManageLitters = () => {
                     }}>
                       {/* Dam photo (left) */}
                       <Avatar 
-                        src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        src={dam.cover_photo ? getPhotoUrl(dam.cover_photo, 'DOG') : '/images/dog-paw-print.png'} 
                         alt={dam.call_name || 'Dam'}
                         sx={{ 
                           width: 80, 
@@ -463,12 +457,15 @@ const ManageLitters = () => {
                           position: 'absolute',
                           left: 'calc(50% - 88px)',
                           zIndex: 1
-                        }} 
+                        }}
+                        imgProps={{
+                          onError: handleImageError('DOG')
+                        }}
                       />
                       
                       {/* Sire photo (right) - slightly overlapping (10%) */}
                       <Avatar 
-                        src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/placeholder-dog.png'} 
+                        src={sire.cover_photo ? getPhotoUrl(sire.cover_photo, 'DOG') : '/images/dog-paw-print.png'} 
                         alt={sire.call_name || 'Sire'}
                         sx={{ 
                           width: 80, 
@@ -478,7 +475,10 @@ const ManageLitters = () => {
                           position: 'absolute',
                           left: 'calc(50% - 8px)',
                           zIndex: 0
-                        }} 
+                        }}
+                        imgProps={{
+                          onError: handleImageError('DOG')
+                        }}
                       />
                     </Box>
                     
