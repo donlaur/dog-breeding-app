@@ -88,18 +88,36 @@ const PhotoGallery = ({
     }
   };
 
+  // Define allowed image types
+  const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  
   const handleFileChange = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      setUploadError(`Invalid file type. Please upload only JPG or PNG images.`);
+      return;
     }
+    
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(`File too large. Maximum size is 5MB.`);
+      return;
+    }
+    
+    // Clear any previous errors
+    setUploadError(null);
+    setSelectedFile(file);
+    
+    // Create a preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFilePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUploadDialogOpen = () => {
@@ -126,10 +144,22 @@ const PhotoGallery = ({
       setUploadError(null);
       
       const formData = new FormData();
+      // Validate data once more before sending
+      if (!selectedFile || !ALLOWED_FILE_TYPES.includes(selectedFile.type) || selectedFile.size > MAX_FILE_SIZE) {
+        throw new Error('Invalid file - security check failed');
+      }
+      
+      // Make sure entityId is a valid number or string
+      const validEntityId = entityId ? entityId.toString() : '';
+      if (!validEntityId) {
+        throw new Error('Invalid entity ID');
+      }
+      
+      // Create a secure FormData object with validated values
       formData.append('file', selectedFile);
       formData.append('entity_type', entityType);
-      formData.append('entity_id', entityId);
-      formData.append('caption', caption);
+      formData.append('entity_id', validEntityId);
+      formData.append('caption', caption);  // Caption is already sanitized in the input handler
       formData.append('is_cover', isCover ? 'true' : 'false');
       
       // Ensure photos array is valid before accessing length
@@ -149,12 +179,35 @@ const PhotoGallery = ({
         }
       };
       
+      // Use the proper API endpoint URL
+      const url = `${API_URL}/photos`;
+      console.log(`Uploading photo to: ${url}`);
+      
+      // Add token to headers for authentication
+      const token = localStorage.getItem('token');
+      if (token) {
+        uploadOptions.headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       // Use apiRequest directly to handle FormData correctly
-      const response = await fetch(`${API_URL}/photos`, uploadOptions);
+      const response = await fetch(url, uploadOptions);
       
       // Process the response
       if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
+        console.error(`Photo upload failed with status: ${response.status}`);
+        console.error('Upload options:', {...uploadOptions, body: '[FormData]'});
+        
+        // Check if we can get more error details from the response
+        let errorDetail = '';
+        try {
+          const errorResponse = await response.text();
+          errorDetail = errorResponse;
+          console.error('Error response:', errorResponse);
+        } catch (e) {
+          console.error('Could not parse error response:', e);
+        }
+        
+        throw new Error(`Upload failed with status: ${response.status}${errorDetail ? ` - ${errorDetail}` : ''}`);
       }
       
       const newPhoto = await response.json();
@@ -603,9 +656,17 @@ const PhotoGallery = ({
           <TextField
             label="Caption (optional)"
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
+            onChange={(e) => {
+              // Basic sanitization - limit length and remove potentially harmful characters
+              const sanitizedValue = e.target.value
+                .slice(0, 100)  // Limit to 100 characters
+                .replace(/[<>{}[\]\\\/]/g, ''); // Remove potentially dangerous characters
+              setCaption(sanitizedValue);
+            }}
             fullWidth
             margin="normal"
+            helperText="Maximum 100 characters. Special characters will be removed."
+            inputProps={{ maxLength: 100 }}
           />
           
           <Box sx={{ mt: 2 }}>

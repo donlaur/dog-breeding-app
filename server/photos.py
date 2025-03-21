@@ -68,7 +68,7 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             debug_log(f"Error saving file: {str(e)}")
             return None, str(e)
     
-    @photos_bp.route("/", methods=["POST"])
+    @photos_bp.route("", methods=["POST"])
     def upload_photo():
         try:
             # Ensure the request has files
