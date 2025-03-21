@@ -69,7 +69,8 @@ const AddLitterPage = () => {
       }
       
       refreshData();
-      navigate('/dashboard/litters');
+      // Pass a state parameter to indicate that we're coming from adding a litter
+      navigate('/dashboard/litters', { state: { refreshNeeded: true, newLitterId: newLitter.id } });
     } catch (error) {
       debugError('Error saving litter:', error);
       setError(error.message);

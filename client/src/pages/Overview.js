@@ -43,11 +43,10 @@ function Overview() {
       try {
         console.log('Directly fetching puppies from API...');
         const response = await apiGet('puppies');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Direct puppies fetch successful:', data);
-          console.log('Direct puppies count:', data.length);
-          setDirectPuppies(data);
+        if (response && response.ok) {
+          console.log('Direct puppies fetch successful:', response.data);
+          console.log('Direct puppies count:', response.data ? response.data.length : 0);
+          setDirectPuppies(response.data || []);
         } else {
           console.error('Failed to directly fetch puppies:', response.status);
         }
