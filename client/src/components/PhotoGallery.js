@@ -183,12 +183,6 @@ const PhotoGallery = ({
       const url = `${API_URL}/photos`;
       console.log(`Uploading photo to: ${url}`);
       
-      // Add token to headers for authentication
-      const token = localStorage.getItem('token');
-      if (token) {
-        uploadOptions.headers['Authorization'] = `Bearer ${token}`;
-      }
-      
       // Use apiRequest directly to handle FormData correctly
       const response = await fetch(url, uploadOptions);
       
