@@ -179,11 +179,22 @@ const PhotoGallery = ({
         }
       };
       
-      // Use the proper API endpoint URL
-      const url = `${API_URL}/photos`;
+      // Use the proper API endpoint URL with trailing slash to ensure it matches the server route
+      const url = `${API_URL}/photos/`;
       console.log(`Uploading photo to: ${url}`);
       
+      // First try the test endpoint to verify API is working
+      try {
+        const testResponse = await fetch(`${API_URL}/photos/test`);
+        const testResult = await testResponse.json();
+        console.log('Photos API test endpoint response:', testResult);
+      } catch (testError) {
+        console.warn('Photos API test endpoint failed:', testError);
+        // Continue anyway - don't block the actual upload
+      }
+      
       // Use apiRequest directly to handle FormData correctly
+      console.log('Making photo upload request to:', url);
       const response = await fetch(url, uploadOptions);
       
       // Process the response
@@ -199,6 +210,25 @@ const PhotoGallery = ({
           console.error('Error response:', errorResponse);
         } catch (e) {
           console.error('Could not parse error response:', e);
+        }
+        
+        // Test alternate endpoint format if this failed
+        if (response.status === 404) {
+          console.log('Trying alternate endpoint without trailing slash...');
+          try {
+            const alternateUrl = `${API_URL}/photos`;
+            const alternateResponse = await fetch(alternateUrl, uploadOptions);
+            
+            if (alternateResponse.ok) {
+              console.log('Alternate endpoint succeeded!');
+              const alternateData = await alternateResponse.json();
+              return alternateData;
+            } else {
+              console.error(`Alternate endpoint also failed with status: ${alternateResponse.status}`);
+            }
+          } catch (altError) {
+            console.error('Error with alternate endpoint:', altError);
+          }
         }
         
         throw new Error(`Upload failed with status: ${response.status}${errorDetail ? ` - ${errorDetail}` : ''}`);

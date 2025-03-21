@@ -68,14 +68,42 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             debug_log(f"Error saving file: {str(e)}")
             return None, str(e)
     
+    @photos_bp.route("/test", methods=["GET"])
+    def test_photos_api():
+        """Test endpoint to verify the photos API is working"""
+        debug_log("Photos test endpoint accessed")
+        return jsonify({
+            "status": "success",
+            "message": "Photos API is working correctly",
+            "endpoints": [
+                {"method": "POST", "path": "/api/photos", "description": "Upload a photo"},
+                {"method": "GET", "path": "/api/photos/<entity_type>/<entity_id>", "description": "Get photos for an entity"},
+                {"method": "DELETE", "path": "/api/photos/<photo_id>", "description": "Delete a photo"},
+                {"method": "PUT", "path": "/api/photos/<photo_id>", "description": "Update a photo"}
+            ]
+        }), 200
+        
     @photos_bp.route("", methods=["POST"])
+    @photos_bp.route("/", methods=["POST"])
     def upload_photo():
+        debug_log(f"Photo upload endpoint called with method: {request.method}")
+        debug_log(f"Content-Type: {request.content_type}")
+        debug_log(f"Request URL: {request.url}")
+        debug_log(f"Request path: {request.path}")
+        debug_log(f"Request headers: {dict(request.headers)}")
+        
         try:
+            # Log request files and form data
+            debug_log(f"Request files: {request.files.keys() if request.files else 'No files'}")
+            debug_log(f"Request form data: {dict(request.form) if request.form else 'No form data'}")
+            
             # Ensure the request has files
             if 'file' not in request.files:
+                debug_log("Error: No file found in request")
                 return jsonify({"error": "No file part in the request"}), 400
                 
             file = request.files['file']
+            debug_log(f"File received: {file.filename}")
             
             # Get entity type and ID from the form data
             entity_type = request.form.get('entity_type')
