@@ -1,6 +1,6 @@
 // src/pages/litters/ManageLitters.js
 import React, { useEffect, useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Box,
   Card,
@@ -58,14 +58,35 @@ const ManageLitters = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Refresh litters data when component mounts
+  // Refresh litters data when component mounts or when coming from AddLitterPage
   useEffect(() => {
     debugLog("ManageLitters: Initial data load");
-    refreshLitters(true);
+    
+    // Check if we need to refresh (coming from add/edit page)
+    const needsRefresh = location.state?.refreshNeeded === true;
+    const newLitterId = location.state?.newLitterId;
+    
+    if (needsRefresh) {
+      debugLog("ManageLitters: Refresh needed from navigation state");
+      refreshLitters(true);
+      
+      // Clear the state to prevent refreshing again if user refreshes the page
+      navigate(location.pathname, { replace: true, state: {} });
+      
+      // Highlight the new litter if ID was provided
+      if (newLitterId) {
+        // Could implement highlighting the new litter here
+        debugLog(`New litter added with ID: ${newLitterId}`);
+      }
+    } else {
+      // Initial load
+      refreshLitters(true);
+    }
     
     // Note: Automatic refresh every 30 seconds was removed to avoid disrupting user experience
-  }, []); // Empty dependency array - only run on mount
+  }, [location, navigate, refreshLitters]); // Dependencies added for the location state check
 
   // Fetch breeds on component mount
   useEffect(() => {

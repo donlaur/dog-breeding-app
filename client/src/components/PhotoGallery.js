@@ -32,7 +32,8 @@ import {
   ZoomIn as ZoomInIcon
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { apiGet, apiPost, apiDelete, apiPut } from '../utils/apiUtils';
+import { apiGet, apiDelete, apiPut } from '../utils/apiUtils';
+import { API_URL } from '../config';
 
 const PhotoGallery = ({ 
   entityType, 
@@ -129,21 +130,48 @@ const PhotoGallery = ({
       formData.append('entity_type', entityType);
       formData.append('entity_id', entityId);
       formData.append('caption', caption);
-      formData.append('is_cover', isCover);
-      formData.append('order', photoArray.length); // Add as last photo in order
+      formData.append('is_cover', isCover ? 'true' : 'false');
       
-      const newPhoto = await apiPost('photos/', formData, true); // true for formData
+      // Ensure photos array is valid before accessing length
+      const currentPhotoCount = Array.isArray(photos) ? photos.length : 0;
+      formData.append('order', currentPhotoCount.toString()); // Add as last photo in order
+      
+      // Get token for authorization
+      const token = localStorage.getItem('token');
+      
+      // Create custom options for FormData upload
+      const uploadOptions = {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Don't set Content-Type header as browser sets it with boundary
+          'Authorization': token ? `Bearer ${token}` : '',
+        }
+      };
+      
+      // Use apiRequest directly to handle FormData correctly
+      const response = await fetch(`${API_URL}/photos`, uploadOptions);
+      
+      // Process the response
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+      
+      const newPhoto = await response.json();
       
       // Update the photos array
+      // Ensure we're working with an array
+      const currentPhotos = Array.isArray(photos) ? photos : [];
+      
       if (isCover) {
         // If this is the new cover, update all other photos to not be cover
-        const updatedPhotos = photoArray.map(photo => ({
+        const updatedPhotos = currentPhotos.map(photo => ({
           ...photo,
           is_cover: false
         }));
         setPhotos([...updatedPhotos, newPhoto]);
       } else {
-        setPhotos([...photoArray, newPhoto]);
+        setPhotos([...currentPhotos, newPhoto]);
       }
       
       // Close dialog and reset
@@ -426,8 +454,8 @@ const PhotoGallery = ({
               >
                 {sortedPhotos.map((photo, index) => (
                   <Draggable 
-                    key={photo.id.toString()} 
-                    draggableId={photo.id.toString()} 
+                    key={(photo.id || index).toString()} 
+                    draggableId={(photo.id || `temp-id-${index}`).toString()} 
                     index={index}
                     isDragDisabled={readOnly}
                   >
