@@ -68,23 +68,39 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
             debug_log(f"Error saving file: {str(e)}")
             return None, str(e)
     
+    @photos_bp.route("/test", methods=["GET"])
+    def test_photos_route():
+        """Simple test endpoint to verify the photos blueprint is registered"""
+        return jsonify({"status": "ok", "message": "Photos API is working"}), 200
+        
+    @photos_bp.route("/", methods=["POST"])
     @photos_bp.route("", methods=["POST"])
     def upload_photo():
         try:
+            debug_log(f"Upload photo endpoint called with method: {request.method}")
+            debug_log(f"Request content type: {request.content_type}")
+            debug_log(f"Request files: {request.files.keys() if request.files else 'No files'}")
+            debug_log(f"Request form data: {request.form.keys() if request.form else 'No form data'}")
+            
             # Ensure the request has files
             if 'file' not in request.files:
+                debug_log("No file found in request")
                 return jsonify({"error": "No file part in the request"}), 400
                 
             file = request.files['file']
+            debug_log(f"File received: {file.filename}")
             
             # Get entity type and ID from the form data
             entity_type = request.form.get('entity_type')
             entity_id = request.form.get('entity_id')
+            debug_log(f"Entity type: {entity_type}, Entity ID: {entity_id}")
+            
             # If is_cover isn't explicitly set, we'll determine it based on other photos
             is_cover_str = request.form.get('is_cover')
             is_cover = is_cover_str.lower() == 'true' if is_cover_str is not None else None
             caption = request.form.get('caption', '')
             order = request.form.get('order', '0')
+            debug_log(f"is_cover: {is_cover}, caption: {caption}, order: {order}")
             
             # Validate required fields
             if not entity_type or not entity_id:

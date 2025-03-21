@@ -179,8 +179,8 @@ const PhotoGallery = ({
         }
       };
       
-      // Use the proper API endpoint URL
-      const url = `${API_URL}/photos`;
+      // Use the proper API endpoint URL with trailing slash to ensure it matches the server route
+      const url = `${API_URL}/photos/`;
       console.log(`Uploading photo to: ${url}`);
       
       // Use apiRequest directly to handle FormData correctly
