@@ -44,7 +44,11 @@ function DogForm() {
   const { notifyDogStatusUpdate } = useNotifications();
   const navigate = useNavigate();
   const { id } = useParams();
-  const editingDog = dogs.find((dog) => dog.id === parseInt(id));
+  const parsedId = id ? parseInt(id, 10) : null;
+  console.log("DogForm - Current ID from useParams:", id, "Parsed ID:", parsedId);
+  const editingDog = parsedId ? dogs.find((dog) => dog.id === parsedId) : null;
+  console.log("DogForm - Available dogs:", dogs.map(d => ({ id: d.id, name: d.call_name })));
+  console.log("DogForm - Found editingDog:", editingDog);
   const [dog, setDog] = useState({
     registered_name: "",
     call_name: "",
@@ -68,7 +72,7 @@ function DogForm() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) {
+    if (!parsedId) {
       debugLog("Initializing new dog form");
       setDog({
         registered_name: "",
@@ -94,8 +98,24 @@ function DogForm() {
       return;
     }
 
-    debugLog("Fetching dog data for editing:", id);
-    fetch(`${API_URL}/dogs/${id}`)
+    debugLog("Fetching dog data for editing ID:", parsedId);
+    
+    // First check if the dog data is already in the context
+    if (editingDog) {
+      debugLog("Using dog data from context:", editingDog);
+      // Ensure IDs are properly formatted
+      const formattedData = {
+        ...editingDog,
+        sire_id: editingDog.sire_id ? parseInt(editingDog.sire_id, 10) : '',
+        dam_id: editingDog.dam_id ? parseInt(editingDog.dam_id, 10) : ''
+      };
+      setDog(formattedData);
+      setLoading(false);
+      return;
+    }
+    
+    // If not in context, fetch from API
+    fetch(`${API_URL}/dogs/${parsedId}`)
       .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -103,7 +123,7 @@ function DogForm() {
         return res.json();
       })
       .then((data) => {
-        debugLog("Dog data received for editing:", data);
+        debugLog("Dog data received from API for editing:", data);
         // Ensure IDs are properly formatted
         const formattedData = {
           ...data,
@@ -116,9 +136,14 @@ function DogForm() {
       .catch((err) => {
         debugError("Error fetching dog:", err);
         debugError("Error details:", err.message);
+        // If there's an error, try to navigate back
+        if (parsedId) {
+          navigate('/dashboard/dogs');
+          showError(`Could not find dog with ID: ${parsedId}`);
+        }
         setLoading(false);
       });
-  }, [id]);
+  }, [parsedId, editingDog, navigate, showError]);
 
   if (loading) {
     return <p>Loading dog data...</p>;
@@ -129,7 +154,7 @@ function DogForm() {
   }
 
   // Optional sire/dam options - exclude current dog from potential parents
-  const currentDogId = id ? parseInt(id, 10) : null;
+  const currentDogId = parsedId;
   
   const sireOptions = dogs
     .filter((d) => d.gender === "Male" && d.id !== currentDogId)
@@ -172,15 +197,15 @@ function DogForm() {
     debugLog("Submitting dog form:", dog);
 
     try {
-      if (id) {
-        await updateDog(parseInt(id), dog);
+      if (parsedId) {
+        await updateDog(parsedId, dog);
         debugLog("Dog updated successfully");
         showSuccess("Dog updated successfully!");
         
         // Check if status was updated and notify
-        const originalDog = dogs.find(d => d.id === parseInt(id));
+        const originalDog = dogs.find(d => d.id === parsedId);
         if (originalDog && originalDog.status !== dog.status) {
-          notifyDogStatusUpdate(parseInt(id), dog.call_name, dog.status);
+          notifyDogStatusUpdate(parsedId, dog.call_name, dog.status);
         }
       } else {
         await addDog(dog);
