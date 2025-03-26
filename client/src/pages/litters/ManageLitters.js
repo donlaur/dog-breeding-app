@@ -70,7 +70,6 @@ const ManageLitters = () => {
     
     if (needsRefresh) {
       debugLog("ManageLitters: Refresh needed from navigation state");
-      refreshLitters(true);
       
       // Clear the state to prevent refreshing again if user refreshes the page
       navigate(location.pathname, { replace: true, state: {} });
@@ -80,13 +79,12 @@ const ManageLitters = () => {
         // Could implement highlighting the new litter here
         debugLog(`New litter added with ID: ${newLitterId}`);
       }
-    } else {
-      // Initial load
-      refreshLitters(true);
     }
     
-    // Note: Automatic refresh every 30 seconds was removed to avoid disrupting user experience
-  }, [location, navigate, refreshLitters]); // Dependencies added for the location state check
+    // Note: We don't call refreshLitters here - it will be handled by DogContext
+    // during its own initialization to prevent multiple refreshes and blinking
+    
+  }, [location, navigate]); // refreshLitters removed from dependencies to prevent re-triggering
 
   // Fetch breeds on component mount
   useEffect(() => {
@@ -198,39 +196,50 @@ const ManageLitters = () => {
   };
 
   // Apply all filters and get filtered litters
-  const getFilteredLitters = () => {
-    // First filter by dam and sire
-    let filtered = litters.filter(litter => {
-      const matchesDam = !selectedDam || litter.dam_id === parseInt(selectedDam);
-      const matchesSire = !selectedSire || litter.sire_id === parseInt(selectedSire);
-      return matchesDam && matchesSire;
-    });
-    
-    // Then apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(litter => getLitterCategory(litter.status) === statusFilter);
-    }
-    
-    // Sort by date (newest first)
-    filtered.sort((a, b) => {
-      // Use whelp_date if available, otherwise use expected_date
-      const dateA = a.whelp_date || a.expected_date || '';
-      const dateB = b.whelp_date || b.expected_date || '';
+  // Memoize the result to prevent excess recalculations during render
+  const [filteredLitters, setFilteredLitters] = useState([]);
+  
+  // Update filtered litters when dependencies change
+  useEffect(() => {
+    const filterAndSortLitters = () => {
+      // First filter by dam and sire
+      let filtered = litters.filter(litter => {
+        const matchesDam = !selectedDam || litter.dam_id === parseInt(selectedDam);
+        const matchesSire = !selectedSire || litter.sire_id === parseInt(selectedSire);
+        return matchesDam && matchesSire;
+      });
       
-      // Sort in descending order (newest first)
-      if (dateA && dateB) {
-        return new Date(dateB) - new Date(dateA);
+      // Then apply status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(litter => getLitterCategory(litter.status) === statusFilter);
       }
-      // If only one has a date, prioritize the one with a date
-      if (dateA && !dateB) return -1;
-      if (!dateA && dateB) return 1;
       
-      // If neither has a date, sort by ID (newest first)
-      return b.id - a.id;
-    });
+      // Sort by date (newest first)
+      filtered.sort((a, b) => {
+        // Use whelp_date if available, otherwise use expected_date
+        const dateA = a.whelp_date || a.expected_date || '';
+        const dateB = b.whelp_date || b.expected_date || '';
+        
+        // Sort in descending order (newest first)
+        if (dateA && dateB) {
+          return new Date(dateB) - new Date(dateA);
+        }
+        // If only one has a date, prioritize the one with a date
+        if (dateA && !dateB) return -1;
+        if (!dateA && dateB) return 1;
+        
+        // If neither has a date, sort by ID (newest first)
+        return b.id - a.id;
+      });
+      
+      setFilteredLitters(filtered);
+    };
     
-    return filtered;
-  };
+    filterAndSortLitters();
+  }, [litters, selectedDam, selectedSire, statusFilter]);
+  
+  // This function now just returns the memoized result
+  const getFilteredLitters = () => filteredLitters;
 
   // Clear all filters
   const handleClearFilters = () => {
@@ -240,6 +249,11 @@ const ManageLitters = () => {
   };
 
   const handleRefresh = () => {
+    // Prevent refresh if already loading
+    if (loading || localLoading) {
+      debugLog("Skipping refresh as already loading");
+      return;
+    }
     refreshLitters(true);
   };
 
@@ -413,7 +427,7 @@ const ManageLitters = () => {
       ) : getFilteredLitters().length > 0 ? (
         <Grid container spacing={2}>
           {getFilteredLitters().map(litter => {
-            // Find the actual dam and sire objects to get their photos
+            // Find the actual dam and sire objects to get their photos (without logging)
             const dam = dams.find(d => d.id === litter.dam_id) || {};
             const sire = sires.find(s => s.id === litter.sire_id) || {};
             const isLitterBorn = litter.status === 'Born' || litter.status === 'Available' || litter.status === 'Completed';
