@@ -76,6 +76,16 @@ def create_app():
         app.logger.error(f"Database initialization error: {e}")
         db = FallbackDatabase()  # Define this class below
     
+    # Initialize Cloudinary service if needed
+    try:
+        from server.cloudinary_service import CloudinaryService
+        cloudinary_service = CloudinaryService()
+        app.config['CLOUDINARY_SERVICE'] = cloudinary_service
+        app.logger.info("Cloudinary service initialized successfully")
+    except Exception as e:
+        app.logger.warning(f"Unable to initialize Cloudinary service: {e}")
+        app.config['CLOUDINARY_SERVICE'] = None
+    
     # Register blueprints with error handling
     register_blueprints(app, db)
     

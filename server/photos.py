@@ -72,17 +72,163 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
     def test_photos_api():
         """Test endpoint to verify the photos API is working"""
         debug_log("Photos test endpoint accessed")
+
+        # Include upload directory information for debugging
+        uploads_dir = os.path.join(current_app.root_path, 'uploads')
+        dir_exists = os.path.exists(uploads_dir)
+        is_dir = os.path.isdir(uploads_dir) if dir_exists else False
+        is_writable = os.access(uploads_dir, os.W_OK) if dir_exists else False
+        
+        try:
+            # Try to list uploads directory contents for debugging
+            uploads_contents = os.listdir(uploads_dir) if dir_exists else []
+            dir_contents = len(uploads_contents)
+        except Exception as e:
+            uploads_contents = []
+            dir_contents = f"Error: {str(e)}"
+            
+        # Check Cloudinary service status
+        cloudinary_status = "not configured"
+        if hasattr(current_app, 'config') and current_app.config.get('CLOUDINARY_SERVICE'):
+            try:
+                cloudinary_result = current_app.config['CLOUDINARY_SERVICE'].get_test_connectivity()
+                cloudinary_status = cloudinary_result.get('status', 'unknown')
+            except Exception as e:
+                cloudinary_status = f"error: {str(e)}"
+
         return jsonify({
             "status": "success",
             "message": "Photos API is working correctly",
             "endpoints": [
-                {"method": "POST", "path": "/api/photos", "description": "Upload a photo"},
+                {"method": "POST", "path": "/api/photos", "description": "Upload a photo to local storage"},
+                {"method": "POST", "path": "/api/photos/cloudinary", "description": "Upload a photo to Cloudinary"},
                 {"method": "GET", "path": "/api/photos/<entity_type>/<entity_id>", "description": "Get photos for an entity"},
                 {"method": "DELETE", "path": "/api/photos/<photo_id>", "description": "Delete a photo"},
                 {"method": "PUT", "path": "/api/photos/<photo_id>", "description": "Update a photo"}
-            ]
+            ],
+            "uploads_directory": {
+                "path": uploads_dir,
+                "exists": dir_exists,
+                "is_directory": is_dir,
+                "is_writable": is_writable,
+                "contents_count": dir_contents,
+                "contents": uploads_contents[:20] if len(uploads_contents) > 0 else "empty"
+            },
+            "cloudinary_status": cloudinary_status,
+            "app_root": current_app.root_path
         }), 200
         
+    @photos_bp.route("/cloudinary", methods=["POST"])
+    def upload_to_cloudinary():
+        """
+        Endpoint to handle photo uploads to Cloudinary.
+        """
+        debug_log(f"Cloudinary upload endpoint called")
+        
+        try:
+            # Check if Cloudinary service is available
+            cloudinary_service = current_app.config.get('CLOUDINARY_SERVICE')
+            if not cloudinary_service:
+                debug_log("Error: Cloudinary service not configured")
+                return jsonify({"error": "Cloudinary service not configured"}), 500
+                
+            # Ensure the request has files
+            if 'file' not in request.files:
+                debug_log("Error: No file found in request")
+                return jsonify({"error": "No file part in the request"}), 400
+                
+            file = request.files['file']
+            debug_log(f"File received: {file.filename}")
+            
+            # Get entity type and ID from the form data
+            entity_type = request.form.get('entity_type')
+            entity_id = request.form.get('entity_id')
+            is_cover_str = request.form.get('is_cover')
+            is_cover = is_cover_str.lower() == 'true' if is_cover_str is not None else False
+            caption = request.form.get('caption', '')
+            
+            debug_log(f"Upload params - entity_type: {entity_type}, entity_id: {entity_id}, "
+                     f"is_cover: {is_cover}, caption: '{caption}'")
+            
+            # Validate required fields
+            if not entity_type or not entity_id:
+                debug_log("Missing required fields: entity_type and entity_id")
+                return jsonify({
+                    "error": "Missing required fields: entity_type and entity_id"
+                }), 400
+                
+            try:
+                entity_id = int(entity_id)
+            except ValueError as e:
+                debug_log(f"Value error converting IDs: {str(e)}")
+                return jsonify({"error": "entity_id must be an integer"}), 400
+            
+            # Save to a temporary file
+            temp_file = os.path.join(current_app.root_path, 'uploads', f"temp_{uuid.uuid4().hex}")
+            file.save(temp_file)
+            
+            try:
+                # Upload to Cloudinary
+                unique_id = f"{entity_type}_{entity_id}_{uuid.uuid4().hex[:8]}"
+                options = {
+                    "public_id": unique_id,
+                    "tags": [entity_type, str(entity_id)]
+                }
+                
+                result = cloudinary_service.upload_image(temp_file, entity_type, entity_id, options)
+                debug_log(f"Cloudinary upload result: {result}")
+                
+                # Create a photo record in the database
+                photo_data = {
+                    "related_type": entity_type,
+                    "related_id": entity_id,
+                    "url": result["url"],
+                    "original_filename": file.filename,
+                    "is_cover": is_cover,
+                    "caption": caption,
+                    "order": 0,
+                    "cloudinary_id": result["public_id"],
+                    "thumbnail_url": result.get("thumbnail_url")
+                }
+                
+                # If this is a cover photo, first set all other photos for this entity as non-cover
+                if is_cover:
+                    existing_photos = db.find_by_field_values("photos", {
+                        "related_type": entity_type,
+                        "related_id": entity_id
+                    })
+                    
+                    for photo in existing_photos:
+                        if photo["is_cover"]:
+                            db.update("photos", photo["id"], {"is_cover": False})
+                
+                # Create the photo record
+                photo = db.create("photos", photo_data)
+                debug_log(f"Photo record created: {photo}")
+                
+                # Update the entity's cover_photo field if this is a cover photo
+                if photo["is_cover"]:
+                    table_name = {
+                        "dog": "dogs",
+                        "litter": "litters",
+                        "puppy": "puppies"
+                    }.get(entity_type)
+                    
+                    if table_name:
+                        db.update(table_name, entity_id, {"cover_photo": photo["url"]})
+                
+                return jsonify(photo), 201
+                
+            finally:
+                # Remove the temporary file
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    
+        except Exception as e:
+            debug_log(f"Error uploading to Cloudinary: {str(e)}")
+            traceback.print_exc()
+            return jsonify({"error": str(e)}), 500
+            
     @photos_bp.route("", methods=["POST"])
     @photos_bp.route("/", methods=["POST"])
     def upload_photo():
@@ -243,6 +389,17 @@ def create_photos_bp(db: DatabaseInterface) -> Blueprint:
                 except Exception as e:
                     debug_log(f"Error deleting file: {str(e)}")
                     # Continue anyway, as we want to delete the DB record
+            
+            # Delete from Cloudinary if cloudinary_id is present
+            if "cloudinary_id" in photo and photo["cloudinary_id"]:
+                cloudinary_service = current_app.config.get('CLOUDINARY_SERVICE')
+                if cloudinary_service:
+                    try:
+                        cloudinary_service.delete_image(photo["cloudinary_id"])
+                        debug_log(f"Deleted image from Cloudinary: {photo['cloudinary_id']}")
+                    except Exception as e:
+                        debug_log(f"Error deleting from Cloudinary: {str(e)}")
+                        # Continue anyway to delete the database record
             
             # Delete the photo record
             db.delete("photos", photo_id)
