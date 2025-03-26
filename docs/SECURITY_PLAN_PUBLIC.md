@@ -8,6 +8,8 @@ This document outlines our approach to implementing security best practices in t
    - Implementing industry best practices for secure authentication
    - Utilizing secure storage mechanisms for credentials
    - Adding robust authorization controls
+   - Standardizing token-based authentication across all API endpoints
+   - Using the token_required decorator consistently throughout the application
 
 2. **Input Handling**
    - Implementing comprehensive input validation
@@ -23,6 +25,8 @@ This document outlines our approach to implementing security best practices in t
    - Enhancing Row Level Security (RLS) in Supabase
    - Protecting sensitive data
    - Implementing principle of least privilege
+   - Enforcing breeder_id constraints across all records
+   - Ensuring proper data isolation between different breeding programs
 
 5. **Configuration Management**
    - Securing environment variables
@@ -33,6 +37,7 @@ This document outlines our approach to implementing security best practices in t
 
 ### Phase 1: Foundation (1-2 weeks)
 - Implement secure authentication practices
+- Standardize token-based authentication across all non-public endpoints
 - Review and enhance input validation
 - Audit configuration management
 
@@ -40,11 +45,19 @@ This document outlines our approach to implementing security best practices in t
 - Add comprehensive security headers
 - Improve error handling
 - Standardize API response formats
+- Implement proper token validation for production environment
 
 ### Phase 3: Advanced Security (3-4 weeks)
 - Implement additional security measures
+- Enhance Row-Level Security in database
 - Conduct security testing
 - Document security architecture
+
+### Phase 4: Optimization (2-3 weeks)
+- Improve CORS configuration with specific origins
+- Implement rate limiting for API endpoints
+- Enhance logging for security-related events
+- Review and update breeder_id enforcement across all tables
 
 ## Security Best Practices
 

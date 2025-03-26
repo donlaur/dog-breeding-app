@@ -116,21 +116,32 @@ const isValidId = (id) => {
 export const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
   
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
+  // Default headers
+  let defaultHeaders = {
     'Authorization': token ? `Bearer ${token}` : ''
   };
-
+  
+  // Only add Content-Type for JSON requests, not for FormData
+  const isFormData = options.body instanceof FormData;
+  if (!isFormData) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+  
   // Debug the token being sent
   if (token) {
     debugLog(`Using token for request: ${token.substring(0, 10)}...`);
+  }
+  
+  // Log if we're handling FormData
+  if (isFormData) {
+    debugLog(`Making FormData request to ${endpoint} with ${options.body.get('file')?.name || 'unknown file'}`);
   }
 
   const config = {
     ...options,
     headers: {
       ...defaultHeaders,
-      ...options.headers
+      ...(options.headers || {})
     }
   };
 
@@ -497,7 +508,8 @@ export const apiUpload = async (file, type = 'image', options = {}) => {
       body: formData,
       ...options,
       headers: {
-        // Remove any Content-Type header as it will be set by FormData
+        // Only set Authorization header, no Content-Type for FormData
+        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '',
         ...options.headers
       }
     };
@@ -535,6 +547,89 @@ export const apiUpload = async (file, type = 'image', options = {}) => {
     return {
       ok: false,
       error: error.message || 'Unknown error',
+    };
+  }
+};
+
+/**
+ * Specialized function for uploading photos with entity information
+ * This function now uses only the dogs/upload endpoint which is the only available one
+ * @param {File} file - The photo file to upload
+ * @param {string} entityType - The type of entity (dog, puppy, litter)
+ * @param {string|number} entityId - ID of the entity
+ * @param {Object} options - Additional options (caption, isCover, etc)
+ * @returns {Promise<Object>} - Response with photo data
+ */
+export const apiUploadPhoto = async (file, entityType, entityId, options = {}) => {
+  debugLog(`Starting photo upload for ${entityType} #${entityId}`);
+  
+  try {
+    if (!file) {
+      throw new Error('Missing required parameter: file');
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Add entity information as metadata
+    if (entityType) formData.append('entity_type', entityType);
+    if (entityId) formData.append('entity_id', entityId.toString());
+    
+    // Add optional fields
+    if (options.caption) formData.append('caption', options.caption);
+    if (options.isCover !== undefined) formData.append('is_cover', options.isCover ? 'true' : 'false');
+    if (options.order !== undefined) formData.append('order', options.order.toString());
+    
+    debugLog('FormData contains:', Array.from(formData.keys()));
+    
+    // Use only the dogs/upload endpoint
+    const endpoint = 'dogs/upload';
+    debugLog(`Uploading to ${endpoint} endpoint`);
+    
+    const uploadOptions = {
+      method: 'POST',
+      body: formData
+    };
+    
+    try {
+      const response = await apiRequest(endpoint, uploadOptions);
+      
+      // Check for a successful response
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugError(`Upload to ${endpoint} failed with status: ${response.status} - ${errorText}`);
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+      
+      // Parse the response
+      const responseData = await response.json();
+      debugLog(`Upload succeeded to ${endpoint}:`, responseData);
+      
+      // Normalize the response structure
+      const normalizedData = {
+        url: responseData.file_url || responseData.absolute_url,
+        id: responseData.id || Date.now().toString(),
+        original_filename: responseData.original_filename || file.name,
+        entity_type: entityType,
+        entity_id: entityId
+      };
+      
+      return {
+        success: true,
+        photo: normalizedData,
+        endpoint: endpoint
+      };
+    } catch (err) {
+      debugError(`Error during upload to ${endpoint}:`, err);
+      throw err;
+    }
+  } catch (error) {
+    debugError('Photo upload failed:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown upload error',
+      photo: null
     };
   }
 };

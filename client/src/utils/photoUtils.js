@@ -95,6 +95,76 @@ export const checkImageExists = async (url) => {
     }
 };
 
+/**
+ * Upload a photo to the server using FormData and proper API utilities
+ * This function handles all the complexities of photo uploads
+ * @param {FormData} formData - FormData object containing file and metadata
+ * @returns {Promise<object>} - Object with success status and photo data
+ */
+export const uploadPhoto = async (formData) => {
+  // Import the API utilities dynamically to avoid circular dependencies
+  const { apiRequest, formatApiUrl } = await import('./apiUtils');
+
+  // Create a proper options object for the upload request
+  const uploadOptions = {
+    method: 'POST',
+    body: formData,
+    // Don't set Content-Type header as browser automatically sets it with the boundary
+  };
+
+  // Log that we're starting the upload process
+  console.log('Starting photo upload with enhanced FormData upload utility');
+  console.log('FormData contains:', 
+    Array.from(formData.keys()).map(key => ({ key, type: typeof formData.get(key) }))
+  );
+
+  // Try only the dogs/upload endpoint since it's the only one available
+  try {
+    // Check if we have a 'file' field
+    if (formData.has('file')) {
+      // The server endpoint accepts either 'file' or 'photo'
+      console.log('Form data contains "file" field');
+    } else {
+      console.log('WARNING: Form data does not contain "file" field');
+    }
+    
+    const dogsUploadEndpoint = 'dogs/upload';
+    console.log(`Attempting upload to dogs/upload endpoint: ${dogsUploadEndpoint}`);
+    
+    // Send the upload request
+    const response = await apiRequest(dogsUploadEndpoint, uploadOptions);
+    
+    // If successful, return the result
+    if (response.ok) {
+      const photoData = await response.json();
+      console.log('Upload succeeded with dogs/upload endpoint!', photoData);
+      
+      // Normalize the response format
+      const normalizedData = {
+        url: photoData.file_url || photoData.absolute_url,
+        original_filename: photoData.original_filename || '',
+        id: photoData.id || Date.now().toString()
+      };
+      
+      return { success: true, photo: normalizedData };
+    }
+    
+    // If the upload failed, throw an error
+    const errorText = await response.text();
+    console.error(`Upload to ${dogsUploadEndpoint} failed: ${response.status} - ${errorText}`);
+    throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+    
+  } catch (error) {
+    console.error('Photo upload failed with error:', error);
+    // Return a standardized error response
+    return { 
+      success: false, 
+      error: error.message || 'Unknown upload error',
+      photo: null
+    };
+  }
+};
+
 // Export the defaults for direct use
 export const DEFAULT_DOG_IMAGE = DEFAULT_IMAGES.DOG;
 export const DEFAULT_PUPPY_IMAGE = DEFAULT_IMAGES.PUPPY;

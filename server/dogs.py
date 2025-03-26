@@ -73,10 +73,25 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
         try:
             debug_log("Fetching all dogs...")
             
-            # Use the abstracted db interface
-            dogs = db.find_by_field_values("dogs", {})
+            # Import the default breeder ID from config
+            from server.config import DEFAULT_BREEDER_ID
             
-            debug_log(f"Found {len(dogs)} dogs")
+            # Extract breeder_id from query params, default to DEFAULT_BREEDER_ID if not specified
+            breeder_id = request.args.get('breeder_id', DEFAULT_BREEDER_ID)
+            
+            try:
+                # Convert to int if it's a string
+                breeder_id = int(breeder_id)
+            except ValueError:
+                # If not a valid int, use the default
+                breeder_id = DEFAULT_BREEDER_ID
+                
+            debug_log(f"Filtering dogs by breeder_id: {breeder_id}")
+            
+            # Use the abstracted db interface with breeder_id filter
+            dogs = db.find_by_field_values("dogs", {"breeder_id": breeder_id})
+            
+            debug_log(f"Found {len(dogs)} dogs for breeder_id {breeder_id}")
             
             # Add CORS headers to response
             response = jsonify(dogs)
@@ -94,12 +109,33 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
         try:
             debug_log(f"Fetching dog with ID: {dog_id}")
             
+            # Import the default breeder ID from config
+            from server.config import DEFAULT_BREEDER_ID
+            
+            # Get breeder_id from query params if provided
+            breeder_id = request.args.get('breeder_id')
+            if breeder_id:
+                try:
+                    breeder_id = int(breeder_id)
+                except ValueError:
+                    breeder_id = DEFAULT_BREEDER_ID
+            
             # Use the abstracted db interface
             dog = db.get("dogs", dog_id)
             
             if not dog:
                 debug_log(f"Dog not found with ID: {dog_id}")
                 response = jsonify({"error": f"Dog with ID {dog_id} not found"})
+                response.status_code = 404
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+                response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+                return response
+            
+            # Check if dog belongs to the requested breeder
+            if breeder_id and dog.get('breeder_id') and dog['breeder_id'] != breeder_id:
+                debug_log(f"Dog with ID {dog_id} belongs to breeder {dog['breeder_id']}, not requested breeder {breeder_id}")
+                response = jsonify({"error": f"Dog with ID {dog_id} not found for breeder {breeder_id}"})
                 response.status_code = 404
                 response.headers.add('Access-Control-Allow-Origin', '*')
                 response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
@@ -151,6 +187,22 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
                         # ...
                         pass
             
+            # Ensure breeder_id is set
+            if 'breeder_id' not in data or not data['breeder_id']:
+                # Get breeder_id from token/session if available
+                auth_header = request.headers.get('Authorization')
+                if auth_header and auth_header.startswith('Bearer '):
+                    # In a production app, we would extract the breeder_id from the token
+                    # For now, use the default breeder_id from config
+                    from server.config import DEFAULT_BREEDER_ID
+                    data['breeder_id'] = DEFAULT_BREEDER_ID
+                else:
+                    # Default fallback if no token
+                    from server.config import DEFAULT_BREEDER_ID
+                    data['breeder_id'] = DEFAULT_BREEDER_ID
+                
+                debug_log(f"Added default breeder_id: {data['breeder_id']}")
+            
             debug_log(f"Processed data for dog creation: {data}")
             
             # Create the dog using the abstracted db interface
@@ -177,6 +229,12 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
                 return jsonify({"error": f"Dog with ID {dog_id} not found"}), 404
             
             data = request.get_json()
+            
+            # Preserve the original breeder_id to maintain data integrity
+            # This ensures a dog can't be moved to another breeder accidentally
+            if 'breeder_id' in data and existing_dog.get('breeder_id') and data['breeder_id'] != existing_dog['breeder_id']:
+                debug_log(f"Attempt to change breeder_id from {existing_dog['breeder_id']} to {data['breeder_id']} prevented")
+                data['breeder_id'] = existing_dog['breeder_id']
             
             # Update the dog using the abstracted db interface
             updated_dog = db.update("dogs", dog_id, data)
@@ -217,57 +275,47 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
 
     @dogs_bp.route("/upload", methods=["POST"])
     def upload_file():
-        file = request.files.get("file")
+        # Check for both 'file' and 'photo' parameters for compatibility
+        file = request.files.get("file") or request.files.get("photo")
         if not file:
             return jsonify({"error": "No file uploaded"}), 400
+
+        debug_log(f"Processing file upload: {file.filename}")
 
         original_filename = secure_filename(file.filename)
         unique_id = str(uuid.uuid4())[:8]
         final_filename = f"{unique_id}_{original_filename}"
-        filepath = f"dog_images/{final_filename}"
-
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            file.save(tmp.name)
-            tmp_path = tmp.name
-
+        
+        # Create the uploads directory if it doesn't exist
+        upload_dir = os.path.join(current_app.root_path, 'uploads')
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        # Define the file path
+        file_path = os.path.join(upload_dir, final_filename)
+        
         try:
-            upload_response = supabase.storage.from_("uploads").upload(filepath, tmp_path)
-        finally:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-
-        if upload_response.error:
-            return jsonify({"error": upload_response.error.message}), 400
-
-        file_url = f"https://{domain}/storage/v1/object/public/uploads/{filepath}"
-        return jsonify({"file_url": file_url})
-
-    @dogs_bp.route('/full', methods=['GET', 'OPTIONS'])
-    def get_dogs_with_full_details():
-        """Get all dogs with complete details for the current program."""
-        # Handle CORS preflight requests
-        if request.method == 'OPTIONS':
-            return '', 200
+            # Save the file directly to the uploads directory
+            file.save(file_path)
             
-        debug_log("Fetching all dogs with full details...")
-        try:
-            # Enhanced query to get all relevant fields with correct column names
-            response = db.supabase.table("dogs").select(
-                "*",
-                "breed:breed_id(id,breed_name)",
-                "sire:sire_id(id,call_name,photo_url,birth_date)",
-                "dam:dam_id(id,call_name,photo_url,birth_date)"
-            ).execute()
+            debug_log(f"File saved successfully to {file_path}")
             
-            if response.error:
-                raise DatabaseError(str(response.error))
-                
-            dogs = response.data
-            debug_log(f"Returning {len(dogs)} dogs with full details")
-            return jsonify(dogs)
-        except DatabaseError as e:
-            debug_log(f"Error fetching dogs with full details: {str(e)}")
+            # Generate the URL
+            file_url = f"/uploads/{final_filename}"
+            absolute_url = f"{request.host_url.rstrip('/')}{file_url}"
+            
+            # Return both relative and absolute URLs for flexibility
+            return jsonify({
+                "file_url": file_url,
+                "absolute_url": absolute_url,
+                "original_filename": original_filename
+            })
+            
+        except Exception as e:
+            debug_log(f"Error saving uploaded file: {str(e)}")
             return jsonify({"error": str(e)}), 500
+
+    # Removed the /full endpoint as it's not needed and was causing errors
 
     @dogs_bp.route("/<int:dog_id>/associate-puppy/<int:puppy_id>", methods=["POST"])
     def associate_dog_with_puppy(dog_id, puppy_id):
