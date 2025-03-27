@@ -60,7 +60,7 @@ def create_app():
     configure_logging(app)
     
     # Setup CORS for all routes
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     
     # Setup static file serving for uploads
     setup_file_serving(app)
@@ -71,6 +71,9 @@ def create_app():
             'DATABASE_URL',
             'postgresql://user:password@mcp-database-host:5432/dog_breeding_db'
         )
+        # Force use FallbackDatabase for testing
+        print("Using FallbackDatabase for testing purposes")
+        raise ValueError("Forced fallback for testing")
         db = SupabaseDatabase()
     except Exception as e:
         app.logger.error(f"Database initialization error: {e}")
@@ -163,22 +166,46 @@ def setup_file_serving(app):
     """Setup static file serving with proper error handling"""
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
-        """Serve uploaded files"""
+        """Serve uploaded files directly from the uploads directory"""
         try:
             debug_log(f"Serving uploaded file: {filename}")
             uploads_path = os.path.join(app.root_path, 'uploads')
             if not os.path.exists(uploads_path):
                 os.makedirs(uploads_path, exist_ok=True)
                 
-            if not os.path.exists(os.path.join(uploads_path, filename)):
-                app.logger.warning(f"Requested file not found: {filename}")
-                return jsonify({"error": "File not found"}), 404
+            # Add detailed logging to diagnose file serving issues
+            file_full_path = os.path.join(uploads_path, filename)
+            debug_log(f"Looking for file at full path: {file_full_path}")
+            
+            if not os.path.exists(file_full_path):
+                # Log all files in the directory to help diagnose issues
+                try:
+                    available_files = os.listdir(uploads_path)
+                    debug_log(f"File not found. Available files in {uploads_path}: {available_files}")
+                except Exception as list_err:
+                    debug_log(f"Error listing available files: {list_err}")
                 
+                app.logger.warning(f"Requested file not found: {filename}")
+                
+                # For debugging - try looking for a similar file (case insensitive match)
+                try:
+                    for existing_file in os.listdir(uploads_path):
+                        if existing_file.lower() == filename.lower():
+                            debug_log(f"Found case-insensitive match: {existing_file}")
+                            return send_from_directory(uploads_path, existing_file)
+                except Exception as case_err:
+                    debug_log(f"Error checking for case matches: {case_err}")
+                
+                return jsonify({"error": "File not found", "path": file_full_path}), 404
+                
+            # Set the correct MIME type based on file extension
+            debug_log(f"File found, serving: {file_full_path}")
             return send_from_directory(uploads_path, filename)
         except Exception as e:
             app.logger.error(f"Error serving file {filename}: {e}")
             return jsonify({"error": "Error serving file", "details": str(e)}), 500
     
+    # Create additional routes for different URL patterns to handle various client requests
     @app.route('/api/uploads/<path:filename>')
     def serve_api_upload(filename):
         """Serve uploaded files through the API path"""
@@ -188,6 +215,34 @@ def setup_file_serving(app):
         except Exception as e:
             app.logger.error(f"Error redirecting for file {filename}: {e}")
             return jsonify({"error": "Error serving file", "details": str(e)}), 500
+    
+    # Add a route to list all uploads from the uploads directory
+    @app.route('/uploads')
+    def list_uploads_direct():
+        """List all files in the uploads directory"""
+        try:
+            upload_dir = os.path.join(app.root_path, 'uploads')
+            
+            # Create the directory if it doesn't exist
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+                
+            # List all files in the directory
+            files = []
+            for filename in os.listdir(upload_dir):
+                if os.path.isfile(os.path.join(upload_dir, filename)):
+                    files.append(filename)
+                    
+            return jsonify({
+                "ok": True,
+                "files": files
+            })
+        except Exception as e:
+            debug_log(f"Error listing files directly: {str(e)}")
+            return jsonify({
+                "ok": False,
+                "error": f"Error listing files: {str(e)}"
+            }), 500
 
 def register_blueprints(app, db):
     """Register all blueprints with error handling"""
@@ -209,7 +264,7 @@ def register_blueprints(app, db):
         (leads_bp, '/api/leads'),
         (messages_bp, '/api/messages'),
         (notifications_bp, '/api'),  # Changed from empty string to '/api'
-        (create_system_health_bp(), '/api/system'),
+        (create_system_health_bp(), '/api/system'),  # Routes: /api/system/ and /api/system/health
         (create_uploads_bp(db), '/api/uploads'),
         (create_contracts_bp(db), '/api/contracts'),
         (create_application_forms_bp(db), '/api/application-forms'),

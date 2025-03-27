@@ -98,3 +98,13 @@ temp/
 # Deployment artifacts
 .deploy/
 deploy.config.js
+
+# Uploaded files
+server/uploads/*.jpg
+server/uploads/*.jpeg
+server/uploads/*.png
+server/uploads/*.gif
+server/uploads/*.webp
+server/uploads/*.pdf
+server/uploads/*.doc
+server/uploads/*.docx

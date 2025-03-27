@@ -34,10 +34,13 @@ import {
   EditOutlined as EditIcon,
   Search as SearchIcon,
   Download as DownloadIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Refresh as RefreshIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { API_URL, debugLog, debugError } from '../config';
 import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '../utils/apiUtils';
+import SimpleFileUpload from '../components/SimpleFileUpload';
 
 const MediaLibrary = () => {
   const [activeTab, setActiveTab] = useState('photos');
@@ -79,10 +82,11 @@ const MediaLibrary = () => {
   
   const fetchEntities = async () => {
     try {
+      // Use the proper API paths - avoid duplicate /api prefix since API_URL already has it
       const [dogsRes, littersRes, puppiesRes] = await Promise.all([
-        apiGet(`${API_URL}/dogs`),
-        apiGet(`${API_URL}/litters`),
-        apiGet(`${API_URL}/puppies`)
+        fetch('/api/dogs/'),
+        fetch('/api/litters/'),
+        fetch('/api/puppies/')
       ]);
       
       if (dogsRes.ok) {
@@ -109,23 +113,73 @@ const MediaLibrary = () => {
     setError(null);
     
     try {
-      // Fetch photos for different entity types concurrently
-      const [dogPhotos, litterPhotos, puppyPhotos] = await Promise.all([
-        fetchPhotosForEntityType('dog'),
-        fetchPhotosForEntityType('litter'),
-        fetchPhotosForEntityType('puppy')
-      ]);
+      // First check if the /api/uploads endpoint is available (this would return a file listing)
+      const apiBaseUrl = window.location.protocol + '//' + window.location.hostname + ':5000';
       
-      // Combine all photos
-      const allPhotos = [...dogPhotos, ...litterPhotos, ...puppyPhotos];
+      // Call the API to get all uploads
+      // Try both endpoints for compatibility - the direct server endpoint or via API
+      let response;
+      try {
+        console.log('Attempting to fetch uploads via Flask API endpoint');
+        response = await fetch(`${apiBaseUrl}/api/uploads`);
+      } catch (err) {
+        console.error('Error fetching from /api/uploads:', err);
+        console.log('Attempting to fetch via direct upload listing as fallback');
+        // Use the direct Flask route for testing
+        response = await fetch(`${apiBaseUrl}/uploads`);
+      }
       
-      // Sort by created date (newest first)
-      allPhotos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      if (!response.ok) {
+        throw new Error(`Failed to fetch uploads: ${response.status}`);
+      }
       
-      setPhotos(allPhotos);
+      const filesData = await response.json();
+      console.log('Files from server:', filesData);
+
+      // Create a simple photo array with URLs
+      const photosList = (filesData?.files || []).filter(file => 
+        file.endsWith('.jpg') || file.endsWith('.jpeg') || file.endsWith('.png') || file.endsWith('.gif')
+      ).map(file => {
+        // Properly format URL
+        const url = `${apiBaseUrl}/uploads/${file}`;
+        console.log(`Created image URL for ${file}: ${url}`);
+        
+        return {
+          id: file.replace(/\.[^/.]+$/, ""), // Remove extension to create an ID
+          url: url, 
+          original_filename: file,
+          created_at: new Date().toISOString() // We don't have this info, use current date
+        };
+      });
+      
+      // Sort by filename (as a proxy for date, since newer files likely have higher IDs)
+      photosList.sort((a, b) => b.original_filename.localeCompare(a.original_filename));
+      
+      setPhotos(photosList);
     } catch (err) {
       console.error('Error fetching photos:', err);
-      setError('Failed to fetch photos. Please try again later.');
+      
+      // Fallback: try to display a few sample images we know might exist
+      try {
+        const apiBaseUrl = window.location.protocol + '//' + window.location.hostname + ':5000';
+        const knownFiles = [
+          "ea5d2b49f4eb4c1ba017b18e0dbb80a9.jpeg",
+          "445d582ee32d4d1e8532311a7c543543.jpeg",
+          "aeb10c03becf4fb4aacfdc58f3ace75f.jpeg"
+        ];
+        
+        const fallbackPhotos = knownFiles.map(file => ({
+          id: file.replace(/\.[^/.]+$/, ""),
+          url: `${apiBaseUrl}/uploads/${file}`,
+          original_filename: file,
+          created_at: new Date().toISOString()
+        }));
+        
+        setPhotos(fallbackPhotos);
+        setError('Using fallback photo list. Actual photo listing failed: ' + err.message);
+      } catch (fallbackErr) {
+        setError('Failed to fetch photos: ' + err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -427,17 +481,38 @@ const MediaLibrary = () => {
         </Alert>
       )}
       
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between' }}>
         <Button
-          variant="contained"
-          startIcon={<UploadIcon />}
+          variant="outlined"
+          startIcon={<RefreshIcon />}
           onClick={() => {
-            setUploadType(activeTab === 'photos' ? 'photo' : 'document');
-            setUploadDialogOpen(true);
+            fetchAllPhotos();
           }}
         >
-          Upload {activeTab === 'photos' ? 'Photo' : 'Document'}
+          Refresh Images
         </Button>
+        
+        {activeTab === 'photos' && (
+          <Button
+            variant="contained"
+            startIcon={<UploadIcon />}
+            onClick={() => setUploadDialogOpen(true)}
+          >
+            Upload New Photo
+          </Button>
+        )}
+        {activeTab === 'documents' && (
+          <Button
+            variant="contained"
+            startIcon={<UploadIcon />}
+            onClick={() => {
+              setUploadType('document');
+              setUploadDialogOpen(true);
+            }}
+          >
+            Upload Document
+          </Button>
+        )}
       </Box>
       
       {loading ? (
@@ -445,7 +520,7 @@ const MediaLibrary = () => {
           <CircularProgress />
         </Box>
       ) : activeTab === 'photos' ? (
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
           {photos.length === 0 ? (
             <Grid item xs={12}>
               <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
@@ -454,49 +529,97 @@ const MediaLibrary = () => {
             </Grid>
           ) : (
             photos.map(photo => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={photo.id}>
-                <Card>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={photo.url}
-                    alt={photo.caption || 'Photo'}
-                    sx={{ objectFit: 'cover' }}
-                  />
-                  <CardContent sx={{ pb: 1 }}>
-                    {photo.caption && (
-                      <Typography variant="body2" gutterBottom>
-                        {photo.caption}
-                      </Typography>
-                    )}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                      <Chip
-                        size="small"
-                        label={`${photo.related_type}: ${photo.entityName}`}
-                        color="primary"
-                        variant="outlined"
-                      />
-                      {photo.is_cover && (
-                        <Chip size="small" label="Cover" color="secondary" />
-                      )}
+              <Grid item xs={6} sm={4} md={3} lg={2} key={photo.id}>
+                <Card 
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: 4
+                    },
+                    borderRadius: 2
+                  }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <CardMedia
+                      component="img"
+                      height="160"
+                      image={photo.url}
+                      alt={photo.caption || 'Photo'}
+                      sx={{ 
+                        objectFit: 'cover',
+                        borderTopLeftRadius: 8,
+                        borderTopRightRadius: 8
+                      }}
+                      onError={(e) => {
+                        console.error('Image failed to load:', photo.url);
+                        // Set fallback image
+                        e.target.src = '/images/dog-paw-print.svg';
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.1)',
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderTopLeftRadius: 8,
+                        borderTopRightRadius: 8,
+                        '&:hover': {
+                          opacity: 1
+                        }
+                      }}
+                    >
+                      <IconButton
+                        color="default"
+                        component="a"
+                        href={photo.url}
+                        target="_blank"
+                        size="large"
+                        sx={{ 
+                          bgcolor: 'white', 
+                          '&:hover': { bgcolor: 'white', transform: 'scale(1.1)' } 
+                        }}
+                      >
+                        <ViewIcon />
+                      </IconButton>
                     </Box>
+                  </Box>
+                  
+                  <CardContent sx={{ p: 1.5, flexGrow: 1 }}>
+                    <Typography 
+                      variant="body2"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 1,
+                        WebkitBoxOrient: 'vertical',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }}
+                    >
+                      {photo.original_filename || 'Unnamed photo'}
+                    </Typography>
                   </CardContent>
-                  <CardActions>
+                  
+                  <CardActions sx={{ p: 1, pt: 0, justifyContent: 'flex-end' }}>
                     <IconButton
                       color="error"
                       onClick={() => handleDeletePhoto(photo.id)}
                       size="small"
+                      sx={{ p: 0.5 }}
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      component="a"
-                      href={photo.url}
-                      target="_blank"
-                      size="small"
-                    >
-                      <ViewIcon />
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   </CardActions>
                 </Card>
@@ -578,156 +701,62 @@ const MediaLibrary = () => {
         </Grid>
       )}
       
-      {/* Upload Dialog */}
+      {/* Upload Dialog - Mobile Friendly */}
       <Dialog
         open={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 0, sm: 2 },
+            margin: { xs: 0, sm: 2 },
+            maxHeight: { xs: '100%', sm: 'calc(100% - 64px)' },
+            height: { xs: '100%', sm: 'auto' }
+          }
+        }}
+        sx={{
+          '& .MuiDialog-container': {
+            alignItems: { xs: 'flex-end', sm: 'center' }
+          }
+        }}
       >
-        <DialogTitle>
-          Upload {uploadType === 'photo' ? 'Photo' : 'Document'}
-        </DialogTitle>
-        <DialogContent>
-          {uploadError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {uploadError}
-            </Alert>
-          )}
-          
-          <Box sx={{ my: 2 }}>
-            <input
-              accept={uploadType === 'photo' ? "image/*" : "*/*"}
-              style={{ display: 'none' }}
-              id="upload-file-input"
-              type="file"
-              onChange={handleFileSelect}
-            />
-            <label htmlFor="upload-file-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadIcon />}
-                fullWidth
-              >
-                Select {uploadType === 'photo' ? 'Photo' : 'Document'}
-              </Button>
-            </label>
-            
-            {selectedFile && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  Selected: {selectedFile.name}
-                </Typography>
-              </Box>
-            )}
-            
-            {filePreview && (
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  style={{ maxWidth: '100%', maxHeight: '200px' }}
-                />
-              </Box>
-            )}
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity Type</InputLabel>
-                <Select
-                  value={uploadEntityType}
-                  onChange={(e) => setUploadEntityType(e.target.value)}
-                  label="Entity Type"
-                >
-                  <MenuItem value="dog">Dog</MenuItem>
-                  <MenuItem value="litter">Litter</MenuItem>
-                  <MenuItem value="puppy">Puppy</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Entity</InputLabel>
-                <Select
-                  value={uploadEntityId}
-                  onChange={(e) => setUploadEntityId(e.target.value)}
-                  label="Entity"
-                >
-                  {uploadEntityType === 'dog' ? (
-                    dogs.map(dog => (
-                      <MenuItem key={dog.id} value={dog.id}>
-                        {dog.call_name || dog.registered_name || `Dog #${dog.id}`}
-                      </MenuItem>
-                    ))
-                  ) : uploadEntityType === 'litter' ? (
-                    litters.map(litter => (
-                      <MenuItem key={litter.id} value={litter.id}>
-                        {litter.litter_name || `Litter #${litter.id}`}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    puppies.map(puppy => (
-                      <MenuItem key={puppy.id} value={puppy.id}>
-                        {puppy.name || `Puppy #${puppy.id}`}
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            {uploadType === 'photo' ? (
-              <Grid item xs={12}>
-                <TextField
-                  label="Caption (optional)"
-                  fullWidth
-                  value={uploadCaption}
-                  onChange={(e) => setUploadCaption(e.target.value)}
-                />
-              </Grid>
-            ) : (
-              <>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Title"
-                    fullWidth
-                    value={uploadTitle}
-                    onChange={(e) => setUploadTitle(e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Description (optional)"
-                    fullWidth
-                    multiline
-                    rows={3}
-                    value={uploadDescription}
-                    onChange={(e) => setUploadDescription(e.target.value)}
-                  />
-                </Grid>
-              </>
-            )}
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)} disabled={uploadingFile}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleUpload}
-            variant="contained"
-            disabled={!selectedFile || !uploadEntityType || !uploadEntityId || uploadingFile}
-            startIcon={uploadingFile ? <CircularProgress size={20} /> : null}
+        <DialogTitle sx={{ 
+          p: { xs: 2, sm: 3 },
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography variant="h6" component="div">
+            Upload New Image
+          </Typography>
+          <IconButton 
+            onClick={() => setUploadDialogOpen(false)}
+            size="small"
+            edge="end"
+            aria-label="close"
           >
-            {uploadingFile ? 'Uploading...' : 'Upload'}
-          </Button>
-        </DialogActions>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <SimpleFileUpload 
+            onSuccess={(photoData) => {
+              console.log('Upload success:', photoData);
+              // Add the new photo to the photos array
+              const newPhoto = {
+                id: Date.now().toString(),
+                url: photoData.url,
+                original_filename: photoData.original_filename,
+                created_at: new Date().toISOString()
+              };
+              
+              setPhotos([newPhoto, ...photos]);
+              setUploadDialogOpen(false);
+              setSuccess('Photo uploaded successfully!');
+            }}
+          />
+        </DialogContent>
       </Dialog>
     </Box>
   );

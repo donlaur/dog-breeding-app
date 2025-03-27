@@ -46,7 +46,7 @@ import { API_URL, debugLog, debugError } from '../../config';
 import { showError, showInfo } from '../../utils/notifications';
 import { useTheme } from '@mui/material/styles';
 import PhotoGallery from '../../components/PhotoGallery';
-import { apiGet, getLitter, getLitterPuppies, apiPost } from '../../utils/apiUtils';
+import { apiGet, getLitter, getLitterPuppies, apiPost, getLitterPhotos } from '../../utils/apiUtils';
 
 function LitterDetail() {
   const params = useParams();

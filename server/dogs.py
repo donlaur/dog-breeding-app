@@ -283,8 +283,16 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
         debug_log(f"Processing file upload: {file.filename}")
 
         original_filename = secure_filename(file.filename)
+        # Create a cleaner unique ID without underscores for better URL compatibility
         unique_id = str(uuid.uuid4())[:8]
-        final_filename = f"{unique_id}_{original_filename}"
+        
+        # Extract file extension
+        file_ext = ""
+        if "." in original_filename:
+            file_ext = os.path.splitext(original_filename)[1]
+        
+        # Create a clean filename with the extension
+        final_filename = f"{unique_id}{file_ext}"
         
         # Create the uploads directory if it doesn't exist
         upload_dir = os.path.join(current_app.root_path, 'uploads')
@@ -300,7 +308,7 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             
             debug_log(f"File saved successfully to {file_path}")
             
-            # Generate the URL
+            # Generate the URL (no underscore in filename)
             file_url = f"/uploads/{final_filename}"
             absolute_url = f"{request.host_url.rstrip('/')}{file_url}"
             
@@ -308,7 +316,8 @@ def create_dogs_bp(db: DatabaseInterface) -> Blueprint:
             return jsonify({
                 "file_url": file_url,
                 "absolute_url": absolute_url,
-                "original_filename": original_filename
+                "original_filename": original_filename,
+                "filename": final_filename
             })
             
         except Exception as e:

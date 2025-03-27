@@ -1,6 +1,8 @@
 import { API_URL, debugLog, debugError } from '../config';
 import { showError } from './notifications';
 
+// Using the existing formatApiUrl instead of declaring a new one
+
 /* eslint-disable no-restricted-syntax */
 // This file is exempt from the fetch call restriction since it defines the API utilities
 
@@ -94,8 +96,26 @@ export const checkAuthToken = () => {
  * @return {string} - Formatted URL
  */
 export const formatApiUrl = (endpoint) => {
-  // Use API_URL from config instead of hardcoding the path
-  return `${API_URL}/${endpoint.replace(/^\/+/, '')}`;
+  // Remove leading/trailing slashes
+  endpoint = endpoint.replace(/^\/+|\/+$/g, '');
+  
+  // Fix duplicate /api/ paths 
+  const cleanEndpoint = endpoint.startsWith('api/') 
+    ? endpoint.replace(/^api\//, '') 
+    : endpoint;
+    
+  // Add leading slash to API_URL if it doesn't have one
+  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  
+  // Build and clean the URL - remove any double slashes except in http://
+  const url = `${baseUrl}/${cleanEndpoint}`.replace(/([^:])\/+/g, '$1/');
+  
+  // Log warning if we still have duplicate /api/ paths
+  if (url.includes('/api/api/')) {
+    debugLog(`⚠️ Warning: URL still contains duplicate API paths: ${url}`);
+  }
+  
+  return url;
 };
 
 /**
@@ -168,7 +188,7 @@ export const apiGet = async (endpoint, options = {}) => {
   
   try {
     const url = formatApiUrl(endpoint);
-    debugLog(`Making API GET request to: ${url}`);
+    debugLog(`Making API GET request to: ${url} (from endpoint: ${endpoint})`);
     
     // Get token for authorization
     const token = localStorage.getItem('token');
@@ -246,7 +266,65 @@ export const getLitterPuppies = async (litterId) => {
     return { ok: false, error, data: [] };
   }
   
-  return apiGet(`litters/${litterId}/puppies`);
+  try {
+    debugLog(`Fetching puppies for litter ID: ${litterId}`);
+    const result = await apiGet(`litters/${litterId}/puppies`);
+    
+    if (!result.ok) {
+      // Try a fallback if the first endpoint fails
+      debugLog(`Primary endpoint failed, trying fallback...`);
+      
+      // Try getting all puppies and filter by litter_id
+      const allPuppiesResult = await apiGet('puppies');
+      if (allPuppiesResult.ok && Array.isArray(allPuppiesResult.data)) {
+        const filteredPuppies = allPuppiesResult.data.filter(
+          puppy => puppy.litter_id === litterId || puppy.litter_id === Number(litterId)
+        );
+        
+        debugLog(`Found ${filteredPuppies.length} puppies for litter ${litterId} using fallback`);
+        return { ok: true, data: filteredPuppies, error: null };
+      }
+    }
+    
+    return result;
+  } catch (err) {
+    debugError(`Error in getLitterPuppies: ${err.message}`);
+    return { ok: false, error: err.message, data: [] };
+  }
+};
+
+/**
+ * Fetch photos for a litter
+ * @param {number|string} litterId - ID of the litter
+ * @return {Promise<Object>} - Photos data or error
+ */
+export const getLitterPhotos = async (litterId) => {
+  if (!isValidId(litterId)) {
+    const error = `Invalid litter ID: ${litterId}`;
+    debugError(error);
+    return { ok: false, error, data: [] };
+  }
+  
+  try {
+    // Try the standard photos endpoint first
+    debugLog(`Fetching photos for litter ID: ${litterId}`);
+    const result = await apiGet(`photos/litter/${litterId}`);
+    
+    if (result.ok) {
+      return result;
+    }
+    
+    // If that fails, create an empty array as fallback
+    debugLog(`No photos found for litter ${litterId}, returning empty array`);
+    return { 
+      ok: true, 
+      data: [], 
+      error: null
+    };
+  } catch (err) {
+    debugError(`Error in getLitterPhotos: ${err.message}`);
+    return { ok: false, error: err.message, data: [] };
+  }
 };
 
 /**

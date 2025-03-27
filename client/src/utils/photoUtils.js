@@ -40,8 +40,16 @@ export const getPhotoUrl = (photoPath, entityType = 'DOG') => {
         // Clean up the path by removing any leading slashes
         const cleanPath = photoPath.replace(/^\/+/, '');
         
-        // First try direct API URL (most likely to work)
-        return `${API_URL}/uploads/${cleanPath.replace('uploads/', '')}`;
+        // Create a direct URL to the Flask server (where the files are actually stored)
+        const apiBaseUrl = window.location.protocol + '//' + window.location.hostname + ':5000';
+        console.log(`Constructing image URL with API base: ${apiBaseUrl} for path: ${cleanPath}`);
+        
+        // Make sure we're not duplicating "uploads" in the path
+        const pathWithoutUploads = cleanPath.replace(/^uploads\//, '');
+        const fullUrl = `${apiBaseUrl}/uploads/${pathWithoutUploads}`;
+        
+        console.log(`Generated final image URL: ${fullUrl}`);
+        return fullUrl;
     }
     
     // Return the path as-is if nothing else matched

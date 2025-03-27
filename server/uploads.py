@@ -26,6 +26,38 @@ def create_uploads_bp(db: DatabaseInterface) -> Blueprint:
         unique_name = f"{uuid.uuid4().hex}"
         return f"{unique_name}.{ext}" if ext else unique_name
     
+    @uploads_bp.route("", methods=["GET"])
+    def list_uploads():
+        """
+        List all files in the uploads directory
+        
+        Returns:
+        - files: List of filenames in the uploads directory
+        """
+        try:
+            upload_dir = os.path.join(current_app.root_path, 'uploads')
+            
+            # Create the directory if it doesn't exist
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+                
+            # List all files in the directory
+            files = []
+            for filename in os.listdir(upload_dir):
+                if os.path.isfile(os.path.join(upload_dir, filename)):
+                    files.append(filename)
+                    
+            return jsonify({
+                "ok": True,
+                "files": files
+            })
+        except Exception as e:
+            debug_log(f"Error listing files: {str(e)}")
+            return jsonify({
+                "ok": False,
+                "error": f"Error listing files: {str(e)}"
+            }), 500
+    
     @uploads_bp.route("", methods=["POST"])
     def upload_file():
         """

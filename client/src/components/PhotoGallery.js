@@ -32,7 +32,7 @@ import {
   ZoomIn as ZoomInIcon
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { apiGet, apiDelete, apiPut } from '../utils/apiUtils';
+import { apiGet, apiDelete, apiPut, getLitterPhotos } from '../utils/apiUtils';
 import { API_URL } from '../config';
 
 const PhotoGallery = ({ 
@@ -70,7 +70,17 @@ const PhotoGallery = ({
       setLoading(true);
       setError(null);
       
-      const result = await apiGet(`photos/${entityType}/${entityId}`);
+      let result;
+      
+      // Use specialized functions for different entity types
+      if (entityType === 'litter') {
+        console.log(`Using getLitterPhotos for litter ${entityId}`);
+        result = await getLitterPhotos(entityId);
+      } else {
+        console.log(`Using standard photos endpoint for ${entityType}/${entityId}`);
+        result = await apiGet(`photos/${entityType}/${entityId}`);
+      }
+      
       console.log('Photo API response:', result);
       
       // Handle both direct array returns and {data: [...]} format
@@ -143,7 +153,6 @@ const PhotoGallery = ({
       setUploadLoading(true);
       setUploadError(null);
       
-      const formData = new FormData();
       // Validate data once more before sending
       if (!selectedFile || !ALLOWED_FILE_TYPES.includes(selectedFile.type) || selectedFile.size > MAX_FILE_SIZE) {
         throw new Error('Invalid file - security check failed');
@@ -156,6 +165,7 @@ const PhotoGallery = ({
       }
       
       // Create a secure FormData object with validated values
+      const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('entity_type', entityType);
       formData.append('entity_id', validEntityId);
@@ -166,75 +176,33 @@ const PhotoGallery = ({
       const currentPhotoCount = Array.isArray(photos) ? photos.length : 0;
       formData.append('order', currentPhotoCount.toString()); // Add as last photo in order
       
-      // Get token for authorization
-      const token = localStorage.getItem('token');
+      // Import the specialized photo upload function
+      const { apiUploadPhoto } = await import('../utils/apiUtils');
+      console.log('Using specialized apiUploadPhoto function');
       
-      // Create custom options for FormData upload
-      const uploadOptions = {
-        method: 'POST',
-        body: formData,
-        headers: {
-          // Don't set Content-Type header as browser sets it with boundary
-          'Authorization': token ? `Bearer ${token}` : '',
+      // Use our specialized API function instead of the FormData approach
+      const result = await apiUploadPhoto(
+        selectedFile,
+        entityType,
+        entityId,
+        {
+          caption,
+          isCover,
+          order: Array.isArray(photos) ? photos.length : 0
         }
-      };
+      );
       
-      // Use the proper API endpoint URL with trailing slash to ensure it matches the server route
-      const url = `${API_URL}/photos/`;
-      console.log(`Uploading photo to: ${url}`);
+      console.log('Photo upload result:', result);
       
-      // First try the test endpoint to verify API is working
-      try {
-        const testResponse = await fetch(`${API_URL}/photos/test`);
-        const testResult = await testResponse.json();
-        console.log('Photos API test endpoint response:', testResult);
-      } catch (testError) {
-        console.warn('Photos API test endpoint failed:', testError);
-        // Continue anyway - don't block the actual upload
+      if (!result || !result.success || !result.photo) {
+        // Handle failure more gracefully - don't throw, show meaningful error
+        const errorMessage = result?.error || 'Upload failed - no photo data returned';
+        console.error('Photo upload failed:', errorMessage);
+        setUploadError(errorMessage);
+        return; // Exit early to avoid further processing
       }
       
-      // Use apiRequest directly to handle FormData correctly
-      console.log('Making photo upload request to:', url);
-      const response = await fetch(url, uploadOptions);
-      
-      // Process the response
-      if (!response.ok) {
-        console.error(`Photo upload failed with status: ${response.status}`);
-        console.error('Upload options:', {...uploadOptions, body: '[FormData]'});
-        
-        // Check if we can get more error details from the response
-        let errorDetail = '';
-        try {
-          const errorResponse = await response.text();
-          errorDetail = errorResponse;
-          console.error('Error response:', errorResponse);
-        } catch (e) {
-          console.error('Could not parse error response:', e);
-        }
-        
-        // Test alternate endpoint format if this failed
-        if (response.status === 404) {
-          console.log('Trying alternate endpoint without trailing slash...');
-          try {
-            const alternateUrl = `${API_URL}/photos`;
-            const alternateResponse = await fetch(alternateUrl, uploadOptions);
-            
-            if (alternateResponse.ok) {
-              console.log('Alternate endpoint succeeded!');
-              const alternateData = await alternateResponse.json();
-              return alternateData;
-            } else {
-              console.error(`Alternate endpoint also failed with status: ${alternateResponse.status}`);
-            }
-          } catch (altError) {
-            console.error('Error with alternate endpoint:', altError);
-          }
-        }
-        
-        throw new Error(`Upload failed with status: ${response.status}${errorDetail ? ` - ${errorDetail}` : ''}`);
-      }
-      
-      const newPhoto = await response.json();
+      const newPhoto = result.photo;
       
       // Update the photos array
       // Ensure we're working with an array
