@@ -128,6 +128,60 @@ class SupabaseDatabase(DatabaseInterface):
         except Exception as e:
             print(f"Error in find_by_field_values: {str(e)}")
             raise
+            
+    @retry_on_disconnect(max_retries=5, delay=2)
+    def find_by_query(self, table_name, query_str, select="*"):
+        """
+        Find records in a table using a custom query string
+        query_str: SQL-like where clause (e.g., "column1.eq.value1,column2.eq.value2")
+        """
+        try:
+            debug_log(f"Finding records in {table_name} with query: {query_str}")
+            
+            # For the OR operation between sire_id and dam_id, use the filter method
+            if "OR" in query_str:
+                # Simple parsing for "sire_id = X OR dam_id = X" format
+                parts = query_str.split("OR")
+                if len(parts) == 2 and "sire_id" in parts[0] and "dam_id" in parts[1]:
+                    sire_part = parts[0].strip()
+                    dam_part = parts[1].strip()
+                    
+                    # Extract ID values from parts
+                    sire_id = sire_part.split("=")[1].strip()
+                    dam_id = dam_part.split("=")[1].strip()
+                    
+                    debug_log(f"Parsed query - sire_id: {sire_id}, dam_id: {dam_id}")
+                    
+                    # First get records where this is the sire
+                    sire_response = self.supabase.table(table_name).select(select).eq("sire_id", sire_id).execute()
+                    sire_records = sire_response.data
+                    
+                    # Then get records where this is the dam
+                    dam_response = self.supabase.table(table_name).select(select).eq("dam_id", dam_id).execute()
+                    dam_records = dam_response.data
+                    
+                    # Combine the results
+                    all_records = sire_records + dam_records
+                    
+                    # Remove duplicates if any (just in case)
+                    unique_records = []
+                    seen_ids = set()
+                    for record in all_records:
+                        if record['id'] not in seen_ids:
+                            seen_ids.add(record['id'])
+                            unique_records.append(record)
+                    
+                    debug_log(f"Found {len(unique_records)} records with query")
+                    return unique_records
+            
+            # If not an OR query or unrecognized format, return empty list
+            debug_log(f"Unsupported query format: {query_str}")
+            return []
+            
+        except Exception as e:
+            debug_log(f"Error in find_by_query: {str(e)}")
+            print(f"Error in find_by_query: {str(e)}")
+            return []
     
     @retry_on_disconnect(max_retries=5, delay=2)
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:

@@ -16,6 +16,7 @@ def create_system_health_bp():
     CORS(system_health_bp)  # Enable CORS for the health endpoint
     
     @system_health_bp.route('/', methods=['GET'])
+    @system_health_bp.route('/health', methods=['GET'])  # Add an additional path for compatibility
     def system_health_check():
         """
         Enhanced health check endpoint that verifies:

@@ -294,16 +294,30 @@ const FileUpload = ({
       }
       
       if ((uploadStrategy === 'auto' && (!result || !result.success)) || uploadStrategy === 'photoUtils') {
-        // Strategy 1: Use photoUtils.uploadPhoto
+        // Strategy 1: Use the improved upload function from apiUtils
         try {
-          debugData.attempts.push({ method: 'photoUtils.uploadPhoto', timestamp: new Date().toISOString() });
-          result = await uploadPhoto(formData);
+          debugData.attempts.push({ method: 'apiUtils.apiUploadPhoto', timestamp: new Date().toISOString() });
+          
+          // Import the apiUploadPhoto function
+          const { apiUploadPhoto } = await import('../utils/apiUtils');
+          
+          // Use the apiUploadPhoto function with the proper parameters
+          result = await apiUploadPhoto(
+            file,
+            entityType,
+            entityId,
+            {
+              caption,
+              isCover,
+              order: 0
+            }
+          );
           
           if (result.success) {
-            debugData.successful = 'photoUtils.uploadPhoto';
+            debugData.successful = 'apiUtils.apiUploadPhoto';
             debugData.result = result;
           } else {
-            debugData.attempts[debugData.attempts.length - 1].error = result.errors || 'Upload failed';
+            debugData.attempts[debugData.attempts.length - 1].error = result.error || 'Upload failed';
           }
         } catch (e) {
           debugData.attempts[debugData.attempts.length - 1].error = e.message;

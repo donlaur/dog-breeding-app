@@ -171,12 +171,10 @@ const DogDetails = () => {
     
     while (retries < maxRetries) {
       try {
-        // Use the correct endpoints for sire and dam litters
-        const endpoint = normalizedGender === 'Male' 
-          ? `litters/sire/${dogId}` 
-          : `litters/dam/${dogId}`;
+        // Use the dedicated endpoint for retrieving litters by dog ID
+        const endpoint = `litters/dog/${dogId}`;
         
-        console.log(`Fetching ${normalizedGender === 'Male' ? 'sired' : 'dam'} litters from: ${endpoint} (Attempt ${retries + 1}/${maxRetries})`);
+        console.log(`Fetching litters for dog from: ${endpoint} (Attempt ${retries + 1}/${maxRetries})`);
         
         const result = await apiGet(endpoint);
         console.log(`Litter API response:`, result);
@@ -185,13 +183,22 @@ const DogDetails = () => {
         const litterData = Array.isArray(result) ? result : 
                            (result && result.data && Array.isArray(result.data)) ? result.data : [];
         
-        console.log(`Found ${litterData.length} ${normalizedGender === 'Male' ? 'sired' : 'dam'} litters`, litterData);
+        console.log(`Found ${litterData.length} litters for dog ID ${dogId}`, litterData);
         
-        if (normalizedGender === 'Male') {
-          setSiredLitters(litterData);
-        } else {
-          setDamLitters(litterData);
-        }
+        // Sort litters by whether this dog is a sire or dam
+        const siredLittersData = litterData.filter(litter => 
+          litter.sire_id && litter.sire_id.toString() === dogId.toString()
+        );
+        
+        const damLittersData = litterData.filter(litter => 
+          litter.dam_id && litter.dam_id.toString() === dogId.toString()
+        );
+        
+        console.log(`Sorted into ${siredLittersData.length} sired litters and ${damLittersData.length} dam litters`);
+        
+        // Update state with the sorted litters
+        setSiredLitters(siredLittersData);
+        setDamLitters(damLittersData);
         
         // If successful, exit the retry loop
         break;
@@ -202,11 +209,8 @@ const DogDetails = () => {
         if (retries >= maxRetries) {
           console.error('Max retries reached. Could not fetch litters.');
           // Set empty arrays to avoid undefined errors
-          if (normalizedGender === 'Male') {
-            setSiredLitters([]);
-          } else {
-            setDamLitters([]);
-          }
+          setSiredLitters([]);
+          setDamLitters([]);
         } else {
           // Wait before retrying (exponential backoff)
           const delay = Math.min(1000 * Math.pow(2, retries), 5000);
@@ -679,7 +683,7 @@ const DogDetails = () => {
                       {siredLitters.map((litter) => (
                         <TableRow key={litter.id}>
                           <TableCell>
-                            {litter.dam?.call_name || `Dam #${litter.dam_id || 'Unknown'}`}
+                            {litter.dam?.call_name || litter.dam_name || `Unknown Dam`}
                           </TableCell>
                           <TableCell>
                             {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}
@@ -723,7 +727,7 @@ const DogDetails = () => {
                       {damLitters.map((litter) => (
                         <TableRow key={litter.id}>
                           <TableCell>
-                            {litter.sire?.call_name || `Sire #${litter.sire_id || 'Unknown'}`}
+                            {litter.sire?.call_name || litter.sire_name || `Unknown Sire`}
                           </TableCell>
                           <TableCell>
                             {litter.whelp_date ? new Date(litter.whelp_date).toLocaleDateString() : 'Not set'}

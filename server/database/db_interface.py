@@ -62,6 +62,11 @@ class DatabaseInterface(ABC):
         pass
         
     @abstractmethod
+    def find_by_query(self, table: str, query_str: str, select: str = "*") -> List[Dict[str, Any]]:
+        """Find records in a table using a custom query string"""
+        pass
+        
+    @abstractmethod
     def get(self, table: str, id: int) -> Optional[Dict[str, Any]]:
         """Get a single record by ID"""
         pass

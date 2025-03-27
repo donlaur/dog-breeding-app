@@ -11,10 +11,42 @@ def create_litters_bp(db):
     
     @litters_bp.route("/", methods=["GET"])
     def get_all_litters():
-        """Get all litters"""
+        """Get all litters with optional filtering by sire_id or dam_id"""
         try:
-            litters = db.find_by_field_values("litters", {})
-            debug_log(f"Found {len(litters)} litters")
+            # Check for query parameters
+            sire_id = request.args.get('sire_id')
+            dam_id = request.args.get('dam_id')
+            dog_id = request.args.get('dog_id')
+            
+            filter_conditions = {}
+            
+            # Handle filtering by dog_id (either sire or dam)
+            if dog_id:
+                # This will return litters where this dog is either a sire or dam
+                dog_litters = db.find_by_query(
+                    "litters", 
+                    f"sire_id = {dog_id} OR dam_id = {dog_id}"
+                )
+                
+                if not dog_litters:
+                    # Return an empty list rather than an error
+                    response = jsonify([])
+                    response.headers.add('Access-Control-Allow-Origin', '*')
+                    return response
+                
+                # Use the dog litters found by query
+                litters = dog_litters
+            # Handle specific filter by sire_id
+            elif sire_id:
+                filter_conditions['sire_id'] = sire_id
+                litters = db.find_by_field_values("litters", filter_conditions)
+            # Handle specific filter by dam_id
+            elif dam_id:
+                filter_conditions['dam_id'] = dam_id
+                litters = db.find_by_field_values("litters", filter_conditions)
+            # No filters, get all litters
+            else:
+                litters = db.find_by_field_values("litters", {})
             
             # Enhance each litter with dam and sire information
             enhanced_litters = []
@@ -23,25 +55,31 @@ def create_litters_bp(db):
                 
                 # Get dam information if dam_id is present
                 if litter.get('dam_id'):
-                    debug_log(f"Fetching dam with ID: {litter['dam_id']}")
                     dam = db.get("dogs", litter['dam_id'])
                     if not dam:
-                        debug_log(f"Dam with ID {litter['dam_id']} not found")
                         litter_data['dam_name'] = 'Unknown'
+                        litter_data['dam'] = {
+                            'id': litter.get('dam_id'),
+                            'call_name': 'Unknown',
+                            'registered_name': ''
+                        }
                     else:
                         litter_data['dam_name'] = dam.get('call_name', 'Unknown')
-                        debug_log(f"Found dam: {litter_data['dam_name']}")
+                        litter_data['dam'] = dam  # Add full dam object
                 
                 # Get sire information if sire_id is present
                 if litter.get('sire_id'):
-                    debug_log(f"Fetching sire with ID: {litter['sire_id']}")
                     sire = db.get("dogs", litter['sire_id'])
                     if not sire:
-                        debug_log(f"Sire with ID {litter['sire_id']} not found")
                         litter_data['sire_name'] = 'Unknown'
+                        litter_data['sire'] = {
+                            'id': litter.get('sire_id'),
+                            'call_name': 'Unknown',
+                            'registered_name': ''
+                        }
                     else:
                         litter_data['sire_name'] = sire.get('call_name', 'Unknown')
-                        debug_log(f"Found sire: {litter_data['sire_name']}")
+                        litter_data['sire'] = sire  # Add full sire object
                 
                 enhanced_litters.append(litter_data)
             
@@ -58,10 +96,8 @@ def create_litters_bp(db):
     def get_litter(litter_id):
         """Get a specific litter by ID"""
         try:
-            debug_log(f"Fetching litter with ID: {litter_id}")
             litter = db.get("litters", litter_id)
             if not litter:
-                debug_log(f"Litter with ID {litter_id} not found")
                 return jsonify({"error": f"Litter with ID {litter_id} not found"}), 404
             
             # Create a response object that includes the litter data
@@ -69,10 +105,8 @@ def create_litters_bp(db):
             
             # Get dam information if dam_id is present
             if litter.get('dam_id'):
-                debug_log(f"Fetching dam with ID: {litter['dam_id']}")
                 dam = db.get("dogs", litter['dam_id'])
                 if not dam:
-                    debug_log(f"Dam with ID {litter['dam_id']} not found")
                     response_data['dam_info'] = {
                         'id': litter.get('dam_id'),
                         'call_name': 'Unknown',
@@ -80,7 +114,6 @@ def create_litters_bp(db):
                     }
                     response_data['dam_name'] = 'Unknown'
                 else:
-                    debug_log(f"Found dam: {dam.get('call_name', 'Unknown')}")
                     # Add dam information as separate fields
                     response_data['dam_info'] = {
                         'id': dam.get('id'),
@@ -99,11 +132,8 @@ def create_litters_bp(db):
             
             # Get sire information if sire_id is present
             if litter.get('sire_id'):
-                debug_log(f"Fetching sire with ID: {litter['sire_id']}")
                 sire = db.get("dogs", litter['sire_id'])
-                debug_log(f"Sire lookup result: {sire}")
                 if not sire:
-                    debug_log(f"Sire with ID {litter['sire_id']} not found in database")
                     response_data['sire_info'] = {
                         'id': litter.get('sire_id'),
                         'call_name': 'Unknown',
@@ -111,7 +141,6 @@ def create_litters_bp(db):
                     }
                     response_data['sire_name'] = 'Unknown'
                 else:
-                    debug_log(f"Found sire: {sire.get('call_name', 'Unknown')}")
                     # Add sire information as separate fields
                     response_data['sire_info'] = {
                         'id': sire.get('id'),
@@ -120,9 +149,7 @@ def create_litters_bp(db):
                     }
                     # Add sire_name for backward compatibility
                     response_data['sire_name'] = sire.get('call_name', 'Unknown')
-                    debug_log(f"Set sire_name to: {response_data['sire_name']}")
             else:
-                debug_log("No sire_id present in litter data")
                 response_data['sire_info'] = {
                     'id': None,
                     'call_name': 'Unknown',
@@ -133,7 +160,6 @@ def create_litters_bp(db):
             # Format whelp_date properly if it exists
             if 'whelp_date' in litter and litter['whelp_date']:
                 response_data['whelp_date'] = litter['whelp_date']
-                debug_log(f"Whelp date: {response_data['whelp_date']}")
             
             # Get breed information if breed_id is present
             if litter.get('breed_id'):
@@ -156,13 +182,11 @@ def create_litters_bp(db):
                 }
             
             # Add CORS headers
-            debug_log(f"Returning litter data: {response_data}")
             response = jsonify(response_data)
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response
             
         except Exception as e:
-            debug_log(f"Error in get_litter: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     @litters_bp.route("/test/<int:litter_id>", methods=["GET"])
@@ -266,6 +290,64 @@ def create_litters_bp(db):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @litters_bp.route("/dog/<int:dog_id>", methods=["GET"])
+    def get_litters_by_dog(dog_id):
+        """Get all litters where the dog is either a sire or dam"""
+        try:
+            # Find litters where this dog is either the sire or dam
+            dog_litters = db.find_by_query(
+                "litters", 
+                f"sire_id = {dog_id} OR dam_id = {dog_id}"
+            )
+            
+            if not dog_litters:
+                response = jsonify([])
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response
+            
+            # Enhance each litter with dam and sire information
+            enhanced_litters = []
+            for litter in dog_litters:
+                litter_data = {**litter}
+                
+                # Get dam information if dam_id is present
+                if litter.get('dam_id'):
+                    dam = db.get("dogs", litter['dam_id'])
+                    if not dam:
+                        litter_data['dam_name'] = 'Unknown'
+                        litter_data['dam'] = {
+                            'id': litter.get('dam_id'),
+                            'call_name': 'Unknown',
+                            'registered_name': ''
+                        }
+                    else:
+                        litter_data['dam_name'] = dam.get('call_name', 'Unknown')
+                        litter_data['dam'] = dam  # Add full dam object
+                
+                # Get sire information if sire_id is present
+                if litter.get('sire_id'):
+                    sire = db.get("dogs", litter['sire_id'])
+                    if not sire:
+                        litter_data['sire_name'] = 'Unknown'
+                        litter_data['sire'] = {
+                            'id': litter.get('sire_id'),
+                            'call_name': 'Unknown',
+                            'registered_name': ''
+                        }
+                    else:
+                        litter_data['sire_name'] = sire.get('call_name', 'Unknown')
+                        litter_data['sire'] = sire  # Add full sire object
+                
+                enhanced_litters.append(litter_data)
+            
+            # Add CORS headers
+            response = jsonify(enhanced_litters)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
     @litters_bp.route("/<int:litter_id>/puppies", methods=["GET"])
     def get_litter_puppies(litter_id):
         """Get all puppies for a specific litter"""
