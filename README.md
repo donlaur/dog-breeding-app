@@ -87,6 +87,21 @@ This application helps breeders track dogs, litters, puppies, health records, an
     - `q`: Search query
     - `type`: Optional entity filter (dogs, puppies, litters, all)
 
+**Uploads & Media** (`/api/uploads`)
+- `GET /api/uploads` — List all files in uploads directory
+- `POST /api/uploads` — Upload a general file
+- `GET /uploads/{filename}` — Direct access to uploaded files
+- `GET /api/uploads/{filename}` — API endpoint for file access
+
+**Photos** (`/api/photos`)
+- `GET /api/photos/{entity_type}/{entity_id}` — Get photos for an entity
+- `POST /api/photos` — Upload a photo and associate with an entity
+- `DELETE /api/photos/{photo_id}` — Delete a photo
+- `PUT /api/photos/{photo_id}` — Update photo metadata
+
+**Quick Upload** (`/api/dogs/upload`)
+- `POST /api/dogs/upload` — Simplified endpoint for uploading photos without entity association
+
 ## Technical Architecture
 
 ### Repository Structure

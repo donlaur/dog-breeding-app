@@ -206,3 +206,14 @@ onError={handleImageError(entityType)}
    - Track which images fail to load most often
    - Monitor image loading performance
    - Identify and fix problematic image sources
+
+## Recent Updates (March 2025)
+
+The image handling system has been completely redesigned with a new upload approach. See the [Photo Upload System](./photo-upload-system.md) documentation for details on the latest improvements.
+
+Key changes include:
+- Simplified "WordPress-like" upload system
+- Mobile-friendly SimpleFileUpload component
+- Centralized MediaLibrary management
+- Better URL construction and error handling
+- Proper file exclusion from git
