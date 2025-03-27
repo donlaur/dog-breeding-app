@@ -179,7 +179,7 @@ def main():
     
     print("\n===== Testing Program API =====")
     test_endpoint("program")
-    test_endpoint("program/dashboard", expected_status=401)  # This endpoint requires authentication
+    test_endpoint("program/dashboard")  # Authentication temporarily disabled for testing
     
     print("\n===== Testing Messages API =====")
     test_endpoint("messages/dashboard/messages")

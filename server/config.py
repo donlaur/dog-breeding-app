@@ -6,6 +6,7 @@ load_dotenv()
 DEBUG_MODE = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+DEFAULT_BREEDER_ID = int(os.getenv('DEFAULT_BREEDER_ID', '1'))  # Default to breeder ID 1 if not set
 
 def debug_log(*args):
     if DEBUG_MODE:
